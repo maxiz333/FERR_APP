@@ -15,13 +15,13 @@
     newLineId, formatEuro,
     isEmpty, canConfirm
   } from "../../domain/cart-service.js";
-  import {
-    createCart, loadCart, listenCart, listenAllCarts, getCurrentCartId,
-    setCurrentCartId, addLine, updateLine, deleteLine, updateTotals,
-    updateNote, updateClient,
-    updateStatus, lockCart, updateLineLock,
-    generateOrderCode
-  } from "../../data/cart-repository.js";
+    import {
+      createCart, loadCart, listenCart, listenAllCarts, getCurrentCartId,
+      setCurrentCartId, addLine, updateLine, deleteLine, updateTotals,
+      updateNote, updateClient,
+      updateStatus, lockCart, updateLineLock,
+      generateOrderCode
+    } from "../../data/cart-repository.js";
   import {
     trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
     runScheduledCleanup
@@ -445,6 +445,20 @@ let _ordersDropdownWired = false;
           const status = meta.status || "modifica";
           const icon = getClientIcon(status, meta.wasModified);
           nameEl.textContent = icon ? `${name} ${icon}` : name;
+
+          // 👁️ Blocco 4 — occhio vicino a CAMBIA (angolo destro della client-bar)
+          const bar = nameEl.closest(".client-bar");
+          if (bar) {
+            const oldEye = bar.querySelector(".client-eye");
+            if (oldEye) oldEye.remove();
+            const eyeHtml = renderEyeBanco(meta.seenBy);
+            if (eyeHtml) {
+              const changeBtn = bar.querySelector("#btnClientPicker");
+              if (changeBtn) {
+                changeBtn.insertAdjacentHTML("beforebegin", eyeHtml);
+              }
+            }
+          }
         }
       
         if (countEl) {
@@ -455,6 +469,27 @@ let _ordersDropdownWired = false;
           changeBtn._hasListener = true;
           changeBtn.addEventListener("click", openClientPickerForCart);
         }
+      }
+
+      /**
+       * 👁️ Blocco 4 — Ritorna l'HTML dell'occhio se ALTRI utenti
+       * (diversi da quello corrente) hanno visto questo ordine.
+       * Altrimenti stringa vuota.
+       */
+      function renderEyeBanco(seenBy) {
+        if (!seenBy || typeof seenBy !== "object") return "";
+        const seen = Object.entries(seenBy)
+          .filter(([, ts]) => Number(ts) > 0)
+          .sort((a, b) => Number(b[1]) - Number(a[1]));
+        if (seen.length === 0) return "";
+
+        const users = seen.map(([uid]) => uid.toUpperCase()).join(", ");
+        const lastTs = Number(seen[0][1]) || 0;
+        const d = new Date(lastTs);
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        const tooltip = `Visto da ${users} · ${hh}:${mm}`;
+        return `<span class="client-eye" style="margin-left:8px;opacity:0.7;cursor:help;font-size:0.95rem;" title="${tooltip}">👁️</span>`;
       }
       /**
  * Apre il client picker e aggiorna il carrello.
@@ -1013,8 +1048,12 @@ async function switchToNewCart() {
  */
 async function markOrderAsModified() {
   if (!_cartId) return;
+
   const cart = getCart();
   const status = cart?.meta?.status;
+
+  // Il banco NON scrive seenBy. Solo l'ufficio lo fa.
+  // (L'occhio in banco appare solo se l'ufficio tocca l'ordine)
 
   // Solo se stiamo modificando un ordine sbloccato
   if (status !== "sbloccato") return;

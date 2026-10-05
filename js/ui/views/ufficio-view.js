@@ -21,6 +21,27 @@
     container.innerHTML = orders.map((o) => renderOrder(o, collapsed)).join("");
   }
   
+/**
+ * Occhio 👁️ condizionale (Blocco 4)
+ * Mostra l'occhio solo se qualcuno ha visto l'ordine.
+ * Tooltip: "Visto da PAPA · 22:45"  (elenco utenti + ultima ora)
+ */
+function renderEye(seenBy) {
+  if (!seenBy || typeof seenBy !== "object") return "";
+  const entries = Object.entries(seenBy)
+    .filter(([, ts]) => Number(ts) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+  if (entries.length === 0) return "";
+
+  const users = entries.map(([uid]) => uid.toUpperCase()).join(", ");
+  const lastTs = Number(entries[0][1]) || 0;
+  const d = new Date(lastTs);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const tooltip = `Visto da ${users} · ${hh}:${mm}`;
+  return `<span class="uff-order-banner-eye" title="${tooltip}">👁️</span>`;
+}
+
   /* ============================================
      RENDER ORDINE
      ============================================ */
@@ -76,7 +97,7 @@
       <article class="uff-order ${collapsed ? "is-collapsed" : ""} ${isLocked ? "is-locked" : ""}" data-status="${status}" data-order-id="${escapeHtml(order.id)}">
         <div class="uff-order-banner" data-status="${status}">
           <span class="uff-order-banner-label">${banner}</span>
-          <span class="uff-order-banner-eye">👁️</span>
+          ${order._eyeTooltip ? `<span class="uff-order-banner-eye" title="${escapeHtml(order._eyeTooltip)}">👁️</span>` : ""}
         </div>
   
         <div class="uff-order-inner">

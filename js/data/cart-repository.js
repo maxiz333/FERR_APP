@@ -428,3 +428,36 @@ export function listenAllCarts(callback) {
         .map(c => ({ key: c.key, price: c.price }))
     };
   }
+
+  /* ============================================
+   OCCHIO 👁️ — Blocco 4
+   Segna che un utente ha "visto" un ordine.
+   ============================================ */
+
+/**
+ * Scrive seenBy/{userId} = timestamp sul meta del carrello.
+ * Chiamata quando:
+ *  - l'utente clicca sulla notifica di quell'ordine
+ *  - l'utente modifica una riga di quell'ordine
+ *  - l'utente preme un pulsante azione (Fatto, Pronto, BOL, ...)
+ *
+ * Idempotente: se già scritto, riscrive solo se più vecchio di 60s.
+ */
+export async function writeSeenBy(cartId, userId) {
+  if (!cartId || !userId) return;
+  try {
+    const path = `${CARTS_PATH}/${cartId}/meta/seenBy/${userId}`;
+    const snap = await get(ref(db, path));
+    const now = Date.now();
+    if (snap.exists()) {
+      const prev = Number(snap.val()) || 0;
+      // Evita scritture inutili: se già visto negli ultimi 60s, salta
+      if (now - prev < 60000) return;
+    }
+    await update(ref(db, `${CARTS_PATH}/${cartId}/meta/seenBy`), {
+      [userId]: now
+    });
+  } catch (err) {
+    console.error("Errore writeSeenBy:", err);
+  }
+}

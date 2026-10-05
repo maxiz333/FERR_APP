@@ -10,7 +10,8 @@
     updateStatus,
     updateLine,
     updateTotals,
-    markCartAsModified
+    markCartAsModified,
+    writeSeenBy
   } from "../../data/cart-repository.js";
   import {
     trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
@@ -27,6 +28,7 @@
    import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
    import { getClientByKey } from "../../data/client-repository.js";
    import { updateClient } from "../../data/cart-repository.js";
+   import { showOfficeToast, requestNotificationPermission } from "../../core/notify.js";
    
    let _user = null;
    let _orders = [];
@@ -36,6 +38,8 @@
    let _unsubListener = null;
    let _unsubTrash = null;
    let _trashCarts = [];
+   let _notifiedOrders = new Map();   // "cartId|status" → timestamp
+   let _firstLoadDone = false;        // evita la raffica al primo caricamento
    
    /* ============================================
       INIT
@@ -113,6 +117,11 @@
          wireTrashUfficio();
          startTrashListener();
          runScheduledCleanup();
+
+         // 🔔 Blocco 4 — chiedi permesso notifiche al primo click
+         document.addEventListener("click", async () => {
+           await requestNotificationPermission();
+         }, { once: true });
     
          // Ascolta Firebase
          if (_unsubListener) _unsubListener();
@@ -136,13 +145,19 @@
           invoiceNumber: meta.invoiceNumber || null,
           invoiceDate: meta.invoiceDate || 0,
           clientId: meta.clientId || null,
+          // 🆕 Blocco 4 — occhio
+          seenBy: meta.seenBy || null,
           lines: c.lines || {},
         };
       });
    
-       console.log(`📥 Ricevuti ${_orders.length} ordini da Firebase`);
-       refresh();
-     });
+      console.log(`📥 Ricevuti ${_orders.length} ordini da Firebase`);
+
+      // 🔔 Blocco 4 — notifica i nuovi ordini da altri utenti
+      _maybeNotifyNewOrders(carts);
+
+      refresh();
+    });
    
      console.log("🏢 Ufficio controller attivo (Blocco 3.4/3.5)");
    }
@@ -181,7 +196,24 @@
             const art = l.articleId ? getArticleFromCache(l.articleId) : null;
             enrichedLines[lid] = { ...l, _article: art };
           }
-          return { ...o, lines: enrichedLines };
+
+                    // 👁️ Blocco 4 — occhio per TUTTI (anche te stesso)
+                    let _eyeTooltip = "";
+                    if (o.seenBy && typeof o.seenBy === "object") {
+                      const seen = Object.entries(o.seenBy)
+                        .filter(([, ts]) => Number(ts) > 0)
+                        .sort((a, b) => Number(b[1]) - Number(a[1]));
+                      if (seen.length > 0) {
+                        const users = seen.map(([uid]) => uid.toUpperCase()).join(", ");
+                        const lastTs = Number(seen[0][1]) || 0;
+                        const d = new Date(lastTs);
+                        const hh = String(d.getHours()).padStart(2, "0");
+                        const mm = String(d.getMinutes()).padStart(2, "0");
+                        _eyeTooltip = `Visto da ${users} · ${hh}:${mm}`;
+                      }
+                    }
+
+          return { ...o, lines: enrichedLines, _eyeTooltip };
         });
       }
    
@@ -233,12 +265,12 @@
        btn._wired = true;
    
        btn.addEventListener("click", async (e) => {
-         e.stopPropagation();
-         const action = btn.dataset.action;
-         const orderId = btn.dataset.orderId;
-         const lineId = btn.dataset.lineId;
-   
-         try {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const orderId = btn.dataset.orderId;
+        const lineId = btn.dataset.lineId;
+  
+        try {
           if (action === "fatto") {
             if (!confirm("Segnare questo ordine come FATTO?")) return;
 
@@ -402,22 +434,25 @@
       MODIFICA RIGHE
       ============================================ */
    
-   async function editLinePrice(orderId, lineId) {
-     const order = _orders.find((o) => o.id === orderId);
-     if (!order) return;
-     const line = order.lines[lineId];
-     if (!line) return;
+      async function editLinePrice(orderId, lineId) {
+        const order = _orders.find((o) => o.id === orderId);
+        if (!order) return;
+        const line = order.lines[lineId];
+        if (!line) return;
+      
+        const currentPrice = Number(line.unitPrice ?? line.basePrice) || 0;
+      
+        const result = await openKeypad({
+          title: "Prezzo unitario",
+          value: currentPrice,
+          unit: "€",
+          allowDecimal: true,
+          min: 0
+        });
+        if (result == null) return;
    
-     const currentPrice = Number(line.unitPrice ?? line.basePrice) || 0;
-   
-     const result = await openKeypad({
-       title: "Prezzo unitario",
-       value: currentPrice,
-       unit: "€",
-       allowDecimal: true,
-       min: 0
-     });
-     if (result == null) return;
+        // 👁️ Blocco 4 — modifica reale → segna come visto
+        writeSeenBy(orderId, _user.id);
    
      const updated = computeLine({ ...line, unitPrice: result });
    
@@ -443,19 +478,22 @@
    }
    
    async function editLineQty(orderId, lineId) {
-     const order = _orders.find((o) => o.id === orderId);
-     if (!order) return;
-     const line = order.lines[lineId];
-     if (!line) return;
-   
-     const result = await openKeypad({
-       title: "Quantità",
-       value: Number(line.qty) || 1,
-       unit: line.unit || "PZ",
-       allowDecimal: true,
-       min: 0.01
-     });
-     if (result == null) return;
+    const order = _orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const line = order.lines[lineId];
+    if (!line) return;
+  
+    const result = await openKeypad({
+      title: "Quantità",
+      value: Number(line.qty) || 1,
+      unit: line.unit || "PZ",
+      allowDecimal: true,
+      min: 0.01
+    });
+    if (result == null) return;
+
+    // 👁️ Blocco 4 — modifica reale → segna come visto
+    writeSeenBy(orderId, _user.id);
    
      const updated = computeLine({ ...line, qty: result });
    
@@ -472,22 +510,25 @@
    }
    
    async function editLineDiscount(orderId, lineId) {
-     const order = _orders.find((o) => o.id === orderId);
-     if (!order) return;
-     const line = order.lines[lineId];
-     if (!line) return;
-   
-     const currentDisc = Number(line.discountPct) || 0;
-   
-     const result = await openKeypad({
-       title: "Sconto %",
-       value: currentDisc,
-       unit: "%",
-       allowDecimal: true,
-       min: 0,
-       max: 100
-     });
-     if (result == null) return;
+    const order = _orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const line = order.lines[lineId];
+    if (!line) return;
+  
+    const currentDisc = Number(line.discountPct) || 0;
+  
+    const result = await openKeypad({
+      title: "Sconto %",
+      value: currentDisc,
+      unit: "%",
+      allowDecimal: true,
+      min: 0,
+      max: 100
+    });
+    if (result == null) return;
+
+    // 👁️ Blocco 4 — modifica reale → segna come visto
+    writeSeenBy(orderId, _user.id);
    
      const updated = computeLine({ ...line, discountPct: result });
    
@@ -675,3 +716,89 @@ function showToastUff(msg) {
   container.appendChild(t);
   setTimeout(() => t.remove(), 2500);
 }
+
+/* ============================================
+   🔔 BLOCCO 4 — NOTIFICHE NUOVI ORDINI
+   ============================================ */
+
+   function _maybeNotifyNewOrders(carts) {
+    const notifyStatuses = ["nuovo", "bozza", "in_arrivo"];
+    const now = Date.now();
+  
+    // Primo caricamento: marca tutto come "già notificato" senza toast
+    if (!_firstLoadDone) {
+      for (const c of carts || []) {
+        const st = c.meta?.status || "modifica";
+        if (notifyStatuses.includes(st)) {
+          _notifiedOrders.set(`${c.id}|${st}`, now);
+        }
+      }
+      _firstLoadDone = true;
+      return;
+    }
+  
+    // Caricamenti successivi: notifica solo i NUOVI o cambiati di stato
+    for (const c of carts || []) {
+      const meta = c.meta || {};
+      const st = meta.status || "modifica";
+      if (!notifyStatuses.includes(st)) continue;
+      // Non notificare i miei
+      if (meta.createdBy === _user.id) continue;
+  
+      const key = `${c.id}|${st}`;
+      if (_notifiedOrders.has(key)) continue;
+      _notifiedOrders.set(key, now);
+  
+      // Prepara il testo
+      const lineCount = Object.keys(c.lines || {}).length;
+      const total = Number(meta.totals?.grandTotal) || 0;
+      const title = (meta.orderNumber && meta.orderCode)
+        ? `Ordine #${meta.orderNumber} - ${meta.orderCode}`
+        : (meta.clientName || "Cliente 1");
+      const totalStr = "€ " + total.toFixed(2).replace(".", ",");
+      const subtitle = `${meta.clientName || "Cliente 1"} · ${lineCount} art. · ${totalStr}`;
+  
+      showOfficeToast({
+        title,
+        subtitle,
+        color: st,  // "nuovo" (giallo) | "bozza" (blu) | "in_arrivo" (rosso)
+        onClick: () => {
+          // 1) Segna "visto" → appare l'occhio
+          writeSeenBy(c.id, _user.id);
+          // 2) Porta l'operatore sull'ordine
+          _scrollToOrder(c.id);
+        }
+        // NIENTE duration → resta finché non clicchi o clicchi fuori
+      });
+    }
+  }
+  
+  /**
+   * Scrolla alla card dell'ordine, cambiando tab se serve.
+   */
+  function _scrollToOrder(orderId) {
+    const o = _orders.find((x) => x.id === orderId);
+    if (!o) return;
+  
+    // Scegli il tab giusto in base allo status
+    let targetFilter = "nuovi";
+    if (o.status === "fatto") targetFilter = "fatti";
+    else if (o.status === "pronto") targetFilter = "pronto";
+  
+    if (_activeFilter !== targetFilter) {
+      _activeFilter = targetFilter;
+      document.querySelectorAll(".uff-tab").forEach((t) => {
+        t.classList.toggle("is-active", t.dataset.filter === targetFilter);
+      });
+      refresh();
+    }
+  
+    setTimeout(() => {
+      const el = document.querySelector(`[data-order-id="${orderId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ferapp-flash");
+        setTimeout(() => el.classList.remove("ferapp-flash"), 1600);
+      }
+    }, 150);
+  }

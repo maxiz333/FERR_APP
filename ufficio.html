@@ -14,6 +14,76 @@
   <link rel="stylesheet" href="assets/css/price-dot.css">
   <link rel="stylesheet" href="assets/css/invoice.css">
   <style>
+    /* Blocco 4 — Toast in ufficio */
+    .ferapp-toast-stack {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10000;
+      pointer-events: none;
+    }
+    .ferapp-toast {
+      display: flex;
+      align-items: stretch;
+      min-width: 280px;
+      max-width: 380px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      pointer-events: auto;
+      animation: ferapp-toast-in 0.18s ease;
+    }
+    .ferapp-toast-body {
+      flex: 1;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+    .ferapp-toast-title {
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 2px;
+    }
+    .ferapp-toast-sub {
+      font-size: 0.78rem;
+      opacity: 0.85;
+    }
+    .ferapp-toast-close {
+      background: transparent;
+      border: none;
+      color: inherit;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0 12px;
+      opacity: 0.6;
+    }
+    .ferapp-toast-close:hover { opacity: 1; }
+    .ferapp-toast-nuovo      { background: #eab308; color: #0a0a0a; }
+    .ferapp-toast-bozza      { background: #3b82f6; color: #ffffff; }
+    .ferapp-toast-in_arrivo  { background: #ef4444; color: #ffffff; }
+    .ferapp-toast-fatto      { background: #22c55e; color: #0a0a0a; }
+    .ferapp-toast-info       { background: #1a1a1a; color: #ffffff; }
+    .ferapp-toast-out {
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.18s ease;
+    }
+    @keyframes ferapp-toast-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .ferapp-flash {
+      animation: ferapp-flash-anim 1.6s ease;
+    }
+    @keyframes ferapp-flash-anim {
+      0%   { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.8); }
+      60%  { box-shadow: 0 0 0 12px rgba(250, 204, 21, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+    }
+  </style>
+  <style>
     /* Fix: rende l'attributo hidden più forte di .fapp-modal-overlay { display:flex } */
     #uffTrashOverlay[hidden] { display: none !important; }
   </style>
