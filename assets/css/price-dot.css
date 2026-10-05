@@ -1,0 +1,33 @@
+/* ============================================================
+   PRICE-DOT.CSS — Pallino stato prezzo (Blocco 2B.7)
+   ============================================================ */
+
+   .price-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    vertical-align: middle;
+    cursor: help;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    margin-left: 5px;
+  }
+  
+  /* Dimensioni */
+  .price-dot-sm { width: 7px;  height: 7px;  }
+  .price-dot-md { width: 10px; height: 10px; }
+  .price-dot-lg { width: 13px; height: 13px; }
+  
+  /* Colori */
+  .price-dot-gray   { background: #6b7280; }
+  .price-dot-green  { background: #22c55e; }
+  .price-dot-yellow { background: #eab308; }
+  .price-dot-orange { background: #f97316; }
+  .price-dot-red    { background: #ef4444; }
+  .price-dot-purple { background: #a855f7; }
+  
+  /* Adattamenti in base ai contesti */
+  .cart-line-prices .price-dot { margin-left: 4px; }
+  .uff-p-single .price-dot,
+  .uff-p-new .price-dot { margin-left: 4px; }

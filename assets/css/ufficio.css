@@ -1,0 +1,1008 @@
+/* ============================================================
+   UFFICIO.CSS — Interfaccia Cassa/Ufficio
+   Blocco 3.1 — Layout con lista ordini
+   ============================================================ */
+
+/* ---------- LAYOUT GENERALE ---------- */
+body {
+    padding: 0 !important;
+    text-align: left !important;
+    background: var(--bg, #0a0a0a);
+    color: var(--text, #fff);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  
+  /* ---------- HEADER ---------- */
+  .uff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--bg-card, #1a1a1a);
+    border-bottom: 1px solid var(--border, #2a2a2a);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .uff-header-left,
+  .uff-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .uff-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+  .uff-logo:hover { background: rgba(255, 255, 255, 0.05); }
+  
+  .uff-logo-icon { font-size: 1.5rem; color: var(--primary, #facc15); }
+  
+  .uff-logo-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+  .uff-logo-brand { font-weight: 900; font-size: 1rem; letter-spacing: 1px; }
+  .uff-logo-sub { font-size: 0.65rem; opacity: 0.6; letter-spacing: 1.5px; }
+  
+  .uff-user {
+    font-weight: 700;
+    color: var(--primary, #facc15);
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+  
+  .uff-logout {
+    background: transparent;
+    border: 1px solid var(--border, #2a2a2a);
+    color: inherit;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s ease;
+  }
+  .uff-logout:hover { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+  
+  /* ---------- TAB FILTRI ---------- */
+  .uff-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--bg-card, #1a1a1a);
+    border-bottom: 1px solid var(--border, #2a2a2a);
+    overflow-x: auto;
+    position: sticky;
+    top: 61px;
+    z-index: 99;
+  }
+  
+  .uff-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border, #2a2a2a);
+    border-radius: 20px;
+    color: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .uff-tab:hover { background: rgba(255, 255, 255, 0.04); }
+  .uff-tab.is-active {
+    background: var(--primary, #facc15);
+    color: #0a0a0a;
+    border-color: var(--primary, #facc15);
+  }
+  
+  .uff-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+  .uff-tab:not(.is-active) .uff-tab-count {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  /* ---------- BARRA RICERCA ---------- */
+  .uff-searchbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 20px;
+    padding: 10px 14px;
+    background: var(--bg-card, #1a1a1a);
+    border: 1px solid var(--border, #2a2a2a);
+    border-radius: 10px;
+    transition: border-color 0.15s ease;
+  }
+  .uff-searchbar:focus-within { border-color: var(--primary, #facc15); }
+  
+  .uff-search-icon { opacity: 0.6; font-size: 1rem; }
+  
+  .uff-searchbar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+  }
+  .uff-searchbar input::placeholder { opacity: 0.4; }
+  
+  /* ---------- LISTA ORDINI ---------- */
+  .uff-main {
+    padding: 0 20px 40px;
+  }
+  
+  .uff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  /* ---------- CARD ORDINE ---------- */
+  .uff-card {
+    display: grid;
+    grid-template-columns: 6px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-card, #1a1a1a);
+    border: 1px solid var(--border, #2a2a2a);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .uff-card:hover {
+    border-color: var(--primary, #facc15);
+    transform: translateY(-1px);
+  }
+  
+  /* Barra colorata a sinistra (per stato) */
+  .uff-card-bar {
+    width: 6px;
+    height: 100%;
+    min-height: 50px;
+    border-radius: 3px;
+    background: var(--primary, #facc15);
+  }
+  .uff-card[data-status="modifica"]    .uff-card-bar { background: #6b7280; }
+  .uff-card[data-status="bozza"]       .uff-card-bar { background: #3b82f6; }
+  .uff-card[data-status="nuovo"]       .uff-card-bar { background: #eab308; }
+  .uff-card[data-status="in_arrivo"]   .uff-card-bar { background: #ef4444; }
+  .uff-card[data-status="fatto"]       .uff-card-bar { background: #22c55e; }
+  .uff-card[data-status="pronto"]      .uff-card-bar { background: #a855f7; }
+  
+  .uff-card-main { min-width: 0; }
+  
+  .uff-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  
+  .uff-card-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .uff-card-badge[data-status="modifica"]  { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+  .uff-card-badge[data-status="bozza"]     { background: rgba(59, 130, 246, 0.2);  color: #60a5fa; }
+  .uff-card-badge[data-status="nuovo"]     { background: rgba(234, 179, 8, 0.2);   color: #facc15; }
+  .uff-card-badge[data-status="in_arrivo"] { background: rgba(239, 68, 68, 0.2);   color: #f87171; }
+  .uff-card-badge[data-status="fatto"]     { background: rgba(34, 197, 94, 0.2);   color: #4ade80; }
+  .uff-card-badge[data-status="pronto"]    { background: rgba(168, 85, 247, 0.2);  color: #c084fc; }
+  
+  .uff-card-client {
+    font-weight: 700;
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .uff-card-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    opacity: 0.75;
+    margin-top: 2px;
+  }
+  
+  .uff-card-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  
+  .uff-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+  }
+  
+  .uff-card-total {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--primary, #facc15);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .uff-card-lines {
+    font-size: 0.8rem;
+    opacity: 0.6;
+  }
+  
+  /* ---------- STATO VUOTO ---------- */
+  .uff-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    opacity: 0.4;
+    text-align: center;
+  }
+  .uff-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+  .uff-empty-text { font-size: 1rem; }
+  
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 640px) {
+    .uff-header { padding: 10px 12px; }
+    .uff-logo-sub { display: none; }
+    .uff-tabs { padding: 8px 12px; top: 57px; }
+    .uff-tab { padding: 6px 10px; font-size: 0.75rem; }
+    .uff-searchbar { margin: 10px 12px; }
+    .uff-main { padding: 0 12px 40px; }
+    .uff-card { grid-template-columns: 4px 1fr; padding: 12px; }
+    .uff-card-right { grid-column: 2; align-items: flex-start; margin-top: 6px; }
+    .uff-card-total { font-size: 1rem; }
+  }
+  /* ============================================================
+   Blocco 3.2b — Ordini espansi stile vecchia app
+   ============================================================ */
+
+/* Toggle espansione nella searchbar */
+.uff-toggle-expand {
+  background: transparent;
+  border: 1px solid var(--border, #2a2a2a);
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s ease;
+}
+.uff-toggle-expand:hover {
+  border-color: var(--primary, #facc15);
+}
+
+/* ---------- ORDINE ESPANSO ---------- */
+.uff-order {
+  background: var(--bg-card, #1a1a1a);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid var(--border, #2a2a2a);
+}
+
+/* Banner superiore colorato per stato */
+.uff-order-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  color: #0a0a0a;
+  background: #eab308;
+}
+.uff-order-banner[data-status="bozza"]     { background: #3b82f6; color: #fff; }
+.uff-order-banner[data-status="nuovo"]     { background: #eab308; color: #0a0a0a; }
+.uff-order-banner[data-status="in_arrivo"] { background: #ef4444; color: #fff; }
+.uff-order-banner[data-status="fatto"]     { background: #22c55e; color: #0a0a0a; }
+.uff-order-banner[data-status="pronto"]    { background: #a855f7; color: #fff; }
+
+.uff-order-banner-eye { opacity: 0.7; }
+
+/* Corpo dell'ordine */
+.uff-order-inner {
+  padding: 14px 16px 16px;
+}
+
+.uff-order-header { margin-bottom: 14px; }
+
+.uff-order-client {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+.uff-order-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* ---------- TABELLA RIGHE ---------- */
+.uff-order-cols {
+  display: grid;
+  grid-template-columns: 1fr 80px 90px 90px;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.5;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+
+.uff-order-lines {
+  margin-bottom: 12px;
+}
+
+.uff-order-line {
+  display: grid;
+  grid-template-columns: 1fr 80px 90px 90px;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+  font-size: 0.9rem;
+}
+.uff-order-line:last-child { border-bottom: none; }
+
+.uff-line-prod { min-width: 0; }
+.uff-line-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uff-line-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+.uff-line-code { font-family: monospace; }
+.uff-line-disc {
+  background: rgba(250, 204, 21, 0.2);
+  color: var(--primary, #facc15);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.uff-line-qty {
+  text-align: center;
+  font-weight: 700;
+}
+.uff-line-qty-unit { font-size: 0.7rem; opacity: 0.6; margin-left: 3px; }
+
+.uff-line-prez { text-align: right; opacity: 0.85; }
+.uff-line-tot { text-align: right; font-weight: 700; }
+
+.uff-order-empty {
+  padding: 16px;
+  text-align: center;
+  opacity: 0.4;
+  font-style: italic;
+}
+
+/* ---------- NOTA ---------- */
+.uff-order-notebox {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  min-height: 38px;
+}
+.uff-order-note-empty { opacity: 0.4; font-style: italic; }
+
+/* ---------- TOTALE ---------- */
+.uff-order-totalbox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 2px solid var(--border, #2a2a2a);
+  margin-bottom: 12px;
+}
+.uff-order-totlabel {
+  font-weight: 800;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+.uff-order-totvalue {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--primary, #facc15);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- AZIONI ---------- */
+.uff-order-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uff-action-btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2a2a);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uff-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary, #facc15);
+}
+
+.uff-act-fatto {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+  font-size: 1rem;
+  padding: 12px;
+}
+.uff-act-fatto:hover {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.uff-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.uff-act-elimina:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ---------- COLLASSATO ---------- */
+.uff-order.is-collapsed .uff-order-body { display: none; }
+.uff-order.is-collapsed .uff-order-header { margin-bottom: 0; }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 640px) {
+  .uff-order-cols,
+  .uff-order-line {
+    grid-template-columns: 1fr 60px 70px 70px;
+    font-size: 0.8rem;
+  }
+  .uff-line-title { font-size: 0.85rem; }
+  .uff-action-row { grid-template-columns: 1fr; }
+}
+/* ============================================================
+   Blocco 3.4/3.5 — Elementi editabili
+   ============================================================ */
+
+/* Base editabile: sfondo trasparente, bordo al hover */
+.uff-editable {
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.uff-editable:hover {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: var(--primary, #facc15);
+}
+
+.uff-editable:active {
+  transform: scale(0.97);
+}
+
+/* Quantità editabile */
+.uff-line-qty.uff-editable {
+  text-align: center;
+  font-weight: 700;
+  width: 100%;
+  justify-self: center;
+}
+.uff-line-qty.uff-editable:hover {
+  background: rgba(250, 204, 21, 0.15);
+}
+
+/* Prezzo editabile */
+.uff-line-prez.uff-editable {
+  text-align: right;
+  opacity: 0.85;
+  width: 100%;
+}
+.uff-line-prez.uff-editable:hover {
+  opacity: 1;
+  background: rgba(250, 204, 21, 0.15);
+}
+
+/* Sconto (badge) editabile */
+.uff-line-disc.uff-editable {
+  cursor: pointer;
+}
+.uff-line-disc.uff-editable:hover {
+  background: rgba(250, 204, 21, 0.4);
+}
+
+/* Pulsante "+ %" quando non c'è sconto */
+.uff-line-disc-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uff-line-disc-add:hover {
+  opacity: 1;
+  border-color: var(--primary, #facc15);
+  color: var(--primary, #facc15);
+  border-style: solid;
+  background: rgba(250, 204, 21, 0.1);
+}
+
+/* Elementi bloccati (ordine fatto) */
+.uff-order.is-locked .uff-line-qty,
+.uff-order.is-locked .uff-line-prez {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Pulsante Sblocca (ordine bloccato) */
+.uff-act-unlock {
+  background: #facc15;
+  color: #0a0a0a;
+  border-color: #facc15;
+  font-size: 1rem;
+  padding: 12px;
+  font-weight: 800;
+}
+.uff-act-unlock:hover {
+  background: #fde047;
+  border-color: #fde047;
+}
+
+/* Spinner nei click (feedback) */
+.uff-editable:active {
+  background: rgba(250, 204, 21, 0.25) !important;
+}
+/* ============================================================
+   Blocco 3.4/3.5b — Fix layout mobile + sconto €
+   ============================================================ */
+
+/* ---------- PREZZO CON SCONTO (3 righe) ---------- */
+.uff-line-prez {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+
+.uff-p-single {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.uff-p-old {
+  font-size: 0.7rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+  font-variant-numeric: tabular-nums;
+}
+.uff-p-new {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.uff-p-disc {
+  font-size: 0.7rem;
+  color: #ef4444;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- TOTALE CON SCONTO ---------- */
+.uff-order-totalbox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 2px solid var(--border, #2a2a2a);
+  margin-bottom: 12px;
+}
+
+.uff-order-totstack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  line-height: 1.15;
+}
+.uff-tot-old {
+  font-size: 0.75rem;
+  text-decoration: line-through;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+.uff-tot-new {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--primary, #facc15);
+  font-variant-numeric: tabular-nums;
+}
+.uff-tot-disc {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- PULSANTI: layout compatto ---------- */
+.uff-action-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.uff-action-btn {
+  padding: 10px 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;      /* ← non va a capo */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uff-act-fatto,
+.uff-act-unlock {
+  font-size: 0.95rem;
+  padding: 12px 10px;
+  white-space: nowrap;
+}
+
+/* ---------- MOBILE: griglia più stretta ---------- */
+@media (max-width: 640px) {
+  .uff-order-inner { padding: 10px 10px 12px; }
+
+  .uff-order-cols,
+  .uff-order-line {
+    grid-template-columns: minmax(0, 1fr) 46px 74px 74px;
+    gap: 6px;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+  }
+
+  .uff-order-cols .col-prod,
+  .uff-order-cols .col-qty,
+  .uff-order-cols .col-prez,
+  .uff-order-cols .col-tot {
+    font-size: 0.62rem;
+  }
+  .uff-order-cols .col-prez,
+  .uff-order-cols .col-tot { text-align: right; }
+
+  .uff-line-title {
+    font-size: 0.8rem;
+    white-space: normal;         /* permette 2 righe nella descrizione */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.2;
+  }
+
+  .uff-p-old,
+  .uff-p-disc { font-size: 0.6rem; }
+
+  .uff-line-tot {
+    font-size: 0.85rem;
+    text-align: right;
+  }
+
+  .uff-tot-new { font-size: 1.15rem; }
+  .uff-tot-old,
+  .uff-tot-disc { font-size: 0.68rem; }
+
+  .uff-order-totalbox { padding: 8px 10px; }
+
+  .uff-action-row {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+  .uff-action-btn {
+    padding: 8px 4px;
+    font-size: 0.72rem;
+  }
+  .uff-act-fatto,
+  .uff-act-unlock {
+    font-size: 0.85rem;
+    padding: 10px 6px;
+  }
+}
+
+/* Schermi MOLTO piccoli (es. iPhone SE, 375px) */
+@media (max-width: 400px) {
+  .uff-order-cols,
+  .uff-order-line {
+    grid-template-columns: minmax(0, 1fr) 40px 66px 66px;
+    gap: 4px;
+  }
+  .uff-line-title { font-size: 0.75rem; }
+  .uff-p-old,
+  .uff-p-disc { font-size: 0.58rem; }
+  .uff-tot-new { font-size: 1rem; }
+  .uff-action-btn { font-size: 0.68rem; padding: 7px 3px; }
+}
+/* ============================================================
+   Blocco 3.5f — 3 numeri PREZZO + TOT + TOTALE (GIALLO centrale)
+   ============================================================ */
+
+/* ---------- COLONNA PREZZO (unitario, 3 numeri) ---------- */
+.uff-line-prez {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  gap: 1px;
+  line-height: 1.15;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  min-width: 0;
+  overflow: hidden;
+}
+.uff-line-prez:hover:not(:disabled) {
+  background: rgba(250, 204, 21, 0.15);
+  border-color: var(--primary, #facc15);
+}
+.uff-line-prez:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* --- 3 righe prezzo (grigio / GIALLO / rosso) --- */
+.uff-p-single {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+.uff-p-old {
+  font-size: 0.7rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+  color: #ffffff;
+}
+.uff-p-new {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--primary, #facc15) !important;   /* 🟡 GIALLO */
+}
+.uff-p-disc {
+  font-size: 0.7rem;
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* ---------- COLONNA TOT riga (3 numeri) ---------- */
+.uff-line-tot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1.15;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow: hidden;
+}
+.uff-t-old {
+  font-size: 0.7rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+  color: #ffffff;
+}
+.uff-t-new {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--primary, #facc15) !important;   /* 🟡 GIALLO */
+}
+.uff-t-disc {
+  font-size: 0.7rem;
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* ---------- TOTALE ORDINE (già esistente, ma riforzo giallo) ---------- */
+.uff-tot-new {
+  color: var(--primary, #facc15) !important;
+  font-weight: 900;
+}
+
+/* ---------- PULSANTE STAMPA FULL-WIDTH quando è solo ---------- */
+.uff-action-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.uff-action-row:has(> :only-child) {
+  display: flex;
+}
+.uff-action-row:has(> :only-child) > * {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+/* ============================================================
+   MOBILE — Colonne più larghe per evitare sovrapposizioni
+   ============================================================ */
+
+@media (max-width: 640px) {
+  /* Colonne PREZZO e TOT più larghe (era 74px → ora 88px) */
+  .uff-order-cols,
+  .uff-order-line {
+    grid-template-columns: minmax(0, 1fr) 42px 88px 88px;
+    gap: 4px;
+    padding: 8px 2px;
+  }
+
+  .uff-p-single { font-size: 0.78rem; }
+  .uff-p-old,
+  .uff-p-disc { font-size: 0.58rem; }
+  .uff-p-new { font-size: 0.78rem; }
+
+  .uff-t-old,
+  .uff-t-disc { font-size: 0.58rem; }
+  .uff-t-new { font-size: 0.78rem; }
+
+  .uff-line-prez { padding: 2px 3px; }
+}
+
+@media (max-width: 400px) {
+  .uff-order-cols,
+  .uff-order-line {
+    grid-template-columns: minmax(0, 1fr) 38px 82px 82px;
+    gap: 3px;
+  }
+
+  .uff-p-old,
+  .uff-p-disc { font-size: 0.55rem; }
+  .uff-p-new { font-size: 0.72rem; }
+
+  .uff-t-old,
+  .uff-t-disc { font-size: 0.55rem; }
+  .uff-t-new { font-size: 0.72rem; }
+
+  .uff-line-title { font-size: 0.72rem; }
+}
+/* Nav buttons (Ufficio ↔ Cassa) */
+.uff-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.uff-nav-btn:hover {
+  border-color: var(--primary, #facc15);
+  color: var(--primary, #facc15);
+}
+.uff-line-title.pc-clickable {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+  transition: color 0.15s ease;
+}
+.uff-line-title.pc-clickable:hover {
+  color: var(--primary, #facc15);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+/* 🆕 Sotto-prezzo per articoli a misura (KG/MT/MQ) */
+.uff-p-sub-perunit {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--primary, #facc15);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+.uff-p-sub-base {
+  display: block;
+  font-size: 0.55rem;
+  color: #888;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.uff-act-bol {
+  background: #facc15;
+  color: #0a0a0a;
+  border-color: #facc15;
+  font-size: 0.95rem;
+  padding: 12px 10px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.uff-act-bol:hover {
+  background: #fde047;
+  border-color: #fde047;
+}

@@ -1,0 +1,632 @@
+/* ============================================================
+   CASSA.CSS — Pagina Scontrino
+   Blocco 3B — Solo lettura + pulsante FATTO
+   ============================================================ */
+
+   body {
+    padding: 0 !important;
+    text-align: left !important;
+    background: var(--bg, #0a0a0a);
+    color: var(--text, #fff);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  
+  /* ---------- HEADER ---------- */
+  .cas-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg-card, #1a1a1a);
+    border-bottom: 1px solid var(--border, #2a2a2a);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 10px;
+  }
+  
+  .cas-header-left,
+  .cas-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .cas-logo { display: flex; align-items: center; gap: 10px; }
+  .cas-logo-icon { font-size: 1.4rem; color: var(--primary, #facc15); }
+  .cas-logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .cas-logo-brand { font-weight: 900; font-size: 0.95rem; letter-spacing: 1px; }
+  .cas-logo-sub { font-size: 0.6rem; opacity: 0.6; letter-spacing: 1.2px; }
+  
+  .cas-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid var(--border, #2a2a2a);
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .cas-nav-btn:hover {
+    border-color: var(--primary, #facc15);
+    color: var(--primary, #facc15);
+  }
+  
+  .cas-user {
+    font-weight: 700;
+    color: var(--primary, #facc15);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+  }
+  
+  .cas-logout {
+    background: transparent;
+    border: 1px solid var(--border, #2a2a2a);
+    color: inherit;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+  }
+  .cas-logout:hover { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+  
+  /* ---------- BARRA RICERCA ---------- */
+  .cas-searchbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 20px;
+    padding: 10px 14px;
+    background: var(--bg-card, #1a1a1a);
+    border: 1px solid var(--border, #2a2a2a);
+    border-radius: 10px;
+    transition: border-color 0.15s ease;
+  }
+  .cas-searchbar:focus-within { border-color: var(--primary, #facc15); }
+  .cas-search-icon { opacity: 0.6; font-size: 1rem; }
+  .cas-searchbar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+  }
+  .cas-searchbar input::placeholder { opacity: 0.4; }
+  
+  /* ---------- LISTA ---------- */
+  .cas-main { padding: 0 20px 40px; }
+  .cas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  /* ---------- CARD ORDINE ---------- */
+  .cas-order {
+    background: var(--bg-card, #1a1a1a);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border, #2a2a2a);
+  }
+  
+  .cas-order-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    color: #0a0a0a;
+    background: #eab308;
+  }
+  .cas-order-banner[data-status="in_arrivo"] { background: #ef4444; color: #fff; }
+  .cas-order-banner[data-status="nuovo"]     { background: #eab308; color: #0a0a0a; }
+  
+  .cas-order-inner { padding: 14px 16px 16px; }
+  
+  .cas-order-client {
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin: 0 0 4px;
+  }
+  
+  .cas-order-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 14px;
+  }
+  
+  /* ---------- TABELLA RIGHE ---------- */
+  .cas-order-cols {
+    display: grid;
+    grid-template-columns: 1fr 70px 90px 90px;
+    gap: 10px;
+    padding: 8px 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.5;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border, #2a2a2a);
+  }
+  
+  .cas-order-line {
+    display: grid;
+    grid-template-columns: 1fr 70px 90px 90px;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    align-items: center;
+    font-size: 0.95rem;
+  }
+  .cas-order-line:last-child { border-bottom: none; }
+  
+  .cas-line-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cas-line-sub {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 2px;
+  }
+  .cas-line-code { font-family: monospace; }
+  
+  .cas-line-qty {
+    text-align: center;
+    font-weight: 700;
+  }
+  .cas-line-qty-unit { font-size: 0.7rem; opacity: 0.6; margin-left: 3px; }
+  
+  /* Prezzo colonna (3 numeri, giallo centrale) */
+  .cas-line-prez {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.15;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .cas-p-single { font-weight: 700; font-size: 0.95rem; color: #fff; }
+  .cas-p-old {
+    font-size: 0.72rem;
+    text-decoration: line-through;
+    opacity: 0.45;
+    color: #fff;
+  }
+  .cas-p-new {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--primary, #facc15);
+  }
+  .cas-p-disc { font-size: 0.72rem; color: #ef4444; font-weight: 700; }
+  
+  /* TOT colonna (3 numeri, giallo centrale) */
+  .cas-line-tot {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.15;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .cas-t-old {
+    font-size: 0.72rem;
+    text-decoration: line-through;
+    opacity: 0.45;
+    color: #fff;
+  }
+  .cas-t-new { font-weight: 800; font-size: 0.95rem; color: var(--primary, #facc15); }
+  .cas-t-disc { font-size: 0.72rem; color: #ef4444; font-weight: 700; }
+  
+  /* ---------- TOTALE ORDINE ---------- */
+  .cas-order-totalbox {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-top: 2px solid var(--border, #2a2a2a);
+    margin: 12px 0;
+  }
+  .cas-order-totlabel {
+    font-weight: 800;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    font-size: 0.9rem;
+  }
+  .cas-order-totstack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    line-height: 1.15;
+  }
+  .cas-tot-old {
+    font-size: 0.75rem;
+    text-decoration: line-through;
+    opacity: 0.5;
+    color: #fff;
+  }
+  .cas-tot-new {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--primary, #facc15);
+    font-variant-numeric: tabular-nums;
+  }
+  .cas-tot-disc {
+    font-size: 0.75rem;
+    color: #ef4444;
+    font-weight: 700;
+  }
+  
+  /* ---------- PULSANTE FATTO (grande) ---------- */
+  .cas-btn-fatto {
+    width: 100%;
+    padding: 18px;
+    border-radius: 12px;
+    border: none;
+    background: #16a34a;
+    color: #fff;
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .cas-btn-fatto:hover { background: #22c55e; transform: translateY(-1px); }
+  .cas-btn-fatto:active { transform: scale(0.98); }
+  
+  /* ---------- STATO VUOTO ---------- */
+  .cas-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    opacity: 0.4;
+    text-align: center;
+  }
+  .cas-empty-icon { font-size: 3.5rem; margin-bottom: 14px; }
+  .cas-empty-text { font-size: 1.1rem; }
+  
+  /* ---------- MOBILE ---------- */
+  @media (max-width: 640px) {
+    .cas-header { padding: 8px 10px; gap: 6px; }
+    .cas-logo-sub { display: none; }
+    .cas-nav-btn { padding: 5px 8px; font-size: 0.72rem; }
+    .cas-user { font-size: 0.75rem; }
+    .cas-searchbar { margin: 10px 12px; padding: 8px 12px; }
+    .cas-main { padding: 0 12px 40px; }
+  
+    .cas-order-cols,
+    .cas-order-line {
+      grid-template-columns: minmax(0, 1fr) 42px 80px 80px;
+      gap: 4px;
+      padding: 8px 2px;
+      font-size: 0.85rem;
+    }
+    .cas-line-title { font-size: 0.85rem; }
+    .cas-p-old, .cas-p-disc { font-size: 0.58rem; }
+    .cas-p-new { font-size: 0.78rem; }
+    .cas-t-old, .cas-t-disc { font-size: 0.58rem; }
+    .cas-t-new { font-size: 0.78rem; }
+    .cas-tot-new { font-size: 1.3rem; }
+    .cas-order-client { font-size: 1.1rem; }
+    .cas-btn-fatto { padding: 14px; font-size: 1rem; }
+  }
+  
+  @media (max-width: 400px) {
+    .cas-order-cols,
+    .cas-order-line {
+      grid-template-columns: minmax(0, 1fr) 38px 74px 74px;
+      gap: 3px;
+    }
+    .cas-nav-btn { padding: 4px 6px; font-size: 0.68rem; }
+  }
+  /* ============================================
+   LISTA COMPATTA + DETTAGLIO (Blocco 3B-bis)
+   ============================================ */
+
+/* ---------- LISTA ---------- */
+.cas-card {
+  background: var(--bg-card, #1a1a1a);
+  border: 1px solid var(--border-color, #2a2a2a);
+  border-left: 4px solid #eab308;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0 0 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+.cas-card:hover { background: var(--bg-card-hover, #242424); }
+.cas-card.is-in-arrivo { border-left-color: #ef4444; }
+.cas-card.is-nuovo { border-left-color: #eab308; }
+
+.cas-card-client {
+  grid-column: 1;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cas-card-total {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: 22px;
+  font-weight: 900;
+  color: #facc15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cas-card-meta {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary, #aaa);
+  align-items: center;
+}
+
+.cas-card-status { font-weight: 800; letter-spacing: 0.5px; }
+.cas-card.is-in-arrivo .cas-card-status { color: #ef4444; }
+.cas-card.is-nuovo .cas-card-status { color: #eab308; }
+
+/* ---------- DETTAGLIO ---------- */
+.cas-detail {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 140px);
+  background: var(--bg-primary, #0a0a0a);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cas-det-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--border-color, #2a2a2a);
+  background: var(--bg-secondary, #141414);
+  flex-shrink: 0;
+}
+
+.cas-det-back {
+  background: transparent;
+  border: 1px solid var(--border-color, #2a2a2a);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cas-det-back:hover { border-color: #facc15; color: #facc15; }
+
+.cas-det-info { min-width: 0; flex: 1; }
+.cas-det-client {
+  font-size: 17px;
+  font-weight: 800;
+  color: #facc15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cas-det-meta {
+  font-size: 11px;
+  color: var(--text-secondary, #aaa);
+  margin-top: 2px;
+}
+
+.cas-det-lines {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.cas-det-line {
+  display: grid;
+  grid-template-columns: 24px 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #2a2a2a);
+}
+
+.cas-det-idx {
+  font-size: 12px;
+  color: var(--text-tertiary, #666);
+  font-weight: 700;
+}
+
+.cas-det-desc { min-width: 0; }
+.cas-det-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cas-det-code {
+  font-size: 12px;
+  color: #facc15;
+  margin-top: 2px;
+  font-weight: 700;
+}
+
+.cas-det-qty-badge {
+  background: #facc15;
+  color: #000;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.cas-det-price {
+  font-size: 15px;
+  color: var(--text-secondary, #aaa);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.cas-det-linetotal {
+  font-size: 15px;
+  font-weight: 900;
+  color: #facc15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+
+.cas-det-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 2px solid var(--border-color, #2a2a2a);
+  background: var(--bg-secondary, #141414);
+  flex-shrink: 0;
+}
+
+.cas-det-totbox { min-width: 0; }
+.cas-det-totlabel {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-secondary, #aaa);
+  font-weight: 800;
+}
+.cas-det-totvalue {
+  font-size: 26px;
+  font-weight: 900;
+  color: #facc15;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.cas-det-totcount {
+  font-size: 11px;
+  color: var(--text-secondary, #aaa);
+  margin-top: 2px;
+}
+
+.cas-det-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cas-det-unlock {
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid #facc15;
+  border-radius: 10px;
+  color: #facc15;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cas-det-unlock:hover { background: #facc15; color: #000; }
+.cas-det-unlock:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cas-det-fatto {
+  padding: 12px 22px;
+  background: #22c55e;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cas-det-fatto:hover { background: #16a34a; }
+.cas-det-fatto:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Mobile */
+@media (max-width: 600px) {
+  .cas-det-line {
+    grid-template-columns: 20px auto 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
+  }
+  .cas-det-idx { grid-row: 1 / 3; grid-column: 1; }
+  .cas-det-desc { grid-column: 2 / 5; grid-row: 1; }
+  .cas-det-qty-badge { grid-column: 2; grid-row: 2; justify-self: start; }
+  .cas-det-price { grid-column: 3; grid-row: 2; justify-self: start; }
+  .cas-det-linetotal { grid-column: 4; grid-row: 2; }
+
+  .cas-det-actions { flex-direction: column; gap: 6px; }
+}
+/* === EDIT MODE (Blocco 3B-bis step 3) === */
+.cas-det-qty-badge.is-editable,
+.cas-det-price.is-editable {
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.cas-det-qty-badge.is-editable:hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+
+.cas-det-price.is-editable {
+  color: #facc15;
+  text-decoration: underline dotted;
+}
+.cas-det-price.is-editable:hover {
+  filter: brightness(1.15);
+}
+
+.cas-det-unlock.is-active {
+  background: #facc15;
+  color: #000;
+}

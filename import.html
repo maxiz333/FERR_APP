@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Importa Articoli — FerApp</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/theme-dark.css">
+  <style>
+    .import-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 30px 20px;
+    }
+    .import-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .import-header h1 {
+      color: var(--primary);
+      font-size: 28px;
+      letter-spacing: 2px;
+    }
+    .import-header p {
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+    .drop-zone {
+      border: 3px dashed var(--border-color);
+      border-radius: 16px;
+      padding: 60px 30px;
+      text-align: center;
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 20px;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .drop-zone-icon {
+      font-size: 60px;
+      margin-bottom: 15px;
+    }
+    .drop-zone-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    .drop-zone-hint {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+    .preview-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .preview-box.active { display: block; }
+    .preview-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .preview-table th {
+      text-align: left;
+      padding: 8px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .preview-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .preview-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: var(--bg-secondary);
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 20px 0;
+      display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+      width: 0%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .status-msg {
+      text-align: center;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      font-weight: 600;
+      display: none;
+    }
+    .status-msg.active { display: block; }
+    .status-msg.success {
+      background: var(--success-soft);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+    .status-msg.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #000;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 15px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 15px 0;
+    }
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    /* === TAB === */
+    .import-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    .import-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid var(--border-color);
+      color: inherit;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .import-tab:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .import-tab.is-active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+    .import-panel { display: none; }
+    .import-panel.is-active { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="import-page">
+
+    <header class="import-header">
+      <h1>📥 IMPORTAZIONE DATI</h1>
+      <p>Carica file <code>.txt</code> per aggiornare Firebase</p>
+    </header>
+
+    <!-- TAB -->
+    <div class="import-tabs">
+      <button class="import-tab is-active" data-tab="articoli">
+        📦 ARTICOLI
+      </button>
+      <button class="import-tab" data-tab="clienti">
+        👥 CLIENTI
+      </button>
+    </div>
+
+    <!-- ============ PANEL ARTICOLI ============ -->
+    <div class="import-panel is-active" id="panelArticoli">
+
+      <div class="drop-zone" id="dropZoneArt">
+        <div class="drop-zone-icon">📄</div>
+        <div class="drop-zone-title">Trascina qui il file articoli</div>
+        <div class="drop-zone-hint">oppure clicca per selezionarlo</div>
+        <input type="file" id="fileInputArt" accept=".txt">
+      </div>
+
+      <div class="preview-box" id="previewBoxArt">
+        <div class="preview-title">👁 Anteprima (prime 10 righe)</div>
+        <div id="fileInfoArt" style="color:var(--text-secondary);font-size:13px;"></div>
+        <table class="preview-table" id="previewTableArt">
+          <thead>
+            <tr>
+              <th>Codice</th>
+              <th>Descrizione</th>
+              <th>Unità</th>
+              <th>Giacenza</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotalArt">0</div>
+            <div class="stat-label">Articoli trovati</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="btnImportArt" disabled>
+            🚀 IMPORTA ARTICOLI
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-bar" id="progressBarArt">
+        <div class="progress-fill" id="progressFillArt">0%</div>
+      </div>
+
+      <div class="status-msg" id="statusMsgArt"></div>
+
+    </div>
+
+    <!-- ============ PANEL CLIENTI ============ -->
+    <div class="import-panel" id="panelClienti">
+
+      <div class="drop-zone" id="dropZoneCli">
+        <div class="drop-zone-icon">👥</div>
+        <div class="drop-zone-title">Trascina qui il file clienti</div>
+        <div class="drop-zone-hint">oppure clicca per selezionarlo</div>
+        <input type="file" id="fileInputCli" accept=".txt">
+      </div>
+
+      <div class="preview-box" id="previewBoxCli">
+        <div class="preview-title">👁 Anteprima (prime 10 righe)</div>
+        <div id="fileInfoCli" style="color:var(--text-secondary);font-size:13px;"></div>
+        <table class="preview-table" id="previewTableCli">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Indirizzo</th>
+              <th>Città</th>
+              <th>Prov.</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotalCli">0</div>
+            <div class="stat-label">Clienti trovati</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="btnImportCli" disabled>
+            🚀 IMPORTA CLIENTI
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-bar" id="progressBarCli">
+        <div class="progress-fill" id="progressFillCli">0%</div>
+      </div>
+
+      <div class="status-msg" id="statusMsgCli"></div>
+
+    </div>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

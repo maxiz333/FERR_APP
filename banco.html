@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rattazzi — Banco</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/theme-dark.css">
+  <link rel="stylesheet" href="assets/css/theme-light.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/banco.css">
+  <link rel="stylesheet" href="assets/css/product-card.css">
+  <link rel="stylesheet" href="assets/css/price-dot.css">
+  <link rel="stylesheet" href="assets/css/print.css">
+  <link rel="stylesheet" href="assets/css/invoice.css">
+</head>
+<body>
+
+  <div class="banco-page">
+
+    <!-- HEADER -->
+    <header class="banco-header">
+      <div class="banco-brand">
+        <span class="banco-logo">⚙</span>
+        <div class="logo" id="bancoLogoBtn" title="Vai alla Cassa 💰" style="cursor:pointer;">
+          <div class="banco-title">
+            <strong>RATTAZZI</strong>
+            <small>CARTELLINI PREZZI</small>
+          </div>
+        </div>
+      </div>
+      <div class="banco-actions">
+        <button class="inv-f-btn" id="btnInvoiceNumber" title="Modifica numero bolle">📄 F</button>
+        <a class="banco-nav-btn" href="ufficio.html" title="Vai all'Ufficio">🏢 Ufficio</a>
+        <button class="btn btn-ghost btn-icon" id="btnLogout" title="Esci">🚪</button>
+      </div>
+    </header>
+
+    <!-- TABS -->
+    <nav class="banco-tabs">
+      <button class="banco-tab active" data-tab="nuovo">
+        + NUOVO
+      </button>
+      <button class="banco-tab" data-tab="clienti">
+        👥 CLIENTI
+      </button>
+      <button class="banco-tab" id="btnTabOrdini" data-tab="ordini">
+        📋 ORDINI <span class="count" id="countOrdini">0</span>
+      </button>
+      <button class="banco-tab" data-tab="cestino">
+        🗑 <span class="count" id="countCestino">0</span>
+      </button>
+    </nav>
+
+
+    <!-- TENDINA ORDINI (nascosta di default) -->
+    <div class="orders-dropdown" id="ordersDropdown" hidden>
+      <div class="orders-dropdown-inner">
+        <div class="orders-dropdown-header">
+          <span>📋 Ordini di oggi</span>
+          <span class="orders-dropdown-count" id="ordersDropdownCount">0</span>
+        </div>
+        <div class="orders-dropdown-list" id="ordersDropdownList">
+          <!-- Popolata via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="banco-search">
+      <div class="search-input-wrapper">
+        <span class="icon-left">🔍</span>
+        <input type="text" class="input" id="searchInput"
+               placeholder="Cerca per codice o descrizione..."
+               autocomplete="off">
+        <button class="icon-clear" id="searchClear" style="display:none;">✕</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <!-- CLIENT BAR -->
+    <div class="client-bar">
+      <div>
+        <span class="client-name" id="clientName">Cliente 1</span>
+        <span class="client-count" id="clientCount">0 art.</span>
+      </div>
+      <button class="banco-tab" id="btnClientPicker">👤 Cambia</button>
+    </div>
+
+    <!-- CART -->
+    <div class="cart-area" id="cartArea">
+      <div class="cart-empty">
+        <div class="cart-empty-icon">🛒</div>
+        <div class="cart-empty-text">Carrello vuoto</div>
+        <div class="cart-empty-hint">
+          Cerca un articolo con il campo qui sopra oppure usa il tastierino
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR -->
+    <div class="banco-bottom">
+      <div class="bottom-total">
+        <span class="bottom-total-label">TOTALE</span>
+        <span class="bottom-total-value" id="totalValue">€ 0.00</span>
+      </div>
+      <div class="bottom-actions">
+        <button class="btn btn-outline" id="btnRiepilogo" title="Riepilogo">📋 RIEP.</button>
+        <button class="btn btn-outline" id="btnUfficio" title="Invia all'ufficio">📤 UFF.</button>
+        <button class="btn btn-success" id="btnConferma" title="Conferma ordine">✅ CONFERMA</button>
+        <button class="btn btn-outline" id="btnBol" title="Crea fattura">📄 BOL.</button>
+        <button class="btn btn-danger btn-icon" id="btnTrash" title="Svuota carrello">🗑</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

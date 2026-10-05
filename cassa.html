@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cassa — FerApp</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/theme-dark.css">
+  <link rel="stylesheet" href="assets/css/cassa.css">
+  <link rel="stylesheet" href="assets/css/price-dot.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="cas-header">
+    <div class="cas-header-left">
+      <div class="cas-logo">
+        <span class="cas-logo-icon">💰</span>
+        <div class="cas-logo-text">
+          <span class="cas-logo-brand">RATTAZZI</span>
+          <span class="cas-logo-sub">CASSA — SCONTRINO</span>
+        </div>
+      </div>
+    </div>
+    <div class="cas-header-right">
+      <a class="cas-nav-btn" href="ufficio.html" title="Vai all'Ufficio">🏢 Ufficio</a>
+      <a class="cas-nav-btn" href="banco.html" title="Vai al Banco">🏭 Banco</a>
+      <span class="cas-user" id="casUser">—</span>
+      <button class="cas-logout" id="casLogout" title="Esci">🚪</button>
+    </div>
+  </header>
+
+  <!-- BARRA RICERCA -->
+  <div class="cas-searchbar">
+    <span class="cas-search-icon">🔍</span>
+    <input type="text" id="casSearch" placeholder="Cerca ordine, cliente, codice articolo…" autocomplete="off">
+  </div>
+
+  <!-- LISTA ORDINI DA BATTERE -->
+  <main class="cas-main">
+    <div class="cas-list" id="casList">
+      <!-- Ordini iniettati dal controller -->
+    </div>
+  </main>
+
+  <!-- SCRIPT -->
+  <script type="module">
+    import { getSession, clearSession } from './js/core/auth.js';
+    import { initCassaController } from './js/ui/controllers/cassa-controller.js';
+
+    const user = getSession();
+    if (!user) {
+      window.location.href = 'index.html';
+    } else {
+      document.getElementById('casLogout').addEventListener('click', () => {
+        if (confirm('Uscire?')) {
+          clearSession();
+          window.location.href = 'index.html';
+        }
+      });
+      initCassaController(user);
+    }
+  </script>
+
+</body>
+</html>

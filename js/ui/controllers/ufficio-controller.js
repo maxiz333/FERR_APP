@@ -1,0 +1,677 @@
+/* ============================================
+   UFFICIO-CONTROLLER.JS
+   Logica dell'Ufficio (Cassa).
+   Blocco 3.4/3.5 — Modifica ordini
+   ============================================ */
+
+   import { renderOrders } from "../views/ufficio-view.js";
+   import {
+    listenAllCarts,
+    updateStatus,
+    updateLine,
+    updateTotals,
+    markCartAsModified
+  } from "../../data/cart-repository.js";
+  import {
+    trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
+    runScheduledCleanup
+  } from "../../data/trash-repository.js";
+   import { openKeypad } from "../components/keypad.js";
+   import { openClientPicker } from "../components/client-picker.js";
+   import { ProductCard } from "../components/product-card.js";
+   import { ensureArticlesLoaded, getArticleFromCache, updateArticleInCache } from "../../domain/article-service.js";
+   import { computeLine, computeTotals } from "../../domain/cart-service.js";
+   import { openInvoiceModal } from "../components/invoice-modal.js";
+   import { openInvoiceNumberModal } from "../components/invoice-number-modal.js";
+   import { printInvoice } from "../components/print-invoice.js";
+   import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
+   import { getClientByKey } from "../../data/client-repository.js";
+   import { updateClient } from "../../data/cart-repository.js";
+   
+   let _user = null;
+   let _orders = [];
+   let _activeFilter = "nuovi";
+   let _searchQuery = "";
+   let _collapsed = false;
+   let _unsubListener = null;
+   let _unsubTrash = null;
+   let _trashCarts = [];
+   
+   /* ============================================
+      INIT
+      ============================================ */
+   
+   export async function initUfficioController(user) {
+     _user = user;
+   
+     const userEl = document.getElementById("uffUser");
+     if (userEl) userEl.textContent = _user.name;
+   
+     // Wire tab filtri
+     document.querySelectorAll(".uff-tab").forEach((tab) => {
+       tab.addEventListener("click", () => {
+         document.querySelectorAll(".uff-tab").forEach((t) => t.classList.remove("is-active"));
+         tab.classList.add("is-active");
+         _activeFilter = tab.dataset.filter;
+         refresh();
+       });
+     });
+   
+     // Wire ricerca
+     const searchInput = document.getElementById("uffSearch");
+     if (searchInput) {
+       let debounce = null;
+       searchInput.addEventListener("input", () => {
+         clearTimeout(debounce);
+         debounce = setTimeout(() => {
+           _searchQuery = searchInput.value.trim().toLowerCase();
+           refresh();
+         }, 150);
+       });
+     }
+   
+     // Wire toggle espansione
+     const toggleBtn = document.getElementById("uffToggleExpand");
+     if (toggleBtn) {
+       toggleBtn.addEventListener("click", () => {
+         _collapsed = !_collapsed;
+         updateToggleIcon();
+         refresh();
+       });
+       updateToggleIcon();
+     }
+   
+          // 🆕 Precarica articoli in cache (per i pallini stato prezzo)
+          ensureArticlesLoaded()
+          .then(() => {
+            console.log("📚 Cache articoli pronta (ufficio)");
+            refresh();  // ridisegna con i pallini
+          })
+          .catch(err => {
+            console.error("Errore caricamento articoli:", err);
+          });
+
+         // 🆕 Tasto F: modifica numero bolle
+         const btnF = document.getElementById("btnInvoiceNumber");
+         if (btnF && !btnF._hasFListener) {
+           btnF._hasFListener = true;
+           btnF.addEventListener("click", async () => {
+             const current = await peekNextInvoiceNumber();
+             const input = prompt("Numero prossima bolla:", current);
+             if (input === null) return;
+             const n = parseInt(input, 10);
+             if (!Number.isFinite(n) || n < 0) {
+               alert("Numero non valido");
+               return;
+             }
+             await setNextInvoiceNumber(n);
+             alert("✅ Prossima bolla: " + n);
+           });
+         }
+
+         // 🆕 Blocco 8 — Cestino ufficio
+         wireTrashUfficio();
+         startTrashListener();
+         runScheduledCleanup();
+    
+         // Ascolta Firebase
+         if (_unsubListener) _unsubListener();
+         _unsubListener = listenAllCarts((carts) => {
+      _orders = carts.map((c) => {
+        const meta = c.meta || {};
+        return {
+          id: c.id,
+          status: meta.status || "modifica",
+          clientName: meta.clientName || "Cliente 1",
+          createdByName: meta.createdByName || "—",
+          createdAt: meta.createdAt || 0,
+          lineCount: meta.lineCount || 0,
+          grandTotal: (meta.totals && meta.totals.grandTotal) || 0,
+          isLocked: meta.isLocked || false,
+          wasModified: meta.wasModified || false,
+          orderNumber: meta.orderNumber || null,
+          orderCode: meta.orderCode || null,
+          note: meta.note || "",
+          // 🆕 Blocco 7 — fatturazione
+          invoiceNumber: meta.invoiceNumber || null,
+          invoiceDate: meta.invoiceDate || 0,
+          clientId: meta.clientId || null,
+          lines: c.lines || {},
+        };
+      });
+   
+       console.log(`📥 Ricevuti ${_orders.length} ordini da Firebase`);
+       refresh();
+     });
+   
+     console.log("🏢 Ufficio controller attivo (Blocco 3.4/3.5)");
+   }
+   
+   /* ============================================
+      TOGGLE ICON
+      ============================================ */
+   
+   function updateToggleIcon() {
+     const icon = document.getElementById("uffToggleIcon");
+     const btn = document.getElementById("uffToggleExpand");
+     if (icon) icon.textContent = _collapsed ? "📕" : "📖";
+     if (btn) btn.title = _collapsed ? "Espandi tutti" : "Comprimi tutti";
+   }
+   
+   /* ============================================
+      REFRESH
+      ============================================ */
+   
+      function refresh() {
+        const filtered = filterOrders(_orders);
+        const enriched = enrichWithArticles(filtered);
+        updateCounts(_orders);
+        renderOrders(enriched, _collapsed);
+        wireOrderActions();
+      }
+   
+      /**
+       * Arricchisce ogni riga con l'articolo dal cache locale
+       * (per mostrare il pallino stato prezzo).
+       */
+      function enrichWithArticles(orders) {
+        return orders.map((o) => {
+          const enrichedLines = {};
+          for (const [lid, l] of Object.entries(o.lines || {})) {
+            const art = l.articleId ? getArticleFromCache(l.articleId) : null;
+            enrichedLines[lid] = { ...l, _article: art };
+          }
+          return { ...o, lines: enrichedLines };
+        });
+      }
+   
+   function filterOrders(orders) {
+     let result = orders.filter((o) => o.status !== "modifica");
+   
+     if (_activeFilter === "nuovi") {
+       result = result.filter((o) => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
+     } else if (_activeFilter === "fatti") {
+       result = result.filter((o) => o.status === "fatto");
+     } else if (_activeFilter === "pronto") {
+       result = result.filter((o) => o.status === "pronto");
+     }
+   
+     if (_searchQuery) {
+       result = result.filter((o) => {
+         const hay = `${o.clientName} ${o.createdByName} ${o.id}`.toLowerCase();
+         return hay.includes(_searchQuery);
+       });
+     }
+   
+     return result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+   }
+   
+   function updateCounts(orders) {
+     const visible = orders.filter((o) => o.status !== "modifica");
+     const nuovi = visible.filter((o) => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status)).length;
+     const fatti = visible.filter((o) => o.status === "fatto").length;
+     const pronti = visible.filter((o) => o.status === "pronto").length;
+   
+     const elNuovi = document.getElementById("countNuovi");
+     const elFatti = document.getElementById("countFatti");
+     const elTutti = document.getElementById("countTutti");
+     const elPronto = document.getElementById("countPronto");
+   
+     if (elNuovi) elNuovi.textContent = nuovi;
+     if (elFatti) elFatti.textContent = fatti;
+     if (elTutti) elTutti.textContent = visible.length;
+     if (elPronto) elPronto.textContent = pronti;
+   }
+   
+   /* ============================================
+      AZIONI ORDINI
+      ============================================ */
+   
+   function wireOrderActions() {
+     document.querySelectorAll("[data-action]").forEach((btn) => {
+       if (btn._wired) return;
+       btn._wired = true;
+   
+       btn.addEventListener("click", async (e) => {
+         e.stopPropagation();
+         const action = btn.dataset.action;
+         const orderId = btn.dataset.orderId;
+         const lineId = btn.dataset.lineId;
+   
+         try {
+          if (action === "fatto") {
+            if (!confirm("Segnare questo ordine come FATTO?")) return;
+
+            // 🆕 PRIMA sincronizza i prezzi delle righe → articoli
+            try {
+              const { syncOrderPricesToArticles } = await import("../../data/cart-repository.js");
+              const res = await syncOrderPricesToArticles(orderId);
+              if (res.updated > 0 || res.skipped > 0) {
+                console.log(`💰 Prezzi sincronizzati: ${res.updated} aggiornati, ${res.skipped} invariati`);
+              }
+              // 🆕 Aggiorna cache locale con i nuovi prezzi
+              if (res.articles && res.articles.length > 0) {
+                const now = Date.now();
+                for (const a of res.articles) {
+                  updateArticleInCache(a.key, {
+                    basePrice: a.price,
+                    priceLastChangedAt: now,
+                    priceVerified: true
+                  });
+                }
+              }
+            } catch (err) {
+              console.error("Errore sync prezzi:", err);
+            }
+
+            await updateStatus(orderId, "fatto");
+            await updateLineLock(orderId, true);
+            console.log(`✅ Ordine ${orderId} → fatto`);
+   
+           } else if (action === "pronto") {
+             await updateStatus(orderId, "pronto");
+             console.log(`📋 Ordine ${orderId} → pronto`);
+   
+            } else if (action === "unlock") {
+              if (!confirm("Sbloccare l'ordine per modificarlo?")) return;
+              await updateStatus(orderId, "sbloccato");
+              await updateLineLock(orderId, false);
+              console.log(`🔓 Ordine ${orderId} sbloccato`);
+            
+              // Cambia tab su "nuovi" e mostra l'ordine sbloccato
+              _activeFilter = "nuovi";
+              document.querySelectorAll(".uff-tab").forEach((t) => {
+                t.classList.toggle("is-active", t.dataset.filter === "nuovi");
+              });
+              refresh();
+            
+              // Scroll all'ordine appena sbloccato
+              setTimeout(() => {
+                const el = document.querySelector(`[data-order-id="${orderId}"]`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 150);
+            
+   
+            } else if (action === "stampa") {
+              const { openPrintOrdersModal } = await import("../components/print-orders-modal.js");
+              const filtered = filterOrders(_orders);
+              const filterLabels = {
+                nuovi: "🟡 NUOVI",
+                fatti: "🟢 FATTI",
+                tutti: "📋 TUTTI",
+                pronto: "🟣 PRONTO"
+              };
+              openPrintOrdersModal({
+                orders: filtered,
+                currentOrderId: orderId,
+                filterLabel: filterLabels[_activeFilter] || _activeFilter
+              });
+
+                        // 🆕 Blocco 7 — Crea fattura
+                      } else if (action === "bol") {
+                        const order = _orders.find((o) => o.id === orderId);
+                        if (!order) return;
+          
+                        // Apri client picker per scegliere cliente
+                        const pick = await openClientPicker({
+                          currentClientName: order.clientName || "Cliente 1"
+                        });
+          
+                        // Se annulla, esci
+                        if (!pick) return;
+          
+                        // Salva nuovo cliente sul carrello (se scelto)
+                        if (pick.clientKey) {
+                          try { await updateClient(orderId, pick.clientKey, pick.name); }
+                          catch (e) { console.error(e); }
+                        }
+          
+                        // Chiedi conferma con dialog nativo
+                        const preview = await peekNextInvoiceNumber();
+                        const ok = confirm(
+                          "Creare fattura per questo ordine?\n\n" +
+                          "Cliente: " + pick.name + "\n" +
+                          "Numero bolla: " + preview
+                        );
+                        if (!ok) return;
+          
+                        try {
+                          const invoiceNumber = await generateInvoiceNumber();
+                          await saveInvoiceToCart(orderId, invoiceNumber);
+                          alert("✅ Fattura " + invoiceNumber + " creata!\n\nOra premi '🖨 Stampa DDT' per stamparla.");
+                        } catch (err) {
+                          console.error("Errore fatturazione:", err);
+                          alert("Errore: " + err.message);
+                        }
+
+            // 🆕 Blocco 7 — Ristampa DDT
+            } else if (action === "stampa-ddt") {
+              const order = _orders.find((o) => o.id === orderId);
+              if (!order || !order.invoiceNumber) return;
+
+              let client = null;
+              if (order.clientId) {
+                try { client = await getClientByKey(order.clientId); }
+                catch (e) { /* ignore */ }
+              }
+
+              printInvoice({
+                cart: { meta: order, lines: order.lines },
+                invoiceNumber: order.invoiceNumber,
+                client: client
+              });
+   
+            } else if (action === "elimina") {
+              if (!confirm("Spostare questo ordine nel cestino?")) return;
+              try {
+                await trashCart(orderId, "ufficio", _user);
+                console.log(`🗑 Ordine ${orderId} cestinato (ufficio)`);
+              } catch (err) {
+                console.error("Errore cestinamento:", err);
+                alert("Errore: " + err.message);
+              }
+   
+           } else if (action === "edit-price") {
+             await editLinePrice(orderId, lineId);
+   
+           } else if (action === "edit-qty") {
+             await editLineQty(orderId, lineId);
+   
+           } else if (action === "edit-discount") {
+             await editLineDiscount(orderId, lineId);
+            } else if (action === "product-card") {
+              const code = btn.dataset.articleCode;
+              if (!code) return;
+              ProductCard.open({
+                articleCode: code,
+                onSaved: () => {
+                  // niente da fare: la scheda ricarica da Firebase la prossima apertura
+                }
+              });
+            }
+           
+         } catch (err) {
+           console.error("Errore azione:", action, err);
+           alert("Errore: " + err.message);
+         }
+       });
+     });
+   }
+   
+   /* ============================================
+      MODIFICA RIGHE
+      ============================================ */
+   
+   async function editLinePrice(orderId, lineId) {
+     const order = _orders.find((o) => o.id === orderId);
+     if (!order) return;
+     const line = order.lines[lineId];
+     if (!line) return;
+   
+     const currentPrice = Number(line.unitPrice ?? line.basePrice) || 0;
+   
+     const result = await openKeypad({
+       title: "Prezzo unitario",
+       value: currentPrice,
+       unit: "€",
+       allowDecimal: true,
+       min: 0
+     });
+     if (result == null) return;
+   
+     const updated = computeLine({ ...line, unitPrice: result });
+   
+     await updateLine(orderId, lineId, {
+      unitPrice: updated.unitPrice,
+      lineTotal: updated.lineTotal,
+      discountAmount: updated.discountAmount
+    });
+  
+    await recomputeAndSaveTotals(order, lineId, updated);
+    await markCartAsModified(orderId);
+  
+    // 🆕 Aggiorna cache articolo locale (per pallini e scheda prodotto)
+    if (line.articleId) {
+      updateArticleInCache(line.articleId, {
+        basePrice: updated.unitPrice,
+        priceLastChangedAt: Date.now(),
+        priceVerified: true
+      });
+    }
+  
+    console.log(`✏️ Prezzo aggiornato: ${orderId}/${lineId} → €${result}`);
+   }
+   
+   async function editLineQty(orderId, lineId) {
+     const order = _orders.find((o) => o.id === orderId);
+     if (!order) return;
+     const line = order.lines[lineId];
+     if (!line) return;
+   
+     const result = await openKeypad({
+       title: "Quantità",
+       value: Number(line.qty) || 1,
+       unit: line.unit || "PZ",
+       allowDecimal: true,
+       min: 0.01
+     });
+     if (result == null) return;
+   
+     const updated = computeLine({ ...line, qty: result });
+   
+     await updateLine(orderId, lineId, {
+       qty: updated.qty,
+       lineTotal: updated.lineTotal,
+       discountAmount: updated.discountAmount
+     });
+   
+     await recomputeAndSaveTotals(order, lineId, updated);
+     await markCartAsModified(orderId);
+   
+     console.log(`✏️ Quantità aggiornata: ${orderId}/${lineId} → ${result}`);
+   }
+   
+   async function editLineDiscount(orderId, lineId) {
+     const order = _orders.find((o) => o.id === orderId);
+     if (!order) return;
+     const line = order.lines[lineId];
+     if (!line) return;
+   
+     const currentDisc = Number(line.discountPct) || 0;
+   
+     const result = await openKeypad({
+       title: "Sconto %",
+       value: currentDisc,
+       unit: "%",
+       allowDecimal: true,
+       min: 0,
+       max: 100
+     });
+     if (result == null) return;
+   
+     const updated = computeLine({ ...line, discountPct: result });
+   
+     await updateLine(orderId, lineId, {
+       discountPct: updated.discountPct,
+       lineTotal: updated.lineTotal,
+       discountAmount: updated.discountAmount
+     });
+   
+     await recomputeAndSaveTotals(order, lineId, updated);
+     await markCartAsModified(orderId);
+   
+     console.log(`✏️ Sconto aggiornato: ${orderId}/${lineId} → ${result}%`);
+   }
+   
+   /* ============================================
+      RICALCOLO TOTALI
+      ============================================ */
+   
+   async function recomputeAndSaveTotals(order, changedLineId, updatedLine) {
+     // Prendi tutte le righe, sostituisci quella cambiata con la versione aggiornata
+     const allLines = Object.entries(order.lines || {}).map(([id, l]) => {
+       if (id === changedLineId) return { id, ...updatedLine };
+       return { id, ...l };
+     });
+   
+     const totals = computeTotals(allLines);
+     await updateTotals(order.id, totals);
+   
+     console.log(`📊 Totali aggiornati ordine ${order.id}: ${totals.lineCount} righe, €${totals.grandTotal}`);
+   }
+   
+   /* ============================================
+      UNLOCK
+      ============================================ */
+   
+   async function updateLineLock(orderId, isLocked) {
+     // Aggiorna isLocked direttamente nel meta
+     const { db, ref, update } = await import("../../core/firebase-init.js");
+     await update(ref(db, `activeCarts/${orderId}/meta`), {
+       isLocked: isLocked,
+       updatedAt: Date.now()
+     });
+   }
+   /* ============================================
+   CESTINO (Blocco 8) — Ufficio
+   ============================================ */
+
+function startTrashListener() {
+  if (_unsubTrash) _unsubTrash();
+  _unsubTrash = listenTrashCarts((carts) => {
+    _trashCarts = carts || [];
+    updateTrashCount();
+    if (!document.getElementById("uffTrashOverlay")?.hasAttribute("hidden")) {
+      renderTrashUfficio();
+    }
+  });
+}
+
+function updateTrashCount() {
+  const el = document.getElementById("countCestinoUff");
+  if (el) el.textContent = String(_trashCarts.length);
+}
+
+function wireTrashUfficio() {
+  const btn = document.getElementById("btnTrashUfficio");
+  const overlay = document.getElementById("uffTrashOverlay");
+  const closeBtn = document.getElementById("uffTrashClose");
+  if (!btn || !overlay) return;
+
+  if (!btn._hasListener) {
+    btn._hasListener = true;
+    btn.addEventListener("click", () => {
+      renderTrashUfficio();
+      overlay.removeAttribute("hidden");
+    });
+  }
+  if (closeBtn && !closeBtn._hasListener) {
+    closeBtn._hasListener = true;
+    closeBtn.addEventListener("click", () => overlay.setAttribute("hidden", ""));
+  }
+  if (!overlay._hasBgListener) {
+    overlay._hasBgListener = true;
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.setAttribute("hidden", "");
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") overlay.setAttribute("hidden", "");
+    });
+  }
+}
+
+function renderTrashUfficio() {
+  const list = document.getElementById("uffTrashList");
+  const cnt = document.getElementById("uffTrashCount");
+  if (cnt) cnt.textContent = String(_trashCarts.length);
+  if (!list) return;
+
+  if (_trashCarts.length === 0) {
+    list.innerHTML = `<div class="banco-order-line-empty">Cestino vuoto</div>`;
+    return;
+  }
+
+  list.innerHTML = _trashCarts.map((c) => {
+    const meta = c.meta || {};
+    const lines = Object.entries(c.lines || {});
+    let name;
+    if (meta.invoiceNumber) {
+      const cp = (meta.clientName && meta.clientName !== "Cliente 1") ? ` · ${meta.clientName}` : "";
+      name = `Fattura ${meta.invoiceNumber}${cp}`;
+    } else if (meta.orderNumber && meta.orderCode) {
+      name = `Ordine #${meta.orderNumber} - ${meta.orderCode}`;
+    } else {
+      name = meta.clientName || "Cliente 1";
+    }
+    const time = formatTimeHHMM(c.trashedAt);
+    const total = formatEuro(meta.totals?.grandTotal || 0);
+    const src = c.source === "ufficio" ? "🏢" : "🏭";
+    const who = c.trashedBy?.name || "—";
+
+    return `
+      <div class="banco-order-line" data-trash-id="${c.id}" style="flex-wrap:wrap;align-items:center;">
+        <div class="desc" style="flex:1;min-width:160px;">
+          <div class="name">${escapeHtml(name)}</div>
+          <div class="code">${src} ${escapeHtml(who)} · ${time} · ${lines.length} art.</div>
+        </div>
+        <span class="total" style="min-width:80px;text-align:right;">${total}</span>
+        <button class="btn btn-success" data-trash-action="restore" data-trash-id="${c.id}" style="margin-left:8px;">♻️ Ripristina</button>
+        <button class="btn btn-danger" data-trash-action="delete" data-trash-id="${c.id}" style="margin-left:4px;">❌ Elimina</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-trash-action]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const cartId = btn.dataset.trashId;
+      const action = btn.dataset.trashAction;
+      if (action === "restore") {
+        if (!confirm("Ripristinare questo ordine? Tornerà in stato 'modifica'.")) return;
+        try {
+          await restoreCart(cartId);
+          showToastUff("♻️ Ordine ripristinato");
+        } catch (err) { console.error(err); showToastUff("Errore ripristino"); }
+      } else if (action === "delete") {
+        if (!confirm("Eliminare DEFINITIVAMENTE questo ordine? Irreversibile!")) return;
+        try {
+          await deleteCartPermanently(cartId);
+          showToastUff("❌ Eliminato definitivamente");
+        } catch (err) { console.error(err); showToastUff("Errore eliminazione"); }
+      }
+    });
+  });
+}
+
+function formatTimeHHMM(ms) {
+  if (!ms) return "--:--";
+  const d = new Date(ms);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function formatEuro(n) {
+  const v = Number(n) || 0;
+  return "€ " + v.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+function showToastUff(msg) {
+  let container = document.querySelector(".toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.className = "toast-container";
+    document.body.appendChild(container);
+  }
+  const t = document.createElement("div");
+  t.className = "toast toast-success";
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}

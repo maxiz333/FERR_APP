@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ufficio — FerApp</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/theme-dark.css">
+  <link rel="stylesheet" href="assets/css/ufficio.css">
+  <link rel="stylesheet" href="assets/css/banco.css">
+  <link rel="stylesheet" href="assets/css/print.css">
+  <link rel="stylesheet" href="assets/css/product-card.css">
+  <link rel="stylesheet" href="assets/css/price-dot.css">
+  <link rel="stylesheet" href="assets/css/invoice.css">
+  <style>
+    /* Fix: rende l'attributo hidden più forte di .fapp-modal-overlay { display:flex } */
+    #uffTrashOverlay[hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="uff-header">
+    <div class="uff-header-left">
+      <button class="uff-logo" id="uffLogoBtn" title="Cerca articoli, clienti, ordini">
+        <span class="uff-logo-icon">⚙</span>
+        <div class="uff-logo-text">
+          <span class="uff-logo-brand">RATTAZZI</span>
+          <span class="uff-logo-sub">CARTELLINI PREZZI</span>
+        </div>
+      </button>
+    </div>
+    <div class="uff-header-right">
+      <button class="inv-f-btn" id="btnInvoiceNumber" title="Modifica numero bolle">📄 F</button>
+      <button class="uff-nav-btn" id="btnTrashUfficio" title="Cestino">🗑 <span id="countCestinoUff">0</span></button>
+      <a class="uff-nav-btn" href="banco.html" title="Vai al Banco">🏭 Banco</a>
+      <button class="uff-logout" id="uffLogout" title="Esci">🚪</button>
+    </div>
+  </header>
+
+  <!-- TAB FILTRI -->
+  <nav class="uff-tabs">
+    <button class="uff-tab is-active" data-filter="nuovi">
+      🟡 NUOVI <span class="uff-tab-count" id="countNuovi">0</span>
+    </button>
+    <button class="uff-tab" data-filter="fatti">
+      🟢 FATTI <span class="uff-tab-count" id="countFatti">0</span>
+    </button>
+    <button class="uff-tab" data-filter="tutti">
+      📋 TUTTI <span class="uff-tab-count" id="countTutti">0</span>
+    </button>
+    <button class="uff-tab" data-filter="pronto">
+      🟣 PRONTO <span class="uff-tab-count" id="countPronto">0</span>
+    </button>
+  </nav>
+
+  <!-- BARRA RICERCA -->
+  <div class="uff-searchbar">
+    <span class="uff-search-icon">🔍</span>
+    <input type="text" id="uffSearch" placeholder="Cerca ordine, cliente, codice articolo…" autocomplete="off">
+    <button class="uff-toggle-expand" id="uffToggleExpand" title="Comprimi tutti">
+      <span id="uffToggleIcon">📖</span>
+    </button>
+  </div>
+
+  <!-- LISTA ORDINI -->
+  <main class="uff-main">
+    <div class="uff-list" id="uffList">
+      <!-- Gli ordini verranno iniettati qui dal controller -->
+    </div>
+  </main>
+
+  <!-- MODALE CESTINO (nascosta di default) -->
+  <div id="uffTrashOverlay" class="fapp-modal-overlay" hidden>
+    <div class="fapp-modal-box banco-order-view">
+      <div class="banco-order-banner" style="background:#7f1d1d;color:#fff;">
+        <span>🗑 CESTINO <span id="uffTrashCount">0</span></span>
+      </div>
+      <div class="banco-order-lines" id="uffTrashList"></div>
+      <div class="banco-order-actions">
+        <div class="banco-order-actions-row">
+          <button class="btn btn-outline" id="uffTrashClose" type="button">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script type="module">
+    import { getSession, clearSession } from './js/core/auth.js';
+    import { initUfficioController } from './js/ui/controllers/ufficio-controller.js';
+
+    const user = getSession();
+
+    // Se non loggato → login
+    if (!user) {
+      window.location.href = 'index.html';
+    } else {
+      // Logout
+      document.getElementById('uffLogout').addEventListener('click', () => {
+        if (confirm('Uscire?')) {
+          clearSession();
+          window.location.href = 'index.html';
+        }
+      });
+
+      // 🆕 Click sul logo → Cassa
+      const logoBtn = document.getElementById('uffLogoBtn');
+      if (logoBtn) {
+        logoBtn.style.cursor = 'pointer';
+        logoBtn.addEventListener('click', () => {
+          window.location.href = 'cassa.html';
+        });
+      }
+
+      // Avvia il controller
+      initUfficioController(user);
+    }
+  </script>
+
+</body>
+</html>

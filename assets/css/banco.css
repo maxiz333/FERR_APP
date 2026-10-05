@@ -1,0 +1,1058 @@
+/* ============================================
+   BANCO.CSS
+   Layout specifico della pagina Banco (Magazzino).
+   ============================================ */
+
+   .banco-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+  
+  /* === HEADER === */
+  .banco-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--primary);
+    flex-shrink: 0;
+  }
+  
+  .banco-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .banco-logo {
+    font-size: 26px;
+    line-height: 1;
+  }
+  
+  .banco-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    line-height: 1.1;
+  }
+  
+  .banco-title strong {
+    color: var(--primary);
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    font-weight: 900;
+  }
+  
+  .banco-title small {
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 2px;
+  }
+  
+  .banco-user {
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .banco-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  
+  /* === TAB BAR (in cima) === */
+  .banco-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .banco-tabs::-webkit-scrollbar { display: none; }
+  
+  .banco-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  
+  .banco-tab:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  
+  .banco-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #000;
+  }
+  
+  .banco-tab .count {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.15);
+    font-size: 10px;
+    font-weight: 900;
+  }
+  
+  .banco-tab.active .count {
+    background: rgba(0,0,0,0.25);
+  }
+  
+  /* === SEARCH AREA === */
+  .banco-search {
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  
+  .search-input-wrapper {
+    position: relative;
+  }
+  
+  .search-input-wrapper .input {
+    padding-left: 42px;
+    padding-right: 42px;
+    font-size: 16px;
+  }
+  
+  .search-input-wrapper .icon-left {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+  
+  .search-input-wrapper .icon-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px;
+  }
+  .search-input-wrapper .icon-clear:hover { color: var(--danger); }
+  
+  /* === SEARCH RESULTS === */
+  .search-results {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    display: none;
+  }
+  .search-results.active { display: block; }
+  
+  .search-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--bg-card-hover); }
+  
+  .search-result-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  
+  .search-result-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  
+  .search-result-code {
+    font-size: 11px;
+    color: var(--primary);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  
+  .search-result-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+  
+  /* === CLIENT BAR === */
+  .client-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .client-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  
+  .client-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-left: 8px;
+  }
+  
+  /* === CART AREA === */
+  .cart-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+  }
+  
+  .cart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
+    padding: 40px 20px;
+  }
+  
+  .cart-empty-icon {
+    font-size: 60px;
+    opacity: 0.4;
+  }
+  
+  .cart-empty-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  
+  .cart-empty-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    max-width: 300px;
+  }
+  
+  /* === BOTTOM BAR === */
+  .banco-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border-top: 2px solid var(--primary);
+    flex-shrink: 0;
+  }
+  
+  .bottom-total {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 100px;
+  }
+  
+  .bottom-total-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  
+  .bottom-total-value {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+  }
+  
+  .bottom-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .bottom-actions::-webkit-scrollbar { display: none; }
+  /* ============================================
+   CART LINES
+   ============================================ */
+.cart-line {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.cart-line:hover {
+  border-color: var(--border-strong);
+}
+
+.cart-line-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 6px;
+}
+
+.cart-line-index {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 20px;
+}
+
+.cart-line-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cart-line-desc {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.cart-line-code {
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.cart-line-total {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.cart-line-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px 10px;
+  flex-wrap: wrap;
+}
+
+.cart-line-qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.qty-btn {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.qty-btn:hover { background: var(--primary-soft); color: var(--primary); }
+.qty-btn:active { background: var(--primary); color: #000; }
+
+.qty-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text-primary);
+  padding: 0 4px;
+}
+
+.cart-line-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.cart-line-prices .price-label {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.cart-line-prices .price-value {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.line-discount-badge {
+  padding: 4px 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.cart-line-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.line-action {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.line-action:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.line-action.danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+/* ============================================
+   ELEMENTI CLICCABILI (per tastierino)
+   ============================================ */
+
+   .qty-value.qty-editable {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 4px 6px;
+    transition: background 0.1s ease;
+  }
+  
+  .qty-value.qty-editable:hover {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  
+  .qty-value.qty-editable:active {
+    background: var(--primary);
+    color: #000;
+  }
+  
+  .cart-line-prices.price-editable {
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.1s ease;
+  }
+  
+  .cart-line-prices.price-editable:hover {
+    border-color: var(--primary);
+  }
+  
+  .cart-line-prices.price-editable:active {
+    background: var(--primary-soft);
+  }
+  
+  .line-action[data-action="discount"] {
+    font-weight: 900;
+    font-size: 15px;
+  }
+  /* ============================================
+   PULSANTE FORBICI (Ciclo 4 stati)
+   ============================================ */
+
+.line-action.forbici {
+  width: auto;
+  min-width: 36px;
+  padding: 0 8px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.line-action.forbici .forbici-icon {
+  font-size: 16px;
+  line-height: 1;
+  filter: grayscale(1) opacity(0.5);
+  transition: filter 0.15s ease;
+}
+
+.line-action.forbici .forbici-label {
+  display: none;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Stato NEUTRO: solo icona grigia */
+.line-action.forbici-neutro {
+  border-color: var(--border-color);
+}
+.line-action.forbici-neutro:hover {
+  border-color: var(--text-secondary);
+}
+
+/* Stato SCAMPOLO: giallo */
+.line-action.forbici-scampolo {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.line-action.forbici-scampolo .forbici-icon {
+  filter: none;
+}
+.line-action.forbici-scampolo .forbici-label {
+  display: inline;
+}
+
+/* Stato ROTOLO: rosso */
+.line-action.forbici-rotolo {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.line-action.forbici-rotolo .forbici-icon {
+  filter: none;
+}
+.line-action.forbici-rotolo .forbici-label {
+  display: inline;
+}
+
+/* Stato SCAGLIONATO: blu */
+.line-action.forbici-scaglionato {
+  background: var(--info-soft);
+  border-color: var(--info);
+  color: var(--info);
+}
+.line-action.forbici-scaglionato .forbici-icon {
+  filter: none;
+}
+.line-action.forbici-scaglionato .forbici-label {
+  display: inline;
+}
+/* Nav button verso Ufficio */
+.banco-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.banco-nav-btn:hover {
+  border-color: var(--primary, #facc15);
+  color: var(--primary, #facc15);
+}
+@media (max-width: 640px) {
+  .banco-nav-btn { padding: 5px 8px; font-size: 0.72rem; }
+}
+/* ============================================================
+   Fix Header Banco (25/09/2026)
+   ============================================================ */
+
+/* Header con space-between: brand a sinistra, actions a destra */
+.banco-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.banco-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.banco-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;   /* spinge tutto a destra */
+}
+
+/* Pulsante Ufficio (toggle) */
+.banco-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.banco-nav-btn:hover {
+  border-color: var(--primary, #facc15);
+  color: var(--primary, #facc15);
+}
+
+/* Username in GIALLO (come ufficio) */
+.banco-user {
+  font-weight: 700;
+  color: var(--primary, #facc15) !important;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .banco-nav-btn { padding: 5px 8px; font-size: 0.72rem; }
+  .banco-user { font-size: 0.75rem; }
+}
+/* === TENDINA ORDINI (Blocco 3.3c) === */
+.orders-dropdown {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: ordersDropIn 0.15s ease;
+}
+
+@keyframes ordersDropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.orders-dropdown[hidden] { display: none; }
+
+.orders-dropdown-inner {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: ordersSlideUp 0.2s ease;
+}
+
+@keyframes ordersSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.orders-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.orders-dropdown-count {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #000;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.orders-dropdown-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.orders-dropdown-item {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.orders-dropdown-item:last-child { border-bottom: none; }
+.orders-dropdown-item:hover { background: var(--bg-card-hover); }
+
+.orders-dropdown-icon {
+  font-size: 20px;
+  text-align: center;
+  line-height: 1;
+}
+
+.orders-dropdown-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.orders-dropdown-client {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orders-dropdown-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orders-dropdown-total {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.orders-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-style: italic;
+}
+/* === ANTEPRIMA ORDINE (Banco) === */
+.order-preview-box {
+  max-width: 640px;
+  width: 92vw;
+}
+
+.order-preview-lines {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.order-preview-line {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.order-preview-idx {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.order-preview-info { min-width: 0; }
+
+.order-preview-desc {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-preview-code {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.order-preview-total {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.order-preview-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+/* === VISTA DETTAGLIO ORDINE (Banco) — Blocco 3.5-bis === */
+.banco-order-view {
+  width: 92vw;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Banner (colore in base allo stato) */
+.banco-order-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.banco-order-banner[data-status="fatto"]      { background: #22c55e; color: #fff; }
+.banco-order-banner[data-status="nuovo"]      { background: #eab308; color: #000; }
+.banco-order-banner[data-status="in_arrivo"]  { background: #ef4444; color: #fff; }
+.banco-order-banner[data-status="pronto"]     { background: #a855f7; color: #fff; }
+.banco-order-banner[data-status="bozza"]      { background: #3b82f6; color: #fff; }
+.banco-order-banner[data-status="sbloccato"]  { background: #22c55e; color: #fff; }
+.banco-order-banner[data-status="modifica"]   { background: #facc15; color: #000; }
+
+.banco-order-eye { font-size: 16px; }
+
+/* Nome cliente */
+.banco-order-client {
+  padding: 12px 18px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Lista righe */
+.banco-order-lines {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.banco-order-line-empty {
+  padding: 30px 18px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.banco-order-line {
+  display: grid;
+  grid-template-columns: 24px 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.banco-order-line:last-child { border-bottom: none; }
+
+.banco-order-line .idx {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.banco-order-line .desc { min-width: 0; }
+.banco-order-line .desc .name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+.banco-order-line .desc .code {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.banco-order-line .qty,
+.banco-order-line .price {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.banco-order-line .total {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* Totale */
+.banco-order-totalbox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-top: 2px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.banco-order-totalbox span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+.banco-order-totalbox strong {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pulsanti */
+.banco-order-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.banco-order-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.banco-order-actions-row .btn-primary { flex: 1; }
+.banco-order-actions-row .btn-outline { flex: 0 0 auto; }
+.banco-order-actions-row .btn-danger  { flex: 0 0 48px; width: 48px; }
+.banco-order-actions-row #boBtnStampa { flex: 1; }
+
+/* Mobile */
+@media (max-width: 480px) {
+  .banco-order-line {
+    grid-template-columns: 20px 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 6px 8px;
+  }
+  .banco-order-line .idx { grid-row: 1 / 3; }
+  .banco-order-line .desc { grid-column: 2 / 4; grid-row: 1; }
+  .banco-order-line .qty { grid-column: 2; grid-row: 2; text-align: left; }
+  .banco-order-line .price { display: none; }
+  .banco-order-line .total { grid-column: 3; grid-row: 2; }
+}
+.pc-clickable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.pc-clickable:hover {
+  color: var(--primary, #facc15);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+/* 🆕 Sotto-prezzo per articoli a misura (KG/MT/MQ) */
+.cart-line-prices .price-sub-perunit {
+  display: block;
+  font-size: 10px;
+  color: var(--primary, #facc15);
+  font-weight: 700;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.cart-line-prices .price-sub-base {
+  display: block;
+  font-size: 9px;
+  color: var(--text-tertiary, #888);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
