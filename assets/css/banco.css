@@ -1056,3 +1056,235 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+/* ============================================================
+   LAYOUT RIGA ARTICOLO v2 — stile vecchia app (Blocco 4)
+   ============================================================ */
+
+/* Intestazioni colonne */
+.cart-cols-header {
+  display: grid;
+  grid-template-columns: 1fr 180px 90px 90px;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #555;
+  border-bottom: 1px solid #222;
+  margin-bottom: 8px;
+}
+.cart-cols-header .ccol-prod { text-align: left; }
+.cart-cols-header .ccol-qty  { text-align: center; }
+.cart-cols-header .ccol-prez { text-align: right; }
+.cart-cols-header .ccol-tot  { text-align: right; }
+
+/* Griglia riga articolo */
+.cart-line-grid {
+  display: grid;
+  grid-template-columns: 1fr 180px 90px 90px;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+/* Colonna 1: prodotto */
+.clv2-prod {
+  min-width: 0;
+}
+.clv2-prod .cart-line-desc {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  margin-bottom: 3px;
+  cursor: pointer;
+}
+.clv2-prod .cart-line-code {
+  font-size: 0.78rem;
+  color: #facc15;
+  opacity: 0.85;
+  font-family: monospace;
+}
+
+/* Colonna 2: qty + unità + H×L + prezzo base */
+.clv2-qty-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-line-qty {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.cart-line-qty .qty-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 800;
+  background: #2a2a2a;
+  color: inherit;
+  border: 1px solid #333;
+  cursor: pointer;
+  padding: 0;
+}
+.cart-line-qty .qty-btn:hover { border-color: #facc15; }
+.cart-line-qty .qty-value {
+  width: 48px;
+  height: 30px;
+  padding: 0;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: inherit;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+.cart-line-qty .qty-value:hover { border-color: #facc15; }
+
+.cart-line-unit {
+  width: 80px;
+  height: 28px;
+  background: #2a2a2a;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0;
+  font-weight: 700;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+.cart-line-unit:hover { border-color: #facc15; }
+
+.clv2-hxl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.clv2-hxl-label { color: #facc15; opacity: 0.9; }
+.clv2-hxl-x {
+  color: #fff;
+  opacity: 0.85;
+  font-weight: 700;
+  margin: 0 3px;
+}
+.clv2-hxl-input {
+  width: 46px;
+  height: 28px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #facc15;
+  font-weight: 800;
+  font-size: 0.9rem;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+  padding: 0 4px;
+}
+.clv2-hxl-input:focus {
+  border-color: #facc15;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
+}
+
+.clv2-base {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.clv2-base-label {
+  background: transparent;
+  border: none;
+  color: #facc15;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.clv2-base-label:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+.clv2-base-value {
+  min-width: 80px;
+  height: 28px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #facc15;
+  font-weight: 800;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0 10px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.clv2-base-value:hover {
+  border-color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+}
+
+/* Colonna 3: prezzo */
+.cart-line-price-inline {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #facc15;
+  text-align: right;
+  cursor: pointer;
+  padding-top: 4px;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.15s ease;
+}
+.cart-line-price-inline:hover { opacity: 0.7; }
+
+/* Colonna 4: totale */
+.cart-line-total-inline {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #facc15;
+  text-align: right;
+  padding-top: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Colori righe alternate */
+.cart-line:nth-child(even) { background: #1f1f1f; }
+.cart-line:nth-child(odd)  { background: #151515; }
+
+/* MOBILE: tutto impilato */
+@media (max-width: 640px) {
+  .cart-cols-header { display: none; }
+  .cart-line-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .clv2-qty-col {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .cart-line-price-inline,
+  .cart-line-total-inline {
+    text-align: left;
+    padding-top: 0;
+  }
+}

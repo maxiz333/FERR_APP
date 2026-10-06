@@ -175,7 +175,7 @@ let _ordersDropdownWired = false;
       AZIONI SU UNA RIGA
       ============================================ */
    
-      async function onLineAction(lineId, action) {
+      async function onLineAction(lineId, action, extra) {
         const line = getLines().find(l => l.id === lineId);
         if (!line) return;
 
@@ -208,6 +208,22 @@ let _ordersDropdownWired = false;
         }
         else if (action === "edit-price") {
           await openKeypadForLine(lineId, "price");
+        }
+        else if (action === "edit-price-base") {
+          await openKeypadForLine(lineId, "price-base");
+        }
+        else if (action === "change-unit") {
+          if (!extra) return;
+          await updateLine(_cartId, lineId, { unit: extra });
+          showToast(`Unità: ${extra}`, "success");
+        }
+        else if (action === "change-unit") {
+          const newUnit = arguments[2];
+          if (!newUnit) return;
+          await updateLine(_cartId, lineId, {
+            unit: newUnit
+          });
+          showToast(`Unità: ${newUnit}`, "success");
         }
         else if (action === "forbici") {
           await cycleForbici(lineId);
@@ -273,11 +289,16 @@ let _ordersDropdownWired = false;
       
         const cart = getCart();
         const lines = getLines();
+        
+        // 🆕 LAVORO A — in banco il più recente sta in cima
+        lines.sort((a, b) => {
+          const ta = Number(a.addedAt || 0);
+          const tb = Number(b.addedAt || 0);
+          return tb - ta;
+        });
       
         // Aggiorna client bar
         updateClientBar(cart);
-        // 🆕 Aggiorna tasto BOL (testo dinamico)
-        updateBolButton();
       
         if (lines.length === 0) {
           area.innerHTML = `
@@ -302,25 +323,9 @@ let _ordersDropdownWired = false;
       
           const unit = (line.unit || "PZ").toUpperCase();
           const isMeasured = ["KG", "MT", "MQ"].includes(unit);
-          const priceLabel = isMeasured ? "PREZZO" : "PREZZO";
-          const priceValue = formatEuro(line.unitPrice);
   
-          // 🆕 Pallino stato prezzo (Blocco 2B.7)
           const article = getArticleFromCache(line.articleId);
           const priceDot = renderPriceDot(article, { size: "sm" });
-  
-        // 🆕 Sotto-prezzo per articoli a misura:
-        // mostro "10 mt · € 0,309/mt" + "base € 11,00/kg"
-        let priceSubHtml = "";
-        if (isMeasured && line.basePrice > 0 && line.mtTotal) {
-          const mtTotal = Number(line.mtTotal) || 0;
-          const kgTotal = Number(line.kgTotal) || 0;
-          const pricePerMt = mtTotal > 0 ? (Number(line.lineTotal) / mtTotal) : 0;
-          priceSubHtml = `
-            <span class="price-sub-perunit">${mtTotal.toFixed(2).replace(".", ",")} mt · € ${pricePerMt.toFixed(3).replace(".", ",")}/mt</span>
-            <span class="price-sub-base">base € ${Number(line.basePrice).toFixed(2).replace(".", ",")}/kg · ${kgTotal.toFixed(3).replace(".", ",")} kg</span>
-          `;
-        }
       
           const forbiciState = line.forbiciState || "neutro";
           const forbiciIcon = "✂️";
@@ -335,48 +340,74 @@ let _ordersDropdownWired = false;
             ? `<span class="line-note-indicator" title="${escapeHtml(line.note)}">📝</span>`
             : "";
       
-          return `
+            return `
             <div class="cart-line" data-line-id="${line.id}">
-              <div class="cart-line-header">
-                <span class="cart-line-index">${idx + 1}.</span>
-                <div class="cart-line-info">
-          <div class="cart-line-desc pc-clickable" data-action="product-card" title="Apri scheda prodotto">
-            ${escapeHtml(line.description)}
-            ${noteIndicator}
-          </div>
+              <div class="cart-line-grid">
+
+                <!-- Colonna 1: descrizione + codice -->
+                <div class="clv2-prod">
+                  <div class="cart-line-desc pc-clickable" data-action="product-card" title="Apri scheda prodotto">
+                    ${idx + 1}. ${escapeHtml(line.description)} ${noteIndicator}
+                  </div>
                   <div class="cart-line-code">${escapeHtml(line.code)} • ${escapeHtml(line.unit)}</div>
                 </div>
-                <div class="cart-line-total">${total}</div>
+
+                <!-- Colonna 2: qty + unità + H×L + prezzo base -->
+                <div class="clv2-qty-col">
+                  <div class="cart-line-qty">
+                    <button class="qty-btn" data-action="dec">−</button>
+                    <button class="qty-value qty-editable" data-action="edit-qty" title="Modifica">${formatQty(line.qty)}</button>
+                    <button class="qty-btn" data-action="inc">+</button>
+                  </div>
+
+                  <select class="cart-line-unit" data-action="change-unit" data-line-id="${line.id}">
+                    <option value="PZ" ${unit === "PZ" ? "selected" : ""}>PZ</option>
+                    <option value="KG" ${unit === "KG" ? "selected" : ""}>KG</option>
+                    <option value="MT" ${unit === "MT" ? "selected" : ""}>MT</option>
+                    <option value="MQ" ${unit === "MQ" ? "selected" : ""}>MQ</option>
+                  </select>
+
+                  ${unit === "MQ" ? `
+                    <div class="clv2-hxl">
+                      <span class="clv2-hxl-label">H</span>
+                      <input type="number" class="clv2-hxl-input" data-field="h"
+                             value="${line.h ?? ""}" placeholder="0" step="0.01" inputmode="decimal">
+                      <span class="clv2-hxl-x">×</span>
+                      <span class="clv2-hxl-label">L</span>
+                      <input type="number" class="clv2-hxl-input" data-field="l"
+                             value="${line.l ?? ""}" placeholder="0" step="0.01" inputmode="decimal">
+                    </div>
+                  ` : ""}
+
+                  ${isMeasured ? `
+                    <div class="clv2-base">
+                      <button class="clv2-base-label" data-action="edit-price-base" title="Apri calcolatore">PREZZO BASE</button>
+                      <button class="clv2-base-value" data-action="edit-price" title="Modifica prezzo base">${formatEuro(line.basePrice || 0)}</button>
+                    </div>
+                  ` : ""}
+                </div>
+
+                <!-- Colonna 3: prezzo -->
+                <div class="cart-line-price-inline" data-action="edit-price">
+                  ${formatEuro(isMeasured ? (line.basePrice || 0) : (line.unitPrice || 0))}${priceDot}
+                </div>
+
+                <!-- Colonna 4: totale -->
+                <div class="cart-line-total-inline">${total}</div>
+
               </div>
-      
-              <div class="cart-line-body">
-                <div class="cart-line-qty">
-                  <button class="qty-btn" data-action="dec">−</button>
-                  <button class="qty-value qty-editable" data-action="edit-qty"
-                          title="Tocca per modificare">${formatQty(line.qty)}</button>
-                  <button class="qty-btn" data-action="inc">+</button>
-                </div>
-      
-                               <button class="cart-line-prices price-editable" data-action="edit-price"
-                        title="Tocca per modificare">
-                  <span class="price-label">${priceLabel}${priceDot}</span>
-                  <span class="price-value">${priceValue}</span>
-                  ${priceSubHtml}
+
+              ${discountBadge}
+
+              <div class="cart-line-actions">
+                <button class="line-action forbici forbici-${forbiciState}" data-action="forbici" title="${forbiciLabel}">
+                  <span class="forbici-icon">${forbiciIcon}</span>
+                  <span class="forbici-label">${forbiciLabel}</span>
                 </button>
-      
-                ${discountBadge}
-      
-                <div class="cart-line-actions">
-                  <button class="line-action forbici forbici-${forbiciState}"
-                          data-action="forbici" title="${forbiciLabel}">
-                    <span class="forbici-icon">${forbiciIcon}</span>
-                    <span class="forbici-label">${forbiciLabel}</span>
-                  </button>
-                  <button class="line-action" data-action="discount" title="Sconto %">%</button>
-                  <button class="line-action" data-action="note" title="Nota">📄</button>
-                  <button class="line-action" data-action="order" title="Ordina">🛒</button>
-                  <button class="line-action danger" data-action="delete" title="Elimina">🗑</button>
-                </div>
+                <button class="line-action" data-action="discount" title="Sconto %">%</button>
+                <button class="line-action" data-action="note" title="Nota">📄</button>
+                <button class="line-action" data-action="order" title="Ordina">🛒</button>
+                <button class="line-action danger" data-action="delete" title="Elimina">🗑</button>
               </div>
             </div>
           `;
@@ -394,17 +425,42 @@ let _ordersDropdownWired = false;
           </div>
         `;
       
-        area.innerHTML = linesHtml + noteHtml;
+        const colsHeaderHtml = `
+        <div class="cart-cols-header">
+          <span class="ccol-prod">PRODOTTO</span>
+          <span class="ccol-qty">Q.TÀ</span>
+          <span class="ccol-unit">UNIT</span>
+          <span class="ccol-prez">PREZZO</span>
+          <span class="ccol-tot">TOT</span>
+        </div>
+      `;
+
+      area.innerHTML = colsHeaderHtml + linesHtml + noteHtml;
       
         area.querySelectorAll(".cart-line").forEach(el => {
           const lineId = el.dataset.lineId;
+
           el.querySelectorAll("[data-action]").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              onLineAction(lineId, btn.dataset.action);
-            });
+            const tag = btn.tagName.toLowerCase();
+            if (tag === "select") {
+              btn.addEventListener("change", (e) => {
+                e.stopPropagation();
+                onLineAction(lineId, "change-unit", e.target.value);
+              });
+            } else {
+              btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                onLineAction(lineId, btn.dataset.action);
+              });
+            }
+          });
+
+          el.querySelectorAll(".clv2-hxl-input").forEach(input => {
+            input.addEventListener("change", () => onHlChange(lineId, el));
           });
         });
+          
+      
       
         const noteInput = document.getElementById("orderNoteInput");
         if (noteInput) {
@@ -581,22 +637,20 @@ async function openClientPickerForCart() {
       return;
     }
   
-    if (field === "price") {
+    if (field === "price-base") {
       const isMeasured = ["KG", "MT", "MQ"].includes(unit);
-  
-            // Se è un articolo a misura → apri calcolatore taglio/peso
-            if (isMeasured) {
-              // 🆕 Leggi TOT.U / MT.ROT dall'articolo in cache (sempre aggiornati)
-              const art = getArticleFromCache(line.articleId);
-              const result = await openCutCalculator({
-                description: line.description,
-                basePrice: art?.basePrice ?? line.basePrice ?? 0,
-                totU: art?.totU ?? line.totU ?? 0,
-                mtRot: art?.mtRot ?? line.mtRot ?? 0,
-                unit: unit
-              });
-  
-        if (result == null) return;
+      if (!isMeasured) return;
+
+      const art = getArticleFromCache(line.articleId);
+      const result = await openCutCalculator({
+        description: line.description,
+        basePrice: art?.basePrice ?? line.basePrice ?? 0,
+        totU: art?.totU ?? line.totU ?? 0,
+        mtRot: art?.mtRot ?? line.mtRot ?? 0,
+        unit: unit
+      });
+
+      if (result == null) return;
   
         // 🆕 qty = PESO in kg, prezzo = basePrice (€/kg)
         // I metri vengono salvati a parte in mtTotal per annotazione
@@ -625,9 +679,38 @@ async function openClientPickerForCart() {
           "success"
         );
         return;
+    }
+
+    if (field === "price") {
+      const isMeasured = ["KG", "MT", "MQ"].includes(unit);
+
+      if (isMeasured) {
+        // 🆕 Articolo a misura → modifica il PREZZO BASE (€/MQ, €/KG, €/MT)
+        const result = await openKeypad({
+          title: `Prezzo base (€/${unit})`,
+          value: line.basePrice || 0,
+          unit: "€/" + unit,
+          allowDecimal: true,
+          min: 0
+        });
+        if (result == null) return;
+
+        const updated = computeLine({
+          ...line,
+          basePrice: result,
+          unitPrice: result
+        });
+        await updateLine(_cartId, lineId, {
+          basePrice: updated.basePrice,
+          unitPrice: updated.unitPrice,
+          lineTotal: updated.lineTotal,
+          discountAmount: updated.discountAmount
+        });
+        showToast(`Prezzo base: ${formatEuro(result)}/${unit}`, "success");
+        return;
       }
-  
-      // Altrimenti → tastierino normale per prezzo unitario
+
+      // PZ → tastierino prezzo unitario normale
       const result = await openKeypad({
         title: "Prezzo unitario",
         value: line.unitPrice,
@@ -636,7 +719,7 @@ async function openClientPickerForCart() {
         min: 0
       });
       if (result == null) return;
-  
+
       const updated = computeLine({ ...line, unitPrice: result });
       await updateLine(_cartId, lineId, {
         unitPrice: updated.unitPrice,
@@ -1623,5 +1706,31 @@ function scheduleTotalsSync() {
        });
      });
    }
+   /**
+ * Gestisce il cambio di H o L (solo MQ) → ricalcola qty = H × L
+ */
+async function onHlChange(lineId, lineEl) {
+  const inputs = lineEl.querySelectorAll(".clv2-hxl-input");
+  if (inputs.length < 2) return;
+
+  const h = parseFloat(inputs[0].value) || 0;
+  const l = parseFloat(inputs[1].value) || 0;
+  const qty = h * l;
+  if (qty <= 0) return;
+
+  const line = getLines().find(x => x.id === lineId);
+  if (!line) return;
+
+  const updated = computeLine({ ...line, qty: qty });
+  await updateLine(_cartId, lineId, {
+    qty: updated.qty,
+    h: h,
+    l: l,
+    lineTotal: updated.lineTotal,
+    discountAmount: updated.discountAmount
+  });
+
+  showToast(`H ${h} × L ${l} = ${qty} MQ`, "success");
+}
 
   
