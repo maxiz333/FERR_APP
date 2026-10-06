@@ -104,80 +104,125 @@
       TOAST IN UFFICIO
       ============================================ */
    
-   let _toastStack = null;
-   
-   function ensureToastStack() {
-     if (_toastStack && document.body.contains(_toastStack)) return _toastStack;
-     _toastStack = document.createElement("div");
-     _toastStack.className = "ferapp-toast-stack";
-     document.body.appendChild(_toastStack);
-     return _toastStack;
-   }
-   
-   /**
-    * Mostra un toast colorato in alto a destra.
-    * @param {object} opts
-    *   title     — titolo principale (es. "Ordine #12 - A")
-    *   subtitle  — sottotitolo (es. "Cliente 1 · € 23,10")
-    *   color     — "nuovo" | "bozza" | "in_arrivo" | "fatto"
-    *   onClick   — funzione chiamata al click sul toast
-    *   duration  — (opzionale) ms auto-dismiss. Se assente, resta finché non chiudi/click
-    */
-   export function showOfficeToast(opts) {
-     const stack = ensureToastStack();
-   
-     const el = document.createElement("div");
-     el.className = `ferapp-toast ferapp-toast-${opts.color || "info"}`;
-     el.innerHTML = `
-       <div class="ferapp-toast-body">
-         <div class="ferapp-toast-title">${escapeHtml(opts.title || "")}</div>
-         <div class="ferapp-toast-sub">${escapeHtml(opts.subtitle || "")}</div>
-       </div>
-       <button class="ferapp-toast-close" type="button" aria-label="Chiudi">✕</button>
-     `;
-     stack.appendChild(el);
-   
-     let closed = false;
-     const close = () => {
-       if (closed) return;
-       closed = true;
-       el.classList.add("ferapp-toast-out");
-       setTimeout(() => el.remove(), 200);
-     };
-   
-     // Click sul body → callback + chiudi
-     el.querySelector(".ferapp-toast-body").addEventListener("click", (e) => {
-       e.stopPropagation();
-       try { opts.onClick && opts.onClick(); } catch (err) { console.error(err); }
-       close();
-     });
-   
-     // X → solo chiudi
-     el.querySelector(".ferapp-toast-close").addEventListener("click", (e) => {
-       e.stopPropagation();
-       close();
-     });
-   
-     // Click fuori (sul document) → chiudi
-     const outsideHandler = (ev) => {
-       if (!el.contains(ev.target)) {
-         document.removeEventListener("mousedown", outsideHandler, true);
-         close();
-       }
-     };
-     setTimeout(() => {
-       document.addEventListener("mousedown", outsideHandler, true);
-     }, 0);
-   
-     // Auto-dismiss se richiesto
-     if (opts.duration && opts.duration > 0) {
-       setTimeout(close, opts.duration);
-     }
-   
-     // Suono + notifica nativa
-     playBeep();
-     showNativeNotification(opts.title || "FerApp", opts.subtitle || "Nuovo ordine");
-   }
+      let _currentNotifOverlay = null;
+
+      /**
+       * Mostra una notifica modale centrale (stile vecchia app).
+       * @param {object} opts
+       *   status     — "nuovo" | "bozza" | "in_arrivo" | "fatto" | "pronto"
+       *   clientName — nome cliente (es. "Cliente 2")
+       *   body       — riga di testo (es. "1 × BULLONE ARATRO QUA. 14X080 ACC")
+       *   time       — timestamp (default: ora)
+       *   onClick    — chiamata quando si preme "Vai agli Ordini"
+       */
+      export function showOfficeToast(opts) {
+        // Chiudi eventuale notifica precedente
+        if (_currentNotifOverlay) {
+          _currentNotifOverlay.remove();
+          _currentNotifOverlay = null;
+        }
+      
+        const statusLabels = {
+          bozza:      "NUOVA BOZZA",
+          nuovo:      "NUOVO ORDINE",
+          in_arrivo:  "IN ARRIVO",
+          fatto:      "ORDINE FATTO",
+          pronto:     "ORDINE PRONTO"
+        };
+        const statusIcons = {
+          bozza:      "📄",
+          nuovo:      "📄",
+          in_arrivo:  "🔔",
+          fatto:      "✅",
+          pronto:     "📋"
+        };
+      
+        const st = opts.status || "info";
+        const label = statusLabels[st] || "NOTIFICA";
+        const icon = statusIcons[st] || "🔔";
+        const time = formatDateTime(opts.time || Date.now());
+      
+        const overlay = document.createElement("div");
+        overlay.className = "ferapp-notif-overlay";
+        overlay.innerHTML = `
+          <div class="ferapp-notif-box ferapp-notif-${st}">
+            <div class="ferapp-notif-header">
+              <span class="ferapp-notif-icon">${icon}</span>
+              <div class="ferapp-notif-title">
+                <div class="ferapp-notif-title-main">${escapeHtml(label)}</div>
+                <div class="ferapp-notif-title-sub">${escapeHtml(opts.clientName || "Cliente 1")}</div>
+              </div>
+              <div class="ferapp-notif-time">${time}</div>
+            </div>
+            <div class="ferapp-notif-divider"></div>
+            <div class="ferapp-notif-body">
+              <div class="ferapp-notif-line">${escapeHtml(opts.body || "")}</div>
+            </div>
+            <div class="ferapp-notif-actions">
+              <button class="ferapp-notif-btn ferapp-notif-btn-primary" id="ferappNotifGo" type="button">
+                📋 Vai agli Ordini
+              </button>
+              <button class="ferapp-notif-btn ferapp-notif-btn-secondary" id="ferappNotifOk" type="button">
+                OK
+              </button>
+            </div>
+          </div>
+        `;
+      
+        document.body.appendChild(overlay);
+        _currentNotifOverlay = overlay;
+      
+        const close = () => {
+          if (_currentNotifOverlay === overlay) {
+            overlay.remove();
+            _currentNotifOverlay = null;
+          }
+        };
+      
+        overlay.querySelector("#ferappNotifGo").addEventListener("click", (e) => {
+          e.stopPropagation();
+          close();
+          try { opts.onClick && opts.onClick(); } catch (err) { console.error(err); }
+        });
+      
+        overlay.querySelector("#ferappNotifOk").addEventListener("click", (e) => {
+          e.stopPropagation();
+          close();
+        });
+      
+        // Click fuori → ignora (chiude senza azione)
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) close();
+        });
+      
+        // Esc → chiude
+        document.addEventListener("keydown", function esc(e) {
+          if (e.key === "Escape") {
+            close();
+            document.removeEventListener("keydown", esc);
+          }
+        });
+      
+        // Suono + notifica nativa PC
+        playBeep();
+        showNativeNotification(
+          label,
+          `${opts.clientName || "Cliente 1"}${opts.body ? " · " + opts.body : ""}`
+        );
+      }
+      
+      /**
+       * Formatta una data in "GG/MM/AAAA — HH:MM" per l'header della notifica.
+       */
+      function formatDateTime(ts) {
+        const d = new Date(ts);
+        const gg = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return `${gg}/${mm}/${yy} — ${hh}:${mi}`;
+      }
    
    /* ============================================
       UTILS

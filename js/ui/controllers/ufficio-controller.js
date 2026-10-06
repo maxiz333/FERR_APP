@@ -749,27 +749,30 @@ function showToastUff(msg) {
       if (_notifiedOrders.has(key)) continue;
       _notifiedOrders.set(key, now);
   
-      // Prepara il testo
-      const lineCount = Object.keys(c.lines || {}).length;
-      const total = Number(meta.totals?.grandTotal) || 0;
-      const title = (meta.orderNumber && meta.orderCode)
-        ? `Ordine #${meta.orderNumber} - ${meta.orderCode}`
-        : (meta.clientName || "Cliente 1");
-      const totalStr = "€ " + total.toFixed(2).replace(".", ",");
-      const subtitle = `${meta.clientName || "Cliente 1"} · ${lineCount} art. · ${totalStr}`;
-  
-      showOfficeToast({
-        title,
-        subtitle,
-        color: st,  // "nuovo" (giallo) | "bozza" (blu) | "in_arrivo" (rosso)
-        onClick: () => {
-          // 1) Segna "visto" → appare l'occhio
-          writeSeenBy(c.id, _user.id);
-          // 2) Porta l'operatore sull'ordine
-          _scrollToOrder(c.id);
-        }
-        // NIENTE duration → resta finché non clicchi o clicchi fuori
-      });
+    // Prepara il testo della notifica
+    const lineEntries = Object.entries(c.lines || {}).map(([_, l]) => l);
+    let body = "";
+    if (lineEntries.length === 0) {
+      body = "Nessun articolo";
+    } else if (lineEntries.length === 1) {
+      const l = lineEntries[0];
+      body = `${formatQtyNotif(l.qty)} × ${l.description || ""}`;
+    } else {
+      const l = lineEntries[0];
+      const rest = lineEntries.length - 1;
+      body = `${formatQtyNotif(l.qty)} × ${l.description || ""} + ${rest} altr${rest === 1 ? "o" : "i"}`;
+    }
+
+    showOfficeToast({
+      status: st,
+      clientName: meta.clientName || "Cliente 1",
+      body: body,
+      time: now,
+      onClick: () => {
+        writeSeenBy(c.id, _user.id);
+        _scrollToOrder(c.id);
+      }
+    });
     }
   }
   
@@ -795,10 +798,20 @@ function showToastUff(msg) {
   
     setTimeout(() => {
       const el = document.querySelector(`[data-order-id="${orderId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        el.classList.add("ferapp-flash");
-        setTimeout(() => el.classList.remove("ferapp-flash"), 1600);
-      }
+      if (!el) return;
+      // Scroll con offset: lascia ~140px sopra la card per header + tabs + searchbar
+      const rect = el.getBoundingClientRect();
+      const absoluteTop = window.scrollY + rect.top;
+      const OFFSET = 140;
+      window.scrollTo({ top: Math.max(0, absoluteTop - OFFSET), behavior: "smooth" });
+      el.classList.add("ferapp-flash");
+      setTimeout(() => el.classList.remove("ferapp-flash"), 1600);
     }, 150);
   }
+  /**
+ * Formatta una quantità per la notifica (intero senza decimali, altrimenti 2 decimali).
+ */
+function formatQtyNotif(q) {
+  const n = Number(q) || 0;
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
+}

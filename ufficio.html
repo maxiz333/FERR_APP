@@ -14,66 +14,140 @@
   <link rel="stylesheet" href="assets/css/price-dot.css">
   <link rel="stylesheet" href="assets/css/invoice.css">
   <style>
-    /* Blocco 4 — Toast in ufficio */
-    .ferapp-toast-stack {
+    /* Blocco 4 — Fix modale cestino */
+    #uffTrashOverlay[hidden] { display: none !important; }
+
+    /* Blocco 4 — Notifica centrale (stile vecchia app) */
+    .ferapp-notif-overlay {
       position: fixed;
-      top: 80px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
       z-index: 10000;
-      pointer-events: none;
-    }
-    .ferapp-toast {
       display: flex;
-      align-items: stretch;
-      min-width: 280px;
-      max-width: 380px;
-      border-radius: 10px;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: ferapp-notif-fade 0.15s ease;
+    }
+    .ferapp-notif-box {
+      background: #1f1f1f;
+      border-radius: 12px;
+      border-top: 3px solid #4285f4;
+      min-width: 420px;
+      max-width: 540px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      pointer-events: auto;
-      animation: ferapp-toast-in 0.18s ease;
+      animation: ferapp-notif-pop 0.18s ease;
     }
-    .ferapp-toast-body {
+    .ferapp-notif-box.ferapp-notif-bozza      { border-top-color: #3b82f6; }
+    .ferapp-notif-box.ferapp-notif-nuovo      { border-top-color: #eab308; }
+    .ferapp-notif-box.ferapp-notif-in_arrivo  { border-top-color: #ef4444; }
+    .ferapp-notif-box.ferapp-notif-fatto      { border-top-color: #22c55e; }
+    .ferapp-notif-box.ferapp-notif-pronto     { border-top-color: #a855f7; }
+    .ferapp-notif-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px 14px;
+    }
+    .ferapp-notif-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 4px rgba(66, 133, 244, 0.4));
+    }
+    .ferapp-notif-title {
       flex: 1;
-      padding: 12px 14px;
-      cursor: pointer;
+      min-width: 0;
     }
-    .ferapp-toast-title {
+    .ferapp-notif-title-main {
+      font-size: 1.15rem;
       font-weight: 800;
-      font-size: 0.95rem;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+      text-transform: uppercase;
       margin-bottom: 2px;
+      line-height: 1.15;
     }
-    .ferapp-toast-sub {
+    .ferapp-notif-title-sub {
+      font-size: 0.88rem;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+    .ferapp-notif-time {
       font-size: 0.78rem;
-      opacity: 0.85;
+      color: #6b7280;
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
     }
-    .ferapp-toast-close {
-      background: transparent;
+    .ferapp-notif-divider {
+      height: 2px;
+      background: #4285f4;
+      margin: 0;
+    }
+    .ferapp-notif-box.ferapp-notif-bozza .ferapp-notif-divider      { background: #3b82f6; }
+    .ferapp-notif-box.ferapp-notif-nuovo .ferapp-notif-divider      { background: #eab308; }
+    .ferapp-notif-box.ferapp-notif-in_arrivo .ferapp-notif-divider  { background: #ef4444; }
+    .ferapp-notif-box.ferapp-notif-fatto .ferapp-notif-divider      { background: #22c55e; }
+    .ferapp-notif-box.ferapp-notif-pronto .ferapp-notif-divider     { background: #a855f7; }
+    .ferapp-notif-body {
+      padding: 18px 24px;
+    }
+    .ferapp-notif-line {
+      font-size: 0.95rem;
+      color: #e5e7eb;
+      font-weight: 600;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .ferapp-notif-actions {
+      display: flex;
+      gap: 10px;
+      padding: 14px 24px 22px;
+    }
+    .ferapp-notif-btn {
       border: none;
-      color: inherit;
-      font-size: 1rem;
+      border-radius: 8px;
+      padding: 13px 16px;
+      font-weight: 700;
+      font-size: 0.9rem;
       cursor: pointer;
-      padding: 0 12px;
-      opacity: 0.6;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      white-space: nowrap;
     }
-    .ferapp-toast-close:hover { opacity: 1; }
-    .ferapp-toast-nuovo      { background: #eab308; color: #0a0a0a; }
-    .ferapp-toast-bozza      { background: #3b82f6; color: #ffffff; }
-    .ferapp-toast-in_arrivo  { background: #ef4444; color: #ffffff; }
-    .ferapp-toast-fatto      { background: #22c55e; color: #0a0a0a; }
-    .ferapp-toast-info       { background: #1a1a1a; color: #ffffff; }
-    .ferapp-toast-out {
-      opacity: 0;
-      transform: translateX(20px);
-      transition: all 0.18s ease;
+    .ferapp-notif-btn-primary {
+      flex: 1;
+      background: #4285f4;
+      color: #ffffff;
     }
-    @keyframes ferapp-toast-in {
-      from { opacity: 0; transform: translateX(20px); }
-      to   { opacity: 1; transform: translateX(0); }
+    .ferapp-notif-btn-primary:hover {
+      background: #5b9cff;
     }
+    .ferapp-notif-box.ferapp-notif-bozza .ferapp-notif-btn-primary           { background: #3b82f6; color: #ffffff; }
+    .ferapp-notif-box.ferapp-notif-bozza .ferapp-notif-btn-primary:hover     { background: #60a5fa; }
+    .ferapp-notif-box.ferapp-notif-nuovo .ferapp-notif-btn-primary           { background: #eab308; color: #0a0a0a; }
+    .ferapp-notif-box.ferapp-notif-nuovo .ferapp-notif-btn-primary:hover     { background: #facc15; }
+    .ferapp-notif-box.ferapp-notif-in_arrivo .ferapp-notif-btn-primary       { background: #ef4444; color: #ffffff; }
+    .ferapp-notif-box.ferapp-notif-in_arrivo .ferapp-notif-btn-primary:hover { background: #f87171; }
+    .ferapp-notif-box.ferapp-notif-fatto .ferapp-notif-btn-primary           { background: #22c55e; color: #0a0a0a; }
+    .ferapp-notif-box.ferapp-notif-fatto .ferapp-notif-btn-primary:hover     { background: #4ade80; }
+    .ferapp-notif-box.ferapp-notif-pronto .ferapp-notif-btn-primary          { background: #a855f7; color: #ffffff; }
+    .ferapp-notif-box.ferapp-notif-pronto .ferapp-notif-btn-primary:hover    { background: #c084fc; }
+    .ferapp-notif-btn-secondary:hover {
+      background: #444444;
+    }
+    @keyframes ferapp-notif-fade {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes ferapp-notif-pop {
+      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Flash giallo sull'ordine a cui si scrolla */
     .ferapp-flash {
       animation: ferapp-flash-anim 1.6s ease;
     }
