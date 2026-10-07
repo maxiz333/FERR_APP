@@ -1265,9 +1265,17 @@
   white-space: nowrap;
 }
 
-/* Colori righe alternate */
-.cart-line:nth-child(even) { background: #1f1f1f; }
-.cart-line:nth-child(odd)  { background: #151515; }
+/* 🎨 LAVORO B — 10 sfondi colorati spenti */
+.cart-line.clr-0 { background: #202328; }   /* grigio freddo */
+.cart-line.clr-1 { background: #1f2733; }   /* blu spento */
+.cart-line.clr-2 { background: #2e2222; }   /* rosso spento */
+.cart-line.clr-3 { background: #2b2818; }   /* giallo spento */
+.cart-line.clr-4 { background: #1f2b22; }   /* verde spento */
+.cart-line.clr-5 { background: #262033; }   /* viola spento */
+.cart-line.clr-6 { background: #2e2419; }   /* arancio spento */
+.cart-line.clr-7 { background: #1e2b2b; }   /* turchese spento */
+.cart-line.clr-8 { background: #2c1f27; }   /* rosa spento */
+.cart-line.clr-9 { background: #232326; }   /* grigio neutro */
 
 /* MOBILE: 4 colonne compatte come vecchia app */
 @media (max-width: 640px) {
@@ -1405,4 +1413,38 @@
   .clv2-base-value { width: 48px; height: 20px; font-size: 0.7rem; }
   .cart-line-price-inline { font-size: 0.72rem; }
   .cart-line-total-inline { font-size: 0.8rem; }
+}
+/* 🆕 LAVORO D — codice cliccabile + tasti a sinistra */
+.cart-line-code-toggle {
+  display: inline-block;
+  background: transparent;
+  border: none;
+  color: #facc15;
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 0;
+  margin-top: 3px;
+  cursor: pointer;
+  opacity: 0.9;
+  text-align: left;
+  transition: opacity 0.15s ease;
+}
+.cart-line-code-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.cart-line-actions[hidden] {
+  display: none !important;
+}
+
+.cart-line-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }

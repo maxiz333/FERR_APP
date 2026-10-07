@@ -439,43 +439,90 @@
         if (!order) return;
         const line = order.lines[lineId];
         if (!line) return;
-      
+   
+        // Trova il bottone nel DOM
+        const btn = document.querySelector(
+          `[data-action="edit-price"][data-order-id="${orderId}"][data-line-id="${lineId}"]`
+        );
+        if (!btn || btn._editing) return;
+        btn._editing = true;
+   
         const currentPrice = Number(line.unitPrice ?? line.basePrice) || 0;
-      
-        const result = await openKeypad({
-          title: "Prezzo unitario",
-          value: currentPrice,
-          unit: "€",
-          allowDecimal: true,
-          min: 0
+        const originalHTML = btn.innerHTML;
+   
+        // Crea input inline
+        const input = document.createElement("input");
+        input.type = "text";
+        input.inputMode = "decimal";
+        input.value = String(currentPrice).replace(".", ",");
+        input.className = "uff-inline-price-input";
+        input.autocomplete = "off";
+   
+        btn.innerHTML = "";
+        btn.appendChild(input);
+        input.focus();
+        input.select();
+   
+        let cancelled = false;
+   
+        const restore = () => {
+          btn._editing = false;
+          btn.innerHTML = originalHTML;
+        };
+   
+        const commit = async () => {
+          if (cancelled) { restore(); return; }
+   
+          const raw = String(input.value || "").replace(",", ".").trim();
+          const result = parseFloat(raw);
+   
+          if (!Number.isFinite(result) || result < 0 || Math.abs(result - currentPrice) < 0.001) {
+            restore();
+            return;
+          }
+   
+          try {
+            writeSeenBy(orderId, _user.id);
+   
+            const updated = computeLine({ ...line, unitPrice: result });
+   
+            await updateLine(orderId, lineId, {
+              unitPrice: updated.unitPrice,
+              lineTotal: updated.lineTotal,
+              discountAmount: updated.discountAmount
+            });
+   
+            await recomputeAndSaveTotals(order, lineId, updated);
+            await markCartAsModified(orderId);
+   
+            if (line.articleId) {
+              updateArticleInCache(line.articleId, {
+                basePrice: updated.unitPrice,
+                priceLastChangedAt: Date.now(),
+                priceVerified: true
+              });
+            }
+   
+            console.log(`✏️ Prezzo aggiornato: ${orderId}/${lineId} → €${result}`);
+            // Il refresh() ricostruirà la card, quindi non serve restore()
+          } catch (err) {
+            console.error("Errore modifica prezzo:", err);
+            restore();
+          }
+        };
+   
+        input.addEventListener("blur", commit);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            input.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            cancelled = true;
+            input.blur();
+          }
         });
-        if (result == null) return;
-   
-        // 👁️ Blocco 4 — modifica reale → segna come visto
-        writeSeenBy(orderId, _user.id);
-   
-     const updated = computeLine({ ...line, unitPrice: result });
-   
-     await updateLine(orderId, lineId, {
-      unitPrice: updated.unitPrice,
-      lineTotal: updated.lineTotal,
-      discountAmount: updated.discountAmount
-    });
-  
-    await recomputeAndSaveTotals(order, lineId, updated);
-    await markCartAsModified(orderId);
-  
-    // 🆕 Aggiorna cache articolo locale (per pallini e scheda prodotto)
-    if (line.articleId) {
-      updateArticleInCache(line.articleId, {
-        basePrice: updated.unitPrice,
-        priceLastChangedAt: Date.now(),
-        priceVerified: true
-      });
-    }
-  
-    console.log(`✏️ Prezzo aggiornato: ${orderId}/${lineId} → €${result}`);
-   }
+      }
    
    async function editLineQty(orderId, lineId) {
     const order = _orders.find((o) => o.id === orderId);

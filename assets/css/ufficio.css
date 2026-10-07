@@ -1006,3 +1006,24 @@ body {
   background: #fde047;
   border-color: #fde047;
 }
+/* 🆕 Input inline per modifica prezzo (sostituisce il tastierino) */
+.uff-inline-price-input {
+  width: 100%;
+  min-width: 70px;
+  background: #1a1a1a;
+  border: 2px solid #facc15;
+  border-radius: 6px;
+  color: #facc15;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 4px 8px;
+  text-align: right;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  box-sizing: border-box;
+}
+.uff-inline-price-input::selection {
+  background: #facc15;
+  color: #0a0a0a;
+}

@@ -57,6 +57,7 @@ let _ordersDropdownWired = false;
      startOrdersCounter();
      wireOrdersDropdown();
      wireTrashTab();
+     wireNewCartTab();
      startTrashListener();
      runScheduledCleanup();
      
@@ -178,6 +179,20 @@ let _ordersDropdownWired = false;
       async function onLineAction(lineId, action, extra) {
         const line = getLines().find(l => l.id === lineId);
         if (!line) return;
+
+        // 🆕 LAVORO D — toggle tasti azione (non richiede markOrderAsModified)
+        if (action === "toggle-actions") {
+          const cartLineEl = document.querySelector(`.cart-line[data-line-id="${lineId}"]`);
+          if (!cartLineEl) return;
+          const actionsEl = cartLineEl.querySelector(".cart-line-actions");
+          if (!actionsEl) return;
+          if (actionsEl.hasAttribute("hidden")) {
+            actionsEl.removeAttribute("hidden");
+          } else {
+            actionsEl.setAttribute("hidden", "");
+          }
+          return;
+        }
 
         await markOrderAsModified();
       
@@ -337,19 +352,24 @@ let _ordersDropdownWired = false;
           }[forbiciState];
       
           const noteIndicator = line.note
-            ? `<span class="line-note-indicator" title="${escapeHtml(line.note)}">📝</span>`
-            : "";
+          ? `<span class="line-note-indicator" title="${escapeHtml(line.note)}">📝</span>`
+          : "";
+
+        // 🎨 LAVORO B — colore ciclico (10 varianti)
+        const colorClass = `clr-${idx % 10}`;
       
-            return `
-            <div class="cart-line" data-line-id="${line.id}">
+                     return `
+            <div class="cart-line ${colorClass}" data-line-id="${line.id}">
               <div class="cart-line-grid">
 
-                <!-- Colonna 1: descrizione + codice -->
+                <!-- Colonna 1: descrizione + codice cliccabile -->
                 <div class="clv2-prod">
                   <div class="cart-line-desc pc-clickable" data-action="product-card" title="Apri scheda prodotto">
                     ${idx + 1}. ${escapeHtml(line.description)} ${noteIndicator}
                   </div>
-                  <div class="cart-line-code">${escapeHtml(line.code)} • ${escapeHtml(line.unit)}</div>
+                  <button class="cart-line-code-toggle" data-action="toggle-actions" type="button" title="Mostra/nascondi tasti">
+                    ${escapeHtml(line.code)} • ${escapeHtml(line.unit)}
+                  </button>
                 </div>
 
                 <!-- Colonna 2: qty + unità + H×L + prezzo base -->
@@ -399,7 +419,7 @@ let _ordersDropdownWired = false;
 
               ${discountBadge}
 
-              <div class="cart-line-actions">
+              <div class="cart-line-actions" hidden>
                 <button class="line-action forbici forbici-${forbiciState}" data-action="forbici" title="${forbiciLabel}">
                   <span class="forbici-icon">${forbiciIcon}</span>
                   <span class="forbici-label">${forbiciLabel}</span>
@@ -1706,6 +1726,43 @@ function scheduleTotalsSync() {
        });
      });
    }
+
+/* ============================================
+   🆕 Tab "+ NUOVO" — crea un nuovo carrello
+   ============================================ */
+
+   function wireNewCartTab() {
+    const tab = document.querySelector('.banco-tab[data-tab="nuovo"]');
+    if (!tab || tab._hasNewCartListener) return;
+    tab._hasNewCartListener = true;
+    tab.addEventListener("click", startNewCart);
+  }
+  
+  async function startNewCart() {
+    const lines = getLines();
+  
+    // Carrello vuoto → nulla da mettere in sospeso
+    if (lines.length === 0) {
+      showToast("Carrello già vuoto", "info");
+      return;
+    }
+  
+    // Chiedi conferma
+    if (!confirm("Iniziare un nuovo ordine?\nQuello attuale resta salvato negli ORDINI (non viene perso).")) {
+      return;
+    }
+  
+    try {
+      // Il carrello attuale è già salvato in Firebase (status "modifica").
+      // Basta staccarsi da esso e creare un nuovo carrello vuoto.
+      await switchToNewCart();
+      showToast("🆕 Nuovo ordine avviato", "success");
+    } catch (e) {
+      console.error("Errore nuovo ordine:", e);
+      showToast("Errore apertura nuovo ordine", "error");
+    }
+  }
+
    /**
  * Gestisce il cambio di H o L (solo MQ) → ricalcola qty = H × L
  */

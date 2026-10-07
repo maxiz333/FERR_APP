@@ -446,7 +446,7 @@
 
 .cas-det-info { min-width: 0; flex: 1; }
 .cas-det-client {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: #facc15;
   white-space: nowrap;
@@ -482,7 +482,7 @@
 
 .cas-det-desc { min-width: 0; }
 .cas-det-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -490,25 +490,29 @@
   text-overflow: ellipsis;
 }
 .cas-det-code {
-  font-size: 12px;
+  font-size: 14px;
   color: #facc15;
-  margin-top: 2px;
-  font-weight: 700;
+  margin-top: 3px;
+  font-weight: 800;
+  white-space: nowrap;          /* ← non va a capo */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.3px;
 }
 
 .cas-det-qty-badge {
   background: #facc15;
   color: #000;
   font-weight: 900;
-  font-size: 13px;
-  padding: 3px 10px;
+  font-size: 14px;
+  padding: 4px 11px;
   border-radius: 6px;
   white-space: nowrap;
   letter-spacing: 0.5px;
 }
 
 .cas-det-price {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-secondary, #aaa);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -516,7 +520,7 @@
 }
 
 .cas-det-linetotal {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 900;
   color: #facc15;
   font-variant-numeric: tabular-nums;
