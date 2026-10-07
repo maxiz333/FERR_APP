@@ -1269,22 +1269,140 @@
 .cart-line:nth-child(even) { background: #1f1f1f; }
 .cart-line:nth-child(odd)  { background: #151515; }
 
-/* MOBILE: tutto impilato */
+/* MOBILE: 4 colonne compatte come vecchia app */
 @media (max-width: 640px) {
   .cart-cols-header { display: none; }
+
   .cart-line-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 130px 60px 62px;
+    gap: 4px 6px;
+    align-items: start;
   }
+
+  /* Colonna 1: descrizione + codice */
+  .clv2-prod .cart-line-desc {
+    white-space: normal;
+    font-size: 0.82rem;
+    line-height: 1.15;
+    word-break: break-word;
+  }
+  .clv2-prod .cart-line-code {
+    font-size: 0.68rem;
+    margin-top: 2px;
+  }
+
+  /* Colonna 2: qty + unità + H×L + PREZZO BASE (tutto compatto) */
   .clv2-qty-col {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-start;
     align-items: center;
+    gap: 3px;
   }
-  .cart-line-price-inline,
+  .cart-line-qty {
+    gap: 1px;
+  }
+  .cart-line-qty .qty-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+    border-radius: 5px;
+  }
+  .cart-line-qty .qty-value {
+    width: 34px;
+    height: 24px;
+    font-size: 0.8rem;
+    border-radius: 5px;
+  }
+  .cart-line-unit {
+    width: 54px;
+    height: 22px;
+    font-size: 0.65rem;
+    border-radius: 5px;
+  }
+
+  /* H × L compatti */
+  .clv2-hxl {
+    font-size: 0.68rem;
+    gap: 2px;
+  }
+  .clv2-hxl-input {
+    width: 30px;
+    height: 22px;
+    font-size: 0.75rem;
+    padding: 0 2px;
+    border-radius: 5px;
+  }
+  .clv2-hxl-x {
+    margin: 0 1px;
+    font-size: 0.7rem;
+  }
+
+  /* PREZZO BASE: scritta + riquadro affiancati (non in colonna) */
+  .clv2-base {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-wrap: nowrap;
+  }
+  .clv2-base-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.2px;
+  }
+  .clv2-base-value {
+    min-width: 0;
+    width: 54px;
+    height: 22px;
+    font-size: 0.75rem;
+    padding: 0 4px;
+    text-align: center;
+    border-radius: 5px;
+  }
+
+  /* Colonna 3: prezzo */
+  .cart-line-price-inline {
+    font-size: 0.78rem;
+    text-align: right;
+    padding-top: 2px;
+    align-self: start;
+    white-space: nowrap;
+  }
+
+  /* Colonna 4: totale */
   .cart-line-total-inline {
-    text-align: left;
-    padding-top: 0;
+    font-size: 0.85rem;
+    text-align: right;
+    padding-top: 2px;
+    align-self: start;
+    white-space: nowrap;
   }
+
+  /* Tasti azione compatti */
+  .cart-line-actions {
+    gap: 3px;
+    margin-top: 5px;
+  }
+  .line-action {
+    min-width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    padding: 0 4px;
+    border-radius: 5px;
+  }
+  .line-action .forbici-label { display: none; }
+}
+
+/* Schermi < 420px */
+@media (max-width: 420px) {
+  .cart-line-grid {
+    grid-template-columns: 1fr 120px 56px 58px;
+    gap: 3px 5px;
+  }
+  .cart-line-qty .qty-btn { width: 22px; height: 22px; font-size: 0.8rem; }
+  .cart-line-qty .qty-value { width: 30px; height: 22px; font-size: 0.75rem; }
+  .cart-line-unit { width: 48px; height: 20px; font-size: 0.6rem; }
+  .clv2-hxl { font-size: 0.62rem; }
+  .clv2-hxl-input { width: 26px; height: 20px; font-size: 0.7rem; }
+  .clv2-base-label { font-size: 0.5rem; }
+  .clv2-base-value { width: 48px; height: 20px; font-size: 0.7rem; }
+  .cart-line-price-inline { font-size: 0.72rem; }
+  .cart-line-total-inline { font-size: 0.8rem; }
 }
