@@ -215,7 +215,7 @@ function renderEye(seenBy) {
                     data-article-code="${escapeHtml(code)}"
                     title="Apri scheda prodotto">${idx + 1}. ${escapeHtml(desc)}</button>
             <div class="uff-line-sub">
-              <span class="uff-line-code">${escapeHtml(code)}</span>
+              <span class="uff-line-code uff-code-copy" data-action="copy-code" data-code="${escapeHtml(code)}" title="Clicca per copiare il codice">${escapeHtml(code)}</span>
               ${discBadge}
             </div>
           </div>

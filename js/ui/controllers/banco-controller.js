@@ -44,6 +44,7 @@ let _unsubAllCarts = null;
 let _allCarts = [];
 let _midnightTimer = null;
 let _ordersDropdownWired = false;
+let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
    
    export async function initBancoController() {
      _user = getSession();
@@ -180,7 +181,7 @@ let _ordersDropdownWired = false;
         const line = getLines().find(l => l.id === lineId);
         if (!line) return;
 
-        // 🆕 LAVORO D — toggle tasti azione (non richiede markOrderAsModified)
+                        // 🆕 LAVORO D — toggle tasti azione (non richiede markOrderAsModified)
         if (action === "toggle-actions") {
           const cartLineEl = document.querySelector(`.cart-line[data-line-id="${lineId}"]`);
           if (!cartLineEl) return;
@@ -188,8 +189,10 @@ let _ordersDropdownWired = false;
           if (!actionsEl) return;
           if (actionsEl.hasAttribute("hidden")) {
             actionsEl.removeAttribute("hidden");
+            _openActionsLines.add(lineId);
           } else {
             actionsEl.setAttribute("hidden", "");
+            _openActionsLines.delete(lineId);
           }
           return;
         }
@@ -243,7 +246,7 @@ let _ordersDropdownWired = false;
         else if (action === "forbici") {
           await cycleForbici(lineId);
         }
-        else if (action === "discount") {
+        else if (action === "discount" || action === "edit-discount") {
           const result = await openKeypad({
             title: "Sconto %",
             value: line.discountPct || 0,
@@ -332,9 +335,7 @@ let _ordersDropdownWired = false;
       
         const linesHtml = lines.map((line, idx) => {
           const total = formatEuro(line.lineTotal);
-          const discountBadge = line.discountPct > 0
-            ? `<span class="line-discount-badge">-${line.discountPct}%</span>`
-            : "";
+          const discountBadge = ""; // spostato dentro cart-line-actions
       
           const unit = (line.unit || "PZ").toUpperCase();
           const isMeasured = ["KG", "MT", "MQ"].includes(unit);
@@ -407,27 +408,44 @@ let _ordersDropdownWired = false;
                   ` : ""}
                 </div>
 
-                <!-- Colonna 3: prezzo -->
+                    <!-- Colonna 3: prezzo -->
                 <div class="cart-line-price-inline" data-action="edit-price">
-                  ${formatEuro(isMeasured ? (line.basePrice || 0) : (line.unitPrice || 0))}${priceDot}
+                  ${renderPriceInline(line, isMeasured, priceDot)}
                 </div>
 
                 <!-- Colonna 4: totale -->
-                <div class="cart-line-total-inline">${total}</div>
+                <div class="cart-line-total-inline">
+                  ${renderTotalInline(line)}
+                </div>
 
               </div>
 
-              ${discountBadge}
+              ${line.note ? `<div class="cart-line-note">📝 ${escapeHtml(line.note)}</div>` : ""}
 
-              <div class="cart-line-actions" hidden>
-                <button class="line-action forbici forbici-${forbiciState}" data-action="forbici" title="${forbiciLabel}">
-                  <span class="forbici-icon">${forbiciIcon}</span>
-                  <span class="forbici-label">${forbiciLabel}</span>
-                </button>
-                <button class="line-action" data-action="discount" title="Sconto %">%</button>
-                <button class="line-action" data-action="note" title="Nota">📄</button>
-                <button class="line-action" data-action="order" title="Ordina">🛒</button>
-                <button class="line-action danger" data-action="delete" title="Elimina">🗑</button>
+              <div class="cart-line-actions"${_openActionsLines.has(line.id) ? "" : " hidden"}>
+                <div class="actions-left">
+                  <button class="line-action forbici forbici-${forbiciState}" data-action="forbici" title="${forbiciLabel}">
+                    <span class="forbici-icon">${forbiciIcon}</span>
+                    <span class="forbici-label">${forbiciLabel}</span>
+                  </button>
+
+                  ${forbiciState === "scampolo" ? `
+                    <button class="scampolo-pct" data-action="edit-discount" title="Modifica % scampolo">
+                      ${line.discountPct || 30}
+                    </button>
+                    <span class="scampolo-pct-symbol">%</span>
+                    <span class="scampolo-disc-amount">-${formatEuro(line.discountAmount || 0)}</span>
+                  ` : `
+                    <button class="line-action" data-action="discount" title="Sconto %">%</button>
+                    ${line.discountPct > 0 ? `<span class="line-discount-badge">-${line.discountPct}%</span>` : ""}
+                  `}
+                </div>
+
+                <div class="actions-right">
+                  <button class="line-action" data-action="note" title="Nota">📄</button>
+                  <button class="line-action" data-action="order" title="Ordina">🛒</button>
+                  <button class="line-action danger" data-action="delete" title="Elimina">🗑</button>
+                </div>
               </div>
             </div>
           `;
@@ -445,17 +463,7 @@ let _ordersDropdownWired = false;
           </div>
         `;
       
-        const colsHeaderHtml = `
-        <div class="cart-cols-header">
-          <span class="ccol-prod">PRODOTTO</span>
-          <span class="ccol-qty">Q.TÀ</span>
-          <span class="ccol-unit">UNIT</span>
-          <span class="ccol-prez">PREZZO</span>
-          <span class="ccol-tot">TOT</span>
-        </div>
-      `;
-
-      area.innerHTML = colsHeaderHtml + linesHtml + noteHtml;
+        area.innerHTML = linesHtml + noteHtml;
       
         area.querySelectorAll(".cart-line").forEach(el => {
           const lineId = el.dataset.lineId;
@@ -752,18 +760,22 @@ async function openClientPickerForCart() {
 /**
  * Cicla lo stato forbici di una riga.
  * neutro → scampolo → rotolo → scaglionato → neutro
+ *
+ * SCAMPOLO: applica sconto 30% di default (modificabile dopo col tasto %)
+ * ROTOLO: solo stato visivo
+ * SCAGLIONATO: solo stato visivo
+ * NEUTRO: rimuove tutti gli sconti
  */
 async function cycleForbici(lineId) {
   const line = getLines().find(l => l.id === lineId);
   if (!line) return;
 
   const current = line.forbiciState || "neutro";
-
   const order = ["neutro", "scampolo", "rotolo", "scaglionato"];
   const nextIdx = (order.indexOf(current) + 1) % order.length;
   const next = order[nextIdx];
 
-  // Reset dei campi relativi
+  // Reset dei campi
   const updates = {
     forbiciState: next,
     isRemnant: false,
@@ -771,32 +783,13 @@ async function cycleForbici(lineId) {
     isTiered: false
   };
 
-  // Applica effetti specifici
   if (next === "scampolo") {
-    // Apre tastierino per sconto scampolo (default 30)
-    const pct = await openKeypad({
-      title: "Sconto Scampolo %",
-      value: line.scampoloPct || 30,
-      unit: "%",
-      allowDecimal: true,
-      min: 0,
-      max: 100
-    });
-    if (pct == null) {
-      // Annullato: torna a neutro
-      await updateLine(_cartId, lineId, {
-        forbiciState: "neutro",
-        isRemnant: false,
-        isRoll: false,
-        isTiered: false
-      });
-      return;
-    }
+    // Applica sconto 30% di default
+    const pct = 30;
     updates.isRemnant = true;
     updates.scampoloPct = pct;
     updates.discountPct = pct;
 
-    // Ricalcola la riga
     const recalc = computeLine({ ...line, discountPct: pct });
     updates.discountAmount = recalc.discountAmount;
     updates.lineTotal = recalc.lineTotal;
@@ -807,20 +800,32 @@ async function cycleForbici(lineId) {
   }
 
   if (next === "rotolo") {
+    // Rotolo: rimuove sconto scampolo (se c'era)
     updates.isRoll = true;
+    updates.discountPct = 0;
+    const recalc = computeLine({ ...line, discountPct: 0 });
+    updates.discountAmount = recalc.discountAmount;
+    updates.lineTotal = recalc.lineTotal;
+
     await updateLine(_cartId, lineId, updates);
-    showToast("Rotolo intero attivato", "info");
+    showToast("Rotolo intero", "info");
     return;
   }
 
   if (next === "scaglionato") {
+    // Scaglionato: solo stato visivo (auto-apply scaglioni in Blocco 10)
     updates.isTiered = true;
     await updateLine(_cartId, lineId, updates);
-    showToast("Scaglionato attivato", "info");
+    showToast("Scaglionato", "info");
     return;
   }
 
-  // neutro → rimuove tutti gli effetti, ma non tocca discountPct manuale
+  // neutro → rimuove tutti gli sconti
+  updates.discountPct = 0;
+  const recalc = computeLine({ ...line, discountPct: 0 });
+  updates.discountAmount = recalc.discountAmount;
+  updates.lineTotal = recalc.lineTotal;
+
   await updateLine(_cartId, lineId, updates);
   showToast("Forbici: neutro", "info");
 }
@@ -938,7 +943,21 @@ if (isEmpty()) {
     // 2) Aggiorna stato + blocca
     await updateStatus(_cartId, finalStatus);
 
-    showToast(`✅ Ordine confermato (${finalStatus})`, "success");
+    // 🆕 Genera codice ordine se non esiste (anche senza bozza)
+    const hasCode = cart?.meta?.orderCode;
+    if (!hasCode) {
+      try {
+        const code = await generateOrderCode(_cartId);
+        console.log(`🎫 Codice ordine: #${code.number} - ${code.letter}`);
+        showToast(`✅ Ordine confermato · #${code.number} - ${code.letter}`, "success");
+      } catch (codeErr) {
+        console.error("Errore generazione codice:", codeErr);
+        showToast(`✅ Ordine confermato (${finalStatus})`, "success");
+      }
+    } else {
+      showToast(`✅ Ordine confermato (${finalStatus})`, "success");
+    }
+
     console.log("✅ Ordine confermato:", _cartId, "→", finalStatus);
 
     // 3) Passa a un nuovo carrello vuoto
@@ -1113,6 +1132,9 @@ async function handleBolClick() {
  * riattacca il listener al NUOVO carrello, e renderizza.
  */
 async function switchToNewCart() {
+  // 🆕 Reset tasti aperti
+  _openActionsLines.clear();
+
   // 1) Stacca il vecchio listener (importante!)
   if (_unsubCart) {
     _unsubCart();
@@ -1179,6 +1201,9 @@ async function markOrderAsModified() {
  * Usato dal pulsante "Sblocca e modifica".
  */
 async function switchToCart(cartId) {
+  // 🆕 Reset tasti aperti
+  _openActionsLines.clear();
+
   // 1) Stacca il vecchio listener
   if (_unsubCart) {
     _unsubCart();
@@ -1789,5 +1814,56 @@ async function onHlChange(lineId, lineEl) {
 
   showToast(`H ${h} × L ${l} = ${qty} MQ`, "success");
 }
+/* ============================================
+   🆕 PREZZO/TOTALE con sconto a 3 righe (stile vecchia app)
+   ============================================ */
 
-  
+/**
+ * Genera l'HTML del prezzo unitario.
+ * Se c'è sconto → 3 numeri: pieno barrato, nuovo giallo, sconto rosso
+ * Altrimenti → 1 numero giallo
+ */
+function renderPriceInline(line, isMeasured, priceDot) {
+  const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
+  const discPct = Number(line.discountPct) || 0;
+  const hasDisc = discPct > 0;
+
+  if (!hasDisc) {
+    return `<span class="cart-line-price-new">${formatEuro(unitPrice)}${priceDot || ""}</span>`;
+  }
+
+  const unitPriceNew = unitPrice * (1 - discPct / 100);
+  const unitDiscAmount = unitPrice - unitPriceNew;
+
+  return `
+    <span class="cart-line-price-old">${formatEuro(unitPrice)}</span>
+    <span class="cart-line-price-new">${formatEuro(unitPriceNew)}</span>
+    <span class="cart-line-price-disc">-${formatEuro(unitDiscAmount)}</span>
+  `;
+}
+
+/**
+ * Genera l'HTML del totale riga.
+ * Se c'è sconto → 3 numeri: pieno barrato, nuovo giallo, sconto rosso
+ * Altrimenti → 1 numero giallo
+ */
+function renderTotalInline(line) {
+  const qty = Number(line.qty) || 0;
+  const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
+  const discPct = Number(line.discountPct) || 0;
+  const hasDisc = discPct > 0;
+
+  const subtotal = qty * unitPrice;
+  const lineTotal = Number(line.lineTotal) || 0;
+  const discAmount = subtotal - lineTotal;
+
+  if (!hasDisc || Math.abs(discAmount) < 0.005) {
+    return `<span class="cart-line-total-new">${formatEuro(lineTotal)}</span>`;
+  }
+
+  return `
+    <span class="cart-line-total-old">${formatEuro(subtotal)}</span>
+    <span class="cart-line-total-new">${formatEuro(lineTotal)}</span>
+    <span class="cart-line-total-disc">-${formatEuro(discAmount)}</span>
+  `;
+}

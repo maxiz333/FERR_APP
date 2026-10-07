@@ -396,10 +396,32 @@ body {
   gap: 8px;
   align-items: center;
   font-size: 0.75rem;
-  opacity: 0.6;
   margin-top: 2px;
 }
-.uff-line-code { font-family: monospace; }
+.uff-line-code {
+  font-family: monospace;
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: var(--primary, #facc15);
+  letter-spacing: 0.4px;
+}
+
+/* Click per copiare */
+.uff-code-copy {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  transition: background 0.15s ease;
+}
+.uff-code-copy:hover {
+  background: rgba(250, 204, 21, 0.15);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+.uff-code-copy:active {
+  background: rgba(250, 204, 21, 0.3);
+}
 .uff-line-disc {
   background: rgba(250, 204, 21, 0.2);
   color: var(--primary, #facc15);

@@ -420,6 +420,24 @@
                   // niente da fare: la scheda ricarica da Firebase la prossima apertura
                 }
               });
+            } else if (action === "copy-code") {
+              const code = btn.dataset.code || "";
+              if (!code) return;
+              try {
+                await navigator.clipboard.writeText(code);
+                showToastUff("📋 Codice copiato: " + code);
+              } catch (err) {
+                // Fallback per browser vecchi
+                const tmp = document.createElement("textarea");
+                tmp.value = code;
+                tmp.style.position = "fixed";
+                tmp.style.opacity = "0";
+                document.body.appendChild(tmp);
+                tmp.select();
+                try { document.execCommand("copy"); } catch (e) {}
+                document.body.removeChild(tmp);
+                showToastUff("📋 Codice copiato: " + code);
+              }
             }
            
          } catch (err) {
