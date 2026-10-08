@@ -45,6 +45,7 @@ let _allCarts = [];
 let _midnightTimer = null;
 let _ordersDropdownWired = false;
 let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
+let _orderNoteEditMode = false;      // 🆕 true = textarea, false = div giallo
    
    export async function initBancoController() {
      _user = getSession();
@@ -304,6 +305,17 @@ let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
       function renderCart() {
         const area = document.getElementById("cartArea");
         if (!area) return;
+
+        // 🆕 Salva stato textarea nota (se l'utente sta scrivendo)
+        const prevNoteInput = document.getElementById("orderNoteInput");
+        let noteState = null;
+        if (prevNoteInput && document.activeElement === prevNoteInput) {
+          noteState = {
+            value: prevNoteInput.value,
+            selStart: prevNoteInput.selectionStart,
+            selEnd: prevNoteInput.selectionEnd
+          };
+        }
       
         const cart = getCart();
         const lines = getLines();
@@ -452,16 +464,20 @@ let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
         }).join("");
       
         const noteHtml = `
-          <div class="order-note-wrapper">
-            <label class="order-note-label">
-              <span class="order-note-icon">📝</span>
-              Nota ordine
-            </label>
-            <textarea class="order-note-textarea" id="orderNoteInput"
-                      placeholder="Aggiungi una nota per questo ordine..."
-                      rows="2">${escapeHtml(orderNote)}</textarea>
-          </div>
-        `;
+        <div class="order-note-wrapper">
+          <label class="order-note-label">
+            <span class="order-note-icon">📝</span>
+            Nota ordine
+          </label>
+          ${_orderNoteEditMode || !orderNote
+            ? `<textarea class="order-note-textarea" id="orderNoteInput"
+                        placeholder="Scrivi e premi INVIO per salvare..."
+                        rows="2">${escapeHtml(orderNote)}</textarea>`
+            : `<div class="order-note-display" id="orderNoteDisplay"
+                     title="Clicca per modificare">${escapeHtml(orderNote)}</div>`
+          }
+        </div>
+      `;
       
         area.innerHTML = linesHtml + noteHtml;
       
@@ -492,12 +508,60 @@ let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
       
         const noteInput = document.getElementById("orderNoteInput");
         if (noteInput) {
+          // 🆕 Se l'utente stava scrivendo, ripristina valore + cursore + focus
+          if (noteState) {
+            noteInput.value = noteState.value;
+            noteInput.focus();
+            try {
+              noteInput.setSelectionRange(noteState.selStart, noteState.selEnd);
+            } catch (e) { /* ignora */ }
+          }
+
           let noteTimer = null;
           noteInput.addEventListener("input", () => {
             clearTimeout(noteTimer);
             noteTimer = setTimeout(() => {
               saveOrderNote(noteInput.value);
             }, 600);
+          });
+
+          // 🆕 Premi INVIO → salva e passa in modalità "display giallo"
+          noteInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              clearTimeout(noteTimer);
+              saveOrderNote(noteInput.value).then(() => {
+                _orderNoteEditMode = false;
+                renderCart();
+              });
+            }
+          });
+
+          // 🆕 Se sono in edit mode ma non c'è nulla da editare, esci
+          // (utile se la nota è vuota e l'utente clicca fuori)
+          noteInput.addEventListener("blur", () => {
+            const v = noteInput.value.trim();
+            if (!v) {
+              // Nota vuota → resta in edit mode (permette di scrivere)
+              return;
+            }
+          });
+        }
+
+        // 🆕 Clic sul div giallo → torna in edit mode
+        const noteDisplay = document.getElementById("orderNoteDisplay");
+        if (noteDisplay) {
+          noteDisplay.addEventListener("click", () => {
+            _orderNoteEditMode = true;
+            renderCart();
+            // Fai focus sulla textarea appena creata
+            setTimeout(() => {
+              const ta = document.getElementById("orderNoteInput");
+              if (ta) {
+                ta.focus();
+                ta.setSelectionRange(ta.value.length, ta.value.length);
+              }
+            }, 30);
           });
         }
       

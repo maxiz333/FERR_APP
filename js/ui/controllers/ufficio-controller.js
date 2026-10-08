@@ -28,7 +28,8 @@
    import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
    import { getClientByKey } from "../../data/client-repository.js";
    import { updateClient } from "../../data/cart-repository.js";
-   import { showOfficeToast, requestNotificationPermission } from "../../core/notify.js";
+import { updateNote } from "../../data/cart-repository.js";
+import { showOfficeToast, requestNotificationPermission } from "../../core/notify.js";
    
    let _user = null;
    let _orders = [];
@@ -40,6 +41,7 @@
    let _trashCarts = [];
    let _notifiedOrders = new Map();   // "cartId|status" → timestamp
    let _firstLoadDone = false;        // evita la raffica al primo caricamento
+   let _editingNoteCarts = new Set(); // 🆕 cartId con nota in edit mode
    
    /* ============================================
       INIT
@@ -183,6 +185,47 @@
         updateCounts(_orders);
         renderOrders(enriched, _collapsed);
         wireOrderActions();
+        wireNoteInputs();   // 🆕 textarea note
+      }
+
+      /* 🆕 Wiring textarea note ordine */
+      function wireNoteInputs() {
+        document.querySelectorAll(".uff-order-note-textarea").forEach((ta) => {
+          if (ta._wiredNote) return;
+          ta._wiredNote = true;
+          const orderId = ta.dataset.orderId;
+
+          let timer = null;
+          ta.addEventListener("input", () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              updateNote(orderId, ta.value);
+            }, 600);
+          });
+
+          ta.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              clearTimeout(timer);
+              updateNote(orderId, ta.value).then(() => {
+                _editingNoteCarts.delete(orderId);
+                refresh();
+              });
+            }
+          });
+
+          // 🆕 Se clicchi fuori: salva e passa in display (o torna a placeholder se vuota)
+          ta.addEventListener("blur", () => {
+            setTimeout(() => {
+              const v = (ta.value || "").trim();
+              clearTimeout(timer);
+              updateNote(orderId, ta.value).then(() => {
+                _editingNoteCarts.delete(orderId);
+                refresh();
+              });
+            }, 150);
+          });
+        });
       }
    
       /**
@@ -213,7 +256,7 @@
                       }
                     }
 
-          return { ...o, lines: enrichedLines, _eyeTooltip };
+                    return { ...o, lines: enrichedLines, _eyeTooltip, _noteEditing: _editingNoteCarts.has(o.id) };
         });
       }
    
@@ -438,6 +481,14 @@
                 document.body.removeChild(tmp);
                 showToastUff("📋 Codice copiato: " + code);
               }
+            } else if (action === "edit-note") {
+              // 🆕 Click sul div giallo → passa in edit mode
+              _editingNoteCarts.add(orderId);
+              refresh();
+              setTimeout(() => {
+                const ta = document.querySelector(`.uff-order-note-textarea[data-order-id="${orderId}"]`);
+                if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+              }, 30);
             }
            
          } catch (err) {

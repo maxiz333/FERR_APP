@@ -2255,3 +2255,91 @@ Fine documento.
 - **Blocco 4** → ✅ (occhio + notifiche)
 - **LAVORO A/B/C/D** → ✅ COMPLETATI
 - **PROGETTO.md** → aggiornato a v2.7
+
+
+
+
+---
+
+## 🆕 AGGIORNAMENTO SESSIONE — 09/10/2026 (pomeriggio)
+
+### ✅ Cosa abbiamo fatto oggi
+
+**FIX STAMPA ORDINI (non DDT)**
+- Risolto bug: la stampa degli ordini era **pagina bianca**
+- Causa: mancava il `<div class="print-area">` che avvolge gli ordini in `print-orders-modal.js`
+- Il CSS `print.css` fa `body > *:not(.print-area) { display: none }` → senza `.print-area` il browser nascondeva tutto
+- Ora la stampa multi-ordine funziona (testata in ufficio)
+
+**NOTA ORDINE IN BANCO (migliorata)**
+- Prima: textarea che si chiudeva dopo 3 lettere (bug del re-render Firebase che perdeva il focus)
+- **Fix**: prima del render salvo `value` + posizione cursore se textarea ha focus; dopo il render li ripristino
+- Ora si può scrivere quanto si vuole senza perdere il cursore
+- **Comportamento nuovo**:
+  - Nota vuota → textarea normale
+  - **Premi INVIO** → salva e diventa **div giallo** (non corsivo)
+  - **Clic sul div giallo** → torna textarea per modificare
+  - **Shift+Invio** → va a capo senza salvare
+
+**NOTA ORDINE IN UFFICIO (nuova)**
+- **Stessa cosa del banco**:
+  - Nota vuota → **placeholder compatto** `📝 Nota` in grigio (piccolissimo)
+  - Click sul placeholder → si apre textarea
+  - Scrivi + **INVIO** → diventa **div giallo** con `💬 + testo`
+  - **Click fuori dal riquadro** con contenuto → salva e passa in div giallo
+  - Click fuori senza contenuto → torna placeholder grigio
+  - Click sul div giallo → torna textarea per modificare
+- **Fix**: rimossa emoji `📝` doppia (era sia nel contenitore che nel placeholder)
+
+**CODICE ARTICOLO IN UFFICIO**
+- Più grande (`font-size: 0.95rem`, `font-weight: 900`)
+- **Giallo brillante** identico al prezzo (`var(--primary, #facc15)`)
+- **Fix importante**: rimosso `opacity: 0.6` da `.uff-line-sub` (era la causa del codice sbiadito)
+- **Click sul codice → copia negli appunti** con toast di conferma
+- Fallback per browser vecchi con `execCommand('copy')`
+
+**NOTA RIGA ARTICOLO IN UFFICIO (nuova)**
+- Ora in ufficio si vede la nota che il banco ha messo **sulla singola riga articolo**
+- Appare **sotto il codice articolo**
+- Formato: `✏️ + testo nota`
+- Stile: **arancione** (`#fb923c`), `font-size: 1rem`, `font-weight: 700`
+- **Contorno nero sottile attorno alle lettere** (`-webkit-text-stroke: 0.4px #000` + `text-shadow`)
+- Si vede solo se la riga ha effettivamente una nota
+
+**ORDINE CONFERMATO SENZA BOZZA**
+- Ora anche premendo **CONFERMA** (senza passare da UFF.) viene generato il codice `Ordine #N - L`
+- Il contatore è condiviso con le bozze → niente buchi nella numerazione
+
+### 🔴 Cosa dobbiamo fare domani
+
+**1) ELIMINAZIONE ORDINE IN UFFICIO + numerazione** (decisione rimandata)
+- Verificare che sparisca anche dalla tendina banco (dovrebbe già funzionare)
+- **Decidere** cosa deve fare il contatore quando elimini un ordine:
+  - (A) Prossimo riprende il numero eliminato
+  - (B) Tutti i successivi scalano di 1
+  - (C) Contatore globale retrocede
+
+**2) PULIZIA DEBITO TECNICO** (quando c'è tempo)
+- `banco-controller.js` è troppo grande (2000+ righe) → spezzare in più file
+- `banco.css` ha regole duplicate
+- `js/core/utils.js` mai creato → funzioni duplicate in ogni file
+
+**3) OGGETTI PICCOLI IN SOSPESO**
+- Occhio 👁️ in Cassa
+- Occhio condizionale nella preview banco (ora è fisso)
+- Reset mezzanotte "carrelli `modifica` → `nuovo`"
+- Codice fornitore `f. XXX` (serve import — Blocco 5)
+- Test notifiche native PC su altri PC
+
+### 📌 Commit pushati questa sessione
+
+- "Sessione 09/10 - Fix stampa ordini + note stile banco in ufficio + codice copiabile"
+
+### 📊 Stato attuale
+
+- **Blocco 8** → ✅ (manca solo reset mezzanotte)
+- **Blocco 4** → ✅ (occhio + notifiche)
+- **LAVORO A/B/C/D** → ✅ COMPLETATI
+- **Stamp ordini** → ✅ funzionante
+- **Note (banco + ufficio)** → ✅ con stile coerente
+- **PROGETTO.md** → v2.7 aggiornato

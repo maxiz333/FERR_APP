@@ -63,9 +63,18 @@ function renderEye(seenBy) {
       ? lines.map((line, idx) => renderLine(line, idx, order.id, isLocked)).join("")
       : `<div class="uff-order-empty">Nessun articolo</div>`;
   
-    const noteHtml = order.note
-      ? escapeHtml(order.note)
-      : `<span class="uff-order-note-empty">Nessuna nota</span>`;
+            // 🆕 Nota in stile banco: textarea in edit, div giallo se c'è nota, placeholder sottile se vuota
+    const isNoteEditing = !!order._noteEditing;
+    const hasNote = !!order.note;
+    const noteHtml = isNoteEditing
+      ? `<textarea class="uff-order-note-textarea" data-order-id="${escapeHtml(order.id)}"
+                   placeholder="Scrivi e premi INVIO per salvare..."
+                   rows="2">${escapeHtml(order.note || "")}</textarea>`
+      : hasNote
+        ? `<div class="uff-order-note-display" data-action="edit-note" data-order-id="${escapeHtml(order.id)}"
+                  title="Clicca per modificare">${escapeHtml(order.note)}</div>`
+        : `<div class="uff-order-note-placeholder" data-action="edit-note" data-order-id="${escapeHtml(order.id)}"
+                  title="Aggiungi una nota">📝 Nota</div>`;
   
     // Azioni
     const isInvoice = !!order.invoiceNumber;
@@ -128,7 +137,7 @@ function renderEye(seenBy) {
   
             <div class="uff-order-lines">${linesHtml}</div>
   
-            <div class="uff-order-notebox">📝 ${noteHtml}</div>
+             <div class="uff-order-notebox">${noteHtml}</div>
   
             <div class="uff-order-totalbox">${totalHtml}</div>
   
@@ -218,6 +227,7 @@ function renderEye(seenBy) {
               <span class="uff-line-code uff-code-copy" data-action="copy-code" data-code="${escapeHtml(code)}" title="Clicca per copiare il codice">${escapeHtml(code)}</span>
               ${discBadge}
             </div>
+            ${line.note ? `<div class="uff-line-note" title="Nota articolo">✏️ ${escapeHtml(line.note)}</div>` : ""}
           </div>
           <button class="uff-line-qty ${editable}" data-action="edit-qty" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica quantità"}" ${isLocked ? "disabled" : ""}>
             <span class="uff-line-qty-val">${qty}</span>

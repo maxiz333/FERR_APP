@@ -1538,3 +1538,30 @@
   margin-top: 4px;
   word-break: break-word;
 }
+/* 🆕 Nota ordine in modalità display (giallo corsivo) */
+.order-note-display {
+  display: block;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: normal;
+  color: #facc15;
+  cursor: pointer;
+  white-space: pre-wrap;
+  word-break: break-word;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-height: 38px;
+}
+.order-note-display:hover {
+  background: #222;
+  border-color: #facc15;
+}
+.order-note-display::before {
+  content: "💬 ";
+  font-style: normal;
+  opacity: 0.9;
+}

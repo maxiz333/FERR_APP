@@ -158,16 +158,18 @@ export function openPrintOrdersModal({ orders, currentOrderId, filterLabel = "" 
       const cssHref = new URL("assets/css/print.css", window.location.href).href;
     
       const fullHtml = `<!DOCTYPE html>
-    <html lang="it">
-    <head>
-      <meta charset="UTF-8">
-      <title>Stampa ordini</title>
-      <link rel="stylesheet" href="${cssHref}">
-    </head>
-    <body class="print-orders-body">
-      ${html}
-    </body>
-    </html>`;
+      <html lang="it">
+      <head>
+        <meta charset="UTF-8">
+        <title>Stampa ordini</title>
+        <link rel="stylesheet" href="${cssHref}">
+      </head>
+      <body class="print-orders-body">
+        <div class="print-area">
+          ${html}
+        </div>
+      </body>
+      </html>`;
     
       const iframe = document.createElement("iframe");
       iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;height:1000px;border:0;";
