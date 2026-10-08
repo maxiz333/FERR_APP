@@ -10,7 +10,7 @@ export const USERS = [
   { id: "papa",  name: "papa",  role: "Proprietario", icon: "👑", color: "#3b82f6", postazione: "banco"   },
   { id: "mati",  name: "mati",  role: "Proprietario", icon: "👑", color: "#22c55e", postazione: "banco"   },
   { id: "massi", name: "massi", role: "Commesso",     icon: "👤", color: "#eab308", postazione: "banco"   },
-  { id: "poli",  name: "poli",  role: "Commesso",     icon: "👤", color: "#ef4444", postazione: "banco"   },
+  { id: "poli", name: "paul", role: "Commesso", icon: "👤", color: "#ef4444", postazione: "banco"   },
   { id: "cassa", name: "CASSA", role: "Cassa",        icon: "💰", color: "#22c55e", postazione: "ufficio" }
 ];
 

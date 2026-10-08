@@ -13,8 +13,6 @@
   <link rel="stylesheet" href="assets/css/price-dot.css">
   <link rel="stylesheet" href="assets/css/print.css">
   <link rel="stylesheet" href="assets/css/invoice.css">
-  <link rel="stylesheet" href="assets/css/invoice.css">
-  <link rel="stylesheet" href="assets/css/invoice.css">
 </head>
 <body>
 
@@ -59,7 +57,7 @@
     <div class="orders-dropdown" id="ordersDropdown" hidden>
       <div class="orders-dropdown-inner">
         <div class="orders-dropdown-header">
-          <span>📋 Ordini di oggi</span>
+          <button class="orders-view-toggle" id="ordersViewToggle" type="button">📋 Ordini di oggi</button>
           <span class="orders-dropdown-count" id="ordersDropdownCount">0</span>
         </div>
         <div class="orders-dropdown-list" id="ordersDropdownList">
@@ -103,15 +101,28 @@
     <!-- BOTTOM BAR -->
     <div class="banco-bottom">
       <div class="bottom-total">
-        <span class="bottom-total-label">TOTALE</span>
         <span class="bottom-total-value" id="totalValue">€ 0.00</span>
       </div>
       <div class="bottom-actions">
-        <button class="btn btn-outline" id="btnRiepilogo" title="Riepilogo">📋 RIEP.</button>
-        <button class="btn btn-outline" id="btnUfficio" title="Invia all'ufficio">📤 UFF.</button>
-        <button class="btn btn-success" id="btnConferma" title="Conferma ordine">✅ CONFERMA</button>
-        <button class="btn btn-outline" id="btnBol" title="Crea fattura">📄 BOL.</button>
-        <button class="btn btn-danger btn-icon" id="btnTrash" title="Svuota carrello">🗑</button>
+        <button class="bb-btn bb-bol" id="btnBol" title="Crea fattura">
+          <span class="bb-icon">📄</span>
+          <span class="bb-label">BOL.</span>
+        </button>
+        <button class="bb-btn bb-riep" id="btnRiepilogo" title="Riepilogo">
+          <span class="bb-icon">📋</span>
+          <span class="bb-label">RIEP.</span>
+        </button>
+        <button class="bb-btn bb-uff" id="btnUfficio" title="Invia all'ufficio">
+          <span class="bb-icon">📤</span>
+          <span class="bb-label">UFF.</span>
+        </button>
+        <button class="bb-btn bb-conf" id="btnConferma" title="Conferma ordine">
+          <span class="bb-icon">✅</span>
+          <span class="bb-label">CONFERMA</span>
+        </button>
+        <button class="bb-trash" id="btnTrash" title="Svuota carrello">
+          <span class="bb-icon">🗑</span>
+        </button>
       </div>
     </div>
 

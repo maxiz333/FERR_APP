@@ -34,6 +34,8 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
    let _user = null;
    let _orders = [];
    let _activeFilter = "nuovi";
+   let _activeDay = null;           // "YYYY-MM-DD" o null = "Tutti"
+   let _dayDetailOpen = null;       // "YYYY-MM-DD" del giorno con dettaglio aperto
    let _searchQuery = "";
    let _collapsed = false;
    let _unsubListener = null;
@@ -183,9 +185,84 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
         const filtered = filterOrders(_orders);
         const enriched = enrichWithArticles(filtered);
         updateCounts(_orders);
+        renderDaysBar();             // 🆕 barra giorni
         renderOrders(enriched, _collapsed);
         wireOrderActions();
-        wireNoteInputs();   // 🆕 textarea note
+        wireNoteInputs();
+      }
+
+      /* 🆕 Barra giorni */
+      function renderDaysBar() {
+        const nav = document.getElementById("uffDays");
+        if (!nav) return;
+
+        // Giorni con ordini (dai _orders visibili nel tab)
+        const visibleOrders = _orders.filter((o) => o.status !== "modifica");
+        let tabOrders = visibleOrders;
+        if (_activeFilter === "nuovi") {
+          tabOrders = tabOrders.filter(o => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
+        } else if (_activeFilter === "fatti") {
+          tabOrders = tabOrders.filter(o => o.status === "fatto");
+        } else if (_activeFilter === "pronto") {
+          tabOrders = tabOrders.filter(o => o.status === "pronto");
+        }
+        const daysSet = new Set();
+        tabOrders.forEach((o) => {
+          const k = dayKeyFromTs(o.createdAt);
+          if (k) daysSet.add(k);
+        });
+        const days = Array.from(daysSet).sort((a, b) => b.localeCompare(a));
+
+        if (days.length === 0) {
+          nav.innerHTML = "";
+          return;
+        }
+
+        // Utente può vedere i dettagli?
+        const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
+
+        nav.innerHTML = days.map((day) => {
+          const isActive = _activeDay === day;
+          const isOpen = _dayDetailOpen === day;
+          let detail = "";
+
+          if (isActive && isOpen && canSeeDetails) {
+            const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === day);
+            const ordini = dayOrders.filter(o => !o.invoiceNumber);
+            const fatture = dayOrders.filter(o => o.invoiceNumber);
+            const totOrdini = ordini.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+            const totFatture = fatture.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+            detail = ` · ${ordini.length} ordini ${formatEuroUff(totOrdini)} · ${fatture.length} fatture ${formatEuroUff(totFatture)}`;
+          }
+
+          return `<button class="uff-day ${isActive ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}" data-day="${day}">${dayLabel(day)}${detail}</button>`;
+        }).join("");
+
+        nav.querySelectorAll(".uff-day").forEach((btn) => {
+          btn.addEventListener("click", () => onDayClick(btn.dataset.day));
+        });
+      }
+
+      function onDayClick(day) {
+        const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
+
+        if (_activeDay === day) {
+          // già attivo → toggle dettaglio (solo se autorizzato)
+          if (canSeeDetails) {
+            _dayDetailOpen = _dayDetailOpen === day ? null : day;
+          }
+        } else {
+          // seleziona nuovo giorno
+          _activeDay = day;
+          _dayDetailOpen = null;
+        }
+        refresh();
+      }
+
+      /* Formattazione euro per il riepilogo */
+      function formatEuroUff(n) {
+        const v = Number(n) || 0;
+        return "€ " + v.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       }
 
       /* 🆕 Wiring textarea note ordine */
@@ -260,26 +337,50 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
         });
       }
    
-   function filterOrders(orders) {
-     let result = orders.filter((o) => o.status !== "modifica");
+      function filterOrders(orders) {
+        let result = orders.filter((o) => o.status !== "modifica");
+      
+        if (_activeFilter === "nuovi") {
+          result = result.filter((o) => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
+        } else if (_activeFilter === "fatti") {
+          result = result.filter((o) => o.status === "fatto");
+        } else if (_activeFilter === "pronto") {
+          result = result.filter((o) => o.status === "pronto");
+        }
    
-     if (_activeFilter === "nuovi") {
-       result = result.filter((o) => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
-     } else if (_activeFilter === "fatti") {
-       result = result.filter((o) => o.status === "fatto");
-     } else if (_activeFilter === "pronto") {
-       result = result.filter((o) => o.status === "pronto");
-     }
+        // 🆕 Filtro per giorno
+        if (_activeDay) {
+          result = result.filter((o) => dayKeyFromTs(o.createdAt) === _activeDay);
+        }
+      
+        if (_searchQuery) {
+          result = result.filter((o) => {
+            const hay = `${o.clientName} ${o.createdByName} ${o.id}`.toLowerCase();
+            return hay.includes(_searchQuery);
+          });
+        }
+      
+        return result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      }
    
-     if (_searchQuery) {
-       result = result.filter((o) => {
-         const hay = `${o.clientName} ${o.createdByName} ${o.id}`.toLowerCase();
-         return hay.includes(_searchQuery);
-       });
-     }
+      /* 🆕 Utils giorni */
+      function dayKeyFromTs(ts) {
+        if (!ts) return null;
+        const d = new Date(ts);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const g = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${g}`;
+      }
    
-     return result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-   }
+      function dayLabel(dayKey) {
+        const today = dayKeyFromTs(Date.now());
+        const yesterday = dayKeyFromTs(Date.now() - 24*60*60*1000);
+        if (dayKey === today) return "OGGI";
+        if (dayKey === yesterday) return "IERI";
+        const [y, m, d] = dayKey.split("-");
+        return `${d}/${m}`;
+      }
    
    function updateCounts(orders) {
      const visible = orders.filter((o) => o.status !== "modifica");

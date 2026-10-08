@@ -2261,85 +2261,197 @@ Fine documento.
 
 ---
 
-## 🆕 AGGIORNAMENTO SESSIONE — 09/10/2026 (pomeriggio)
 
-### ✅ Cosa abbiamo fatto oggi
+---
 
-**FIX STAMPA ORDINI (non DDT)**
-- Risolto bug: la stampa degli ordini era **pagina bianca**
-- Causa: mancava il `<div class="print-area">` che avvolge gli ordini in `print-orders-modal.js`
+## 🆕 SESSIONE — 09/10/2026
+
+### 🌅 POMERIGGIO
+
+#### FIX STAMPA ORDINI (Blocco 3.8)
+- **Bug**: stampa degli ordini (non DDT) produceva **pagina bianca**
+- **Causa**: mancava `<div class="print-area">` che avvolge gli ordini in `print-orders-modal.js`
 - Il CSS `print.css` fa `body > *:not(.print-area) { display: none }` → senza `.print-area` il browser nascondeva tutto
-- Ora la stampa multi-ordine funziona (testata in ufficio)
+- **Fix**: aggiunto `<div class="print-area">...</div>` dentro `printOrders()`
+- **File**: `print-orders-modal.js`
+- **Testato**: ora stampa multi-ordine funziona ✅
 
-**NOTA ORDINE IN BANCO (migliorata)**
-- Prima: textarea che si chiudeva dopo 3 lettere (bug del re-render Firebase che perdeva il focus)
-- **Fix**: prima del render salvo `value` + posizione cursore se textarea ha focus; dopo il render li ripristino
-- Ora si può scrivere quanto si vuole senza perdere il cursore
-- **Comportamento nuovo**:
+#### NOTA ORDINE IN BANCO — fix + nuovo comportamento
+- **Bug**: la textarea si chiudeva dopo 3 lettere (re-render Firebase perdeva il focus)
+- **Fix**: prima del render salvo `value` + `selectionStart/End` se la textarea ha focus; dopo il render ripristino tutto
+- **Nuovo comportamento**:
   - Nota vuota → textarea normale
-  - **Premi INVIO** → salva e diventa **div giallo** (non corsivo)
-  - **Clic sul div giallo** → torna textarea per modificare
+  - **INVIO** → salva e diventa **div giallo** (non corsivo)
   - **Shift+Invio** → va a capo senza salvare
+  - **Click sul div giallo** → torna textarea, cursore alla fine
+- **File**: `banco-controller.js`, `banco.css` (`.order-note-display`)
 
-**NOTA ORDINE IN UFFICIO (nuova)**
-- **Stessa cosa del banco**:
-  - Nota vuota → **placeholder compatto** `📝 Nota` in grigio (piccolissimo)
-  - Click sul placeholder → si apre textarea
-  - Scrivi + **INVIO** → diventa **div giallo** con `💬 + testo`
-  - **Click fuori dal riquadro** con contenuto → salva e passa in div giallo
+#### NOTA ORDINE IN UFFICIO — nuova
+- **Stessa logica del banco**:
+  - Nota vuota → **placeholder compatto** `📝 Nota` grigio (piccolissimo)
+  - Click sul placeholder → textarea
+  - **INVIO** → salva e diventa **div giallo** con `💬 + testo`
+  - **Click fuori dal riquadro** con contenuto → salva e passa a div giallo
   - Click fuori senza contenuto → torna placeholder grigio
   - Click sul div giallo → torna textarea per modificare
 - **Fix**: rimossa emoji `📝` doppia (era sia nel contenitore che nel placeholder)
+- **File**: `ufficio-view.js`, `ufficio-controller.js`, `ufficio.css`
 
-**CODICE ARTICOLO IN UFFICIO**
-- Più grande (`font-size: 0.95rem`, `font-weight: 900`)
+#### CODICE ARTICOLO IN UFFICIO — migliorato
+- **Più grande**: `font-size: 0.95rem`, `font-weight: 900`, monospace
 - **Giallo brillante** identico al prezzo (`var(--primary, #facc15)`)
-- **Fix importante**: rimosso `opacity: 0.6` da `.uff-line-sub` (era la causa del codice sbiadito)
-- **Click sul codice → copia negli appunti** con toast di conferma
+- **Fix importante**: rimosso `opacity: 0.6` da `.uff-line-sub` (causa del codice sbiadito)
+- **Click sul codice → copia negli appunti** + toast di conferma
 - Fallback per browser vecchi con `execCommand('copy')`
+- **File**: `ufficio-view.js`, `ufficio-controller.js`, `ufficio.css`
 
-**NOTA RIGA ARTICOLO IN UFFICIO (nuova)**
-- Ora in ufficio si vede la nota che il banco ha messo **sulla singola riga articolo**
-- Appare **sotto il codice articolo**
-- Formato: `✏️ + testo nota`
+#### NOTA RIGA ARTICOLO IN UFFICIO — nuova
+- In ufficio si vede la nota che il banco ha messo **sulla singola riga articolo**
+- Appare **sotto il codice articolo**, formato `✏️ + testo`
 - Stile: **arancione** (`#fb923c`), `font-size: 1rem`, `font-weight: 700`
-- **Contorno nero sottile attorno alle lettere** (`-webkit-text-stroke: 0.4px #000` + `text-shadow`)
+- **Contorno nero sottile attorno alle lettere** (`-webkit-text-stroke: 0.4px #000` + `text-shadow` 4 direzioni)
 - Si vede solo se la riga ha effettivamente una nota
+- **File**: `ufficio-view.js`, `ufficio.css` (`.uff-line-note`)
 
-**ORDINE CONFERMATO SENZA BOZZA**
-- Ora anche premendo **CONFERMA** (senza passare da UFF.) viene generato il codice `Ordine #N - L`
-- Il contatore è condiviso con le bozze → niente buchi nella numerazione
+#### CODICE ORDINE ANCHE SU CONFERMA
+- Prima era generato solo con **UFF.** (bozza)
+- **Ora**: anche **CONFERMA** (ordine diretto senza bozza) genera `Ordine #N - L`
+- Il contatore `counters/orderNumber` è **condiviso** → numerazione continua senza buchi
+- **File**: `banco-controller.js` (`confirmOrder`)
 
-### 🔴 Cosa dobbiamo fare domani
+---
 
-**1) ELIMINAZIONE ORDINE IN UFFICIO + numerazione** (decisione rimandata)
-- Verificare che sparisca anche dalla tendina banco (dovrebbe già funzionare)
-- **Decidere** cosa deve fare il contatore quando elimini un ordine:
-  - (A) Prossimo riprende il numero eliminato
-  - (B) Tutti i successivi scalano di 1
-  - (C) Contatore globale retrocede
+### 🌙 SERA
 
-**2) PULIZIA DEBITO TECNICO** (quando c'è tempo)
-- `banco-controller.js` è troppo grande (2000+ righe) → spezzare in più file
-- `banco.css` ha regole duplicate
-- `js/core/utils.js` mai creato → funzioni duplicate in ogni file
+#### PULIZIA CARRELLI VUOTI (tendina banco)
+- **Bug**: ogni apertura del banco creava un carrello vuoto che restava in Firebase → "Cliente 1 · 0 art." in tendina
+- **Fix 1 (visivo)**: `isVisibleInDropdown` → carrelli con **0 articoli NON mostrati**
+- **Fix 2 (pulizia)**: nuova funzione `cleanupEmptyModificaCarts()` chiamata all'avvio:
+  - Cancella da `activeCarts` i carrelli vuoti dell'utente corrente in stato `modifica`
+  - Salta il carrello attivo
+  - Log in console: `🧹 Puliti N carrelli vuoti`
+- **File**: `banco-controller.js`
 
-**3) OGGETTI PICCOLI IN SOSPESO**
-- Occhio 👁️ in Cassa
-- Occhio condizionale nella preview banco (ora è fisso)
-- Reset mezzanotte "carrelli `modifica` → `nuovo`"
-- Codice fornitore `f. XXX` (serve import — Blocco 5)
-- Test notifiche native PC su altri PC
+#### FILTRO TENDINA BANCO — più stretto
+- **Prima**: ordini vecchi visibili se `modifica`/`bozza`/`sbloccato`/`pronto`/`wasModified`
+- **Ora**: ordini vecchi visibili **solo** se `modifica` o `bozza`
+- I `sbloccato`/`pronto`/`wasModified` di giorni precedenti **spariscono automaticamente** dalla tendina
+- **File**: `banco-controller.js` (`isVisibleInDropdown`)
 
-### 📌 Commit pushati questa sessione
+#### VISTA COMPLETA TENDINA BANCO — nuova
+- Nella modale tendina, il titolo è diventato un **pulsante cliccabile**:
+  - `📋 ORDINI DI OGGI` (default)
+  - Click → diventa `📋 TUTTI GLI ORDINI` (giallo con bordo)
+  - Click di nuovo → torna normale
+- **Vista "Tutti gli ordini"**:
+  - Mostra **TUTTI** gli ordini (tutti gli utenti, tutti gli stati)
+  - **Raggruppati per giorno**: OGGI · IERI · 07/10/2026 · …
+  - Header del giorno in giallo con sfondo
+- **Vista normale**: lista piatta (comportamento precedente)
+- **File**: `banco-controller.js`, `banco.css`
 
-- "Sessione 09/10 - Fix stampa ordini + note stile banco in ufficio + codice copiabile"
+#### ANTEPRIMA ARTICOLI + OCCHIO NELLA TENDINA
+- Ogni voce della tendina ora mostra:
+  - Nome cliente / codice ordine
+  - **Anteprima articoli** (max 2 descrizioni, poi `, +N`)
+  - 👁️ accanto al nome se qualcuno ha visto l'ordine
+  - Ora · N art.
+  - Totale
+- **File**: `banco-controller.js` (`renderDropdownItem`)
 
-### 📊 Stato attuale
+#### FIX ERRORI
+- **`_orderNoteEditMode is not defined`** — variabile mancante in cima a `banco-controller.js` (persa in sostituzioni precedenti). Aggiunta dichiarazione globale.
+- **`updateOrdersTabStyle` duplicata** — la funzione era definita 2 volte. Rimossa una copia.
 
-- **Blocco 8** → ✅ (manca solo reset mezzanotte)
-- **Blocco 4** → ✅ (occhio + notifiche)
+#### BARRA GIORNI IN UFFICIO — nuova
+- **Sotto i tab** `NUOVI / FATTI / TUTTI / PRONTO` c'è una **barra giorni**:
+  - Mostra **solo i giorni con ordini** nel tab attivo
+  - Etichette: `OGGI`, `IERI`, `07/10`, `06/10`, … (ordinate dal più recente)
+- **Click su un giorno** → filtra gli ordini di quel giorno
+- **Click di nuovo sul giorno attivo** → mostra accanto i **totali**:
+  - Formato: `IERI · 3 ordini € 40,00 · 1 fattura € 15,00`
+  - **Ordini e fatture separati** (fattura = ordini con `invoiceNumber`)
+- **Permessi**: solo **papa / mati / massi** possono vedere i totali
+  - Per **paul** (ex-poli) i giorni sono cliccabili solo per filtrare, nessun totale
+- **File**: `ufficio.html`, `ufficio-controller.js`, `ufficio.css`
+
+#### RINOMINA POLI → PAUL
+- `name: "poli"` → `name: "paul"` in `auth.js`
+- **ID Firebase resta `poli`** → gli ordini esistenti con `createdBy: "poli"` continuano a funzionare
+- Negli ordini nuovi `createdByName` sarà `"paul"`
+- **File**: `js/core/auth.js`
+
+#### MODALE RIEPILOGO ORDINE v2 — stile vecchia app
+Riscritta completamente:
+- **Header**: `Cliente 1` + counter `0/5` giallo + X
+- **Box TOTALE ORDINE** grande in alto (€ giallo)
+- **N articoli** sotto il totale
+- **Righe**: codice giallo + nome + `€ 10,00 x 1 pz = € 10,00`
+- **Verde scuro** quando spuntata, grigio chiaro quando no
+- **Footer**: `↺ Reset spunte` (bordo giallo) + `Chiudi` (giallo pieno)
+- **Chiudi** → conferma solo se hai spuntato **tutto**, altrimenti chiude e basta
+- **Memoria spunte** (`savedCheckedByLineId`): chiudendo e riaprendo, le spunte **restano**
+- Reset spunte → pulisce anche la memoria
+- **File**: `summary-modal.js`, `banco.css` (`.smv2-*`)
+
+#### BARRA IN BASSO BANCO — ristrutturata
+- **Ordine tasti**: `BOL · RIEP · UFF · CONFERMA · 🗑` (come vecchia app)
+- Bottoni con **icona sopra + etichetta sotto**
+- **Niente scroll orizzontale** → tutto in una riga fissa
+- Totale più grande senza etichetta "TOTALE"
+- **BOL viola**, **CONFERMA più largo**, **cestino più stretto** (40px fissi)
+- **Fix bug**: `updateBolButton` usava `textContent` → distruggeva gli span (testo grande dopo F5)
+  - Ora aggiorna solo `.bb-icon` e `.bb-label`
+- **Rimosso `invoice.css` duplicato** 3 volte in `banco.html`
+- **File**: `banco.html`, `banco.css`, `banco-controller.js` (`updateBolButton`)
+
+#### COLORI RIGHE CARRELLO — stabilizzati + trasparenti
+- **Bug**: colore basato su `idx % 10` (posizione) → aggiungendo un articolo **cambiava colore a tutti**
+- **Fix**: colore basato su **hash dell'ID riga** (`hashLineId`) → colore **fisso per riga**
+- Colori **trasparenti** (`rgba` con opacità 7-11%) → tenui e ben distinti
+- Ordine colori: giallo · grigio · verde · blu · rosso · viola · arancio · turchese · rosa · marrone
+- **File**: `banco-controller.js` (`hashLineId`), `banco.css` (`.clr-0`..`.clr-9`)
+
+---
+
+### 📊 STATO ATTUALE
+
+- **Blocco 4** (Occhio + Notifiche) → ✅ COMPLETATO
+- **Blocco 8** (Cestino) → ✅ COMPLETATO (manca solo reset mezzanotte, forse non più necessario)
 - **LAVORO A/B/C/D** → ✅ COMPLETATI
-- **Stamp ordini** → ✅ funzionante
-- **Note (banco + ufficio)** → ✅ con stile coerente
-- **PROGETTO.md** → v2.7 aggiornato
+- **Stampa ordini** → ✅ funzionante
+- **Note (banco + ufficio)** → ✅ stile coerente
+- **Barra giorni ufficio** → ✅ funzionante
+- **Riepilogo ordine v2** → ✅ funzionante
+- **Barra in basso banco** → ✅ ristrutturata
+- **PROGETTO.md** → v2.7 (da aggiornare a v2.8 con questo recap)
+
+### 🎯 PROSSIMI PASSI (in ordine di priorità)
+
+| # | Cosa | Note |
+|---|---|---|
+| 1 | **Decisione eliminazione ordine + numerazione** | Scegliere A/B/C: il contatore retrocede o no? |
+| 2 | **Pulizia debito tecnico** | `banco-controller.js` (2000+ righe), `banco.css` (regole duplicate), `js/core/utils.js` mai creato |
+| 3 | **Occhio 👁️ in Cassa** | Mai implementato |
+| 4 | **Occhio condizionale preview banco** | Attualmente fisso (👁️ sempre visibile) |
+| 5 | **Reset mezzanotte "carrelli modifica → nuovo"** | Forse non più necessario con il filtro giorni |
+| 6 | **Codice fornitore `f. XXX`** | Serve import — Blocco 5 |
+| 7 | **Test notifiche native PC** | Su altri PC in negozio |
+| 8 | **Blocco 5 — Ordini Fornitori + CSV** | Con `addedAt`, `addedBy`, `lastOrderedAt` articolo |
+| 9 | **Blocco 2B.8 — Barra Ricerca Generica** | Nel logo |
+| 10 | **Blocco 10 — Scaglioni auto-apply** | |
+| 11 | **Blocco 11 — Tema Light** | |
+
+### 💾 Commit pushati
+
+- `Fix stampa ordini + note stile banco in ufficio + codice copiabile`
+- `Sessione 09/10 sera - Barra giorni ufficio + vista completa tendina + fix vari`
+
+### 🔴 Bug noti residui
+
+- **Occhio in Cassa**: mai implementato
+- **Reset mezzanotte "carrelli modifica → nuovo"**: mai implementato (forse non serve più)
+- **`favicon.ico 404`**: innocuo
+- **`WebSocket ... BFCache`**: innocuo
+- **`renderEye()`** in `ufficio-view.js`: dead code (non più usata)
+- **Import morti** in `banco-controller.js`: `openInvoiceModal`, `openInvoiceNumberModal` mai usati

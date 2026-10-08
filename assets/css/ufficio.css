@@ -1125,3 +1125,51 @@ body {
                0.5px -0.5px 0 #000,
               -0.5px -0.5px 0 #000;
 }
+/* 🆕 Barra giorni */
+.uff-days {
+  display: flex;
+  gap: 6px;
+  padding: 8px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg-card, #1a1a1a);
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.uff-days::-webkit-scrollbar { display: none; }
+.uff-days:empty { display: none; }
+
+.uff-day {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border, #2a2a2a);
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.uff-day:hover {
+  border-color: var(--primary, #facc15);
+  color: var(--primary, #facc15);
+}
+.uff-day.is-active {
+  background: var(--primary, #facc15);
+  color: #0a0a0a;
+  border-color: var(--primary, #facc15);
+}
+.uff-day.is-open {
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .uff-days { padding: 6px 12px; gap: 4px; }
+  .uff-day { padding: 5px 10px; font-size: 0.7rem; }
+}

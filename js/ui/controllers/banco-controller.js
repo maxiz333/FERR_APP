@@ -44,8 +44,9 @@ let _unsubAllCarts = null;
 let _allCarts = [];
 let _midnightTimer = null;
 let _ordersDropdownWired = false;
-let _openActionsLines = new Set();   // 🆕 lineId con tasti azione aperti
-let _orderNoteEditMode = false;      // 🆕 true = textarea, false = div giallo
+let _openActionsLines = new Set();
+let _ordersFullView = false;
+let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true = textarea
    
    export async function initBancoController() {
      _user = getSession();
@@ -58,10 +59,12 @@ let _orderNoteEditMode = false;      // 🆕 true = textarea, false = div giallo
      wireBottomButtons();
      startOrdersCounter();
      wireOrdersDropdown();
+     wireOrdersViewToggle();   // 🆕 toggle vista completa
      wireTrashTab();
      wireNewCartTab();
      startTrashListener();
      runScheduledCleanup();
+     cleanupEmptyModificaCarts();   // 🆕 pulisce carrelli vuoti in "modifica"
      
       // Click sul logo → Cassa
       const logoBtn = document.getElementById("bancoLogoBtn");
@@ -368,8 +371,9 @@ let _orderNoteEditMode = false;      // 🆕 true = textarea, false = div giallo
           ? `<span class="line-note-indicator" title="${escapeHtml(line.note)}">📝</span>`
           : "";
 
-        // 🎨 LAVORO B — colore ciclico (10 varianti)
-        const colorClass = `clr-${idx % 10}`;
+        // 🎨 LAVORO B — colore STABILE basato su hash dell'ID riga
+        // (non cambia quando aggiungi altri articoli)
+        const colorClass = `clr-${hashLineId(line.id) % 10}`;
       
                      return `
             <div class="cart-line ${colorClass}" data-line-id="${line.id}">
@@ -921,8 +925,12 @@ function openSummaryModal() {
     return;
   }
 
+  const cart = getCart();
+  const clientName = cart?.meta?.clientName || "Cliente 1";
+
   SummaryModal.open({
     lines,
+    clientName,
     onConfirm: () => {
       showToast("✅ Ordine verificato! Ora premi UFF. o CONFERMA", "success");
     }
@@ -1126,11 +1134,19 @@ function updateBolButton() {
   if (!btn) return;
   const cart = getCart();
   const meta = cart?.meta || {};
+
+  // Aggiorna SOLO gli span interni (non textContent!)
+  const iconEl = btn.querySelector(".bb-icon");
+  const labelEl = btn.querySelector(".bb-label");
+  if (!iconEl || !labelEl) return;
+
   if (meta.invoiceNumber) {
-    btn.textContent = "🖨 Stampa DDT";
+    iconEl.textContent = "🖨";
+    labelEl.textContent = "STAMPA";
     btn.title = `Ristampa fattura ${meta.invoiceNumber}`;
   } else {
-    btn.textContent = "📄 BOL.";
+    iconEl.textContent = "📄";
+    labelEl.textContent = "BOL.";
     btn.title = "Crea fattura";
   }
 }
@@ -1333,13 +1349,20 @@ async function switchToCart(cartId) {
    */
   function isVisibleInDropdown(cart) {
     const meta = cart.meta || {};
+
+    // Carrelli vuoti → non visibili
+    const lineCount = Object.keys(cart.lines || {}).length;
+    if (lineCount === 0) return false;
+
+    // Ordini di OGGI → sempre visibili
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     if ((meta.createdAt || 0) >= startOfToday.getTime()) return true;
 
+    // Ordini VECCHI → solo se modifica o bozza
     const st = meta.status || "modifica";
-    if (st === "modifica" || st === "bozza" || st === "sbloccato" || st === "pronto") return true;
-    if (meta.wasModified === true) return true;
+    if (st === "modifica" || st === "bozza") return true;
+
     return false;
   }
   
@@ -1407,11 +1430,30 @@ function closeOrdersDropdown() {
 function renderOrdersDropdown() {
   const listEl = document.getElementById("ordersDropdownList");
   const countEl = document.getElementById("ordersDropdownCount");
+  const toggleBtn = document.getElementById("ordersViewToggle");
   if (!listEl) return;
 
-  const visibleCarts = _allCarts
-    .filter(isVisibleInDropdown)
-    .sort((a, b) => (b.meta?.createdAt || 0) - (a.meta?.createdAt || 0));
+  // Cambia il testo del toggle in base alla modalità
+  if (toggleBtn) {
+    toggleBtn.textContent = _ordersFullView
+      ? "📋 Tutti gli ordini"
+      : "📋 Ordini di oggi";
+    toggleBtn.classList.toggle("is-full-view", _ordersFullView);
+  }
+
+  // In base alla modalità filtra
+  let visibleCarts;
+  if (_ordersFullView) {
+    // Vista completa: tutti gli ordini, tutti gli stati
+    visibleCarts = _allCarts
+      .filter(c => Object.keys(c.lines || {}).length > 0);
+  } else {
+    // Vista normale
+    visibleCarts = _allCarts.filter(isVisibleInDropdown);
+  }
+
+  // Ordina per data DESC
+  visibleCarts.sort((a, b) => (b.meta?.createdAt || 0) - (a.meta?.createdAt || 0));
 
   if (countEl) countEl.textContent = String(visibleCarts.length);
 
@@ -1420,45 +1462,113 @@ function renderOrdersDropdown() {
     return;
   }
 
-  listEl.innerHTML = visibleCarts.map((cart) => {
-    const status = cart.meta?.status || "modifica";
-    const icon = getStatusIcon(status);
-    const clientName = cart.meta?.clientName || "Cliente 1";
-    const time = formatTimeHHMM(cart.meta?.createdAt);
-    const total = formatEuro(cart.meta?.totals?.grandTotal || 0);
-    const lineCount = Object.keys(cart.lines || {}).length;
-
-    let displayName;
-    if (cart.meta?.invoiceNumber) {
-      const cp = (cart.meta?.clientName && cart.meta.clientName !== "Cliente 1")
-        ? " · " + cart.meta.clientName
-        : "";
-      displayName = `Fattura ${cart.meta.invoiceNumber}${cp}`;
-    } else if (cart.meta?.orderNumber && cart.meta?.orderCode) {
-      displayName = `Ordine #${cart.meta.orderNumber} - ${cart.meta.orderCode}`;
-    } else {
-      displayName = clientName;
-    }
-
-    return `
-      <div class="orders-dropdown-item"
-           data-cart-id="${cart.id}"
-           data-status="${status}">
-        <span class="orders-dropdown-icon">${icon}</span>
-        <div class="orders-dropdown-info">
-          <div class="orders-dropdown-client">${escapeHtml(displayName)}</div>
-          <div class="orders-dropdown-meta">${time} · ${lineCount} art.</div>
+  // Se vista completa → raggruppa per giorno
+  if (_ordersFullView) {
+    const grouped = groupCartsByDay(visibleCarts);
+    listEl.innerHTML = Object.entries(grouped)
+      .map(([dayLabel, carts]) => `
+        <div class="orders-day-group">
+          <div class="orders-day-header">${escapeHtml(dayLabel)}</div>
+          ${carts.map((cart) => renderDropdownItem(cart, true)).join("")}
         </div>
-        <div class="orders-dropdown-total">${total}</div>
-      </div>
-    `;
-  }).join("");
+      `).join("");
+  } else {
+    // Vista normale → lista piatta
+    listEl.innerHTML = visibleCarts.map((cart) => renderDropdownItem(cart, false)).join("");
+  }
 
+  // Listener click
   listEl.querySelectorAll(".orders-dropdown-item").forEach((el) => {
     el.addEventListener("click", () => {
       handleOrderFromDropdown(el.dataset.cartId, el.dataset.status);
     });
   });
+}
+
+/**
+ * Rende una singola voce della tendina.
+ * @param {object} cart — il carrello
+ * @param {boolean} showDate — se true mostra la data al posto dell'ora
+ */
+function renderDropdownItem(cart, showDate) {
+  const status = cart.meta?.status || "modifica";
+  const icon = getStatusIcon(status);
+  const clientName = cart.meta?.clientName || "Cliente 1";
+  const time = formatTimeHHMM(cart.meta?.createdAt);
+  const total = formatEuro(cart.meta?.totals?.grandTotal || 0);
+  const lineCount = Object.keys(cart.lines || {}).length;
+
+  // 🆕 Occhio se qualcuno ha visto l'ordine
+  const seenBy = cart.meta?.seenBy || {};
+  const hasEye = Object.keys(seenBy).length > 0;
+  const eyeHtml = hasEye ? ` <span class="orders-eye" title="Visto">👁️</span>` : "";
+
+  let displayName;
+  if (cart.meta?.invoiceNumber) {
+    const cp = (cart.meta?.clientName && cart.meta.clientName !== "Cliente 1")
+      ? " · " + cart.meta.clientName
+      : "";
+    displayName = `Fattura ${cart.meta.invoiceNumber}${cp}`;
+  } else if (cart.meta?.orderNumber && cart.meta?.orderCode) {
+    displayName = `Ordine #${cart.meta.orderNumber} - ${cart.meta.orderCode}`;
+  } else {
+    displayName = clientName;
+  }
+
+  // 🆕 Anteprima articoli (max 2, poi +N)
+  const linesArr = Object.values(cart.lines || {});
+  let itemsDesc = "";
+  if (linesArr.length > 0) {
+    const first = linesArr.slice(0, 2).map(l => l.description || "").join(", ");
+    const rest = linesArr.length > 2 ? `, +${linesArr.length - 2}` : "";
+    itemsDesc = first + rest;
+  }
+
+  return `
+    <div class="orders-dropdown-item"
+         data-cart-id="${cart.id}"
+         data-status="${status}">
+      <span class="orders-dropdown-icon">${icon}</span>
+      <div class="orders-dropdown-info">
+        <div class="orders-dropdown-client">${escapeHtml(displayName)}${eyeHtml}</div>
+        ${itemsDesc ? `<div class="orders-dropdown-items">${escapeHtml(itemsDesc)}</div>` : ""}
+        <div class="orders-dropdown-meta">${time} · ${lineCount} art.</div>
+      </div>
+      <div class="orders-dropdown-total">${total}</div>
+    </div>
+  `;
+}
+
+/**
+ * Raggruppa i carrelli per giorno (es. "Oggi", "Ieri", "07/10/2026").
+ * Ritorna un oggetto { "Oggi": [...], "Ieri": [...], ... }
+ */
+function groupCartsByDay(carts) {
+  const groups = {};
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterday = today - 24 * 60 * 60 * 1000;
+
+  for (const c of carts) {
+    const ts = c.meta?.createdAt || 0;
+    const d = new Date(ts);
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+    let label;
+    if (dayStart === today) label = "Oggi";
+    else if (dayStart === yesterday) label = "Ieri";
+    else {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = d.getFullYear();
+      label = `${dd}/${mm}/${yy}`;
+    }
+
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(c);
+  }
+
+  return groups;
 }
 
 function getStatusIcon(status) {
@@ -1930,4 +2040,79 @@ function renderTotalInline(line) {
     <span class="cart-line-total-new">${formatEuro(lineTotal)}</span>
     <span class="cart-line-total-disc">-${formatEuro(discAmount)}</span>
   `;
+}
+/**
+ * Hash stabile di un lineId → numero 0-9.
+ * Usato per assegnare un colore fisso a ogni riga del carrello.
+ */
+function hashLineId(id) {
+  let h = 0;
+  const s = String(id || "");
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+/* ============================================
+   🆕 PULIZIA CARRELLI VUOTI IN "MODIFICA"
+   Cancella da Firebase i carrelli vuoti dell'utente corrente
+   (tranne quello attivo). Evita accumulo di "Cliente 1 · 0 art."
+   ============================================ */
+   async function cleanupEmptyModificaCarts() {
+    try {
+      if (!_user || !_cartId) return;
+      const snap = await import("../../core/firebase-init.js").then(m =>
+        m.get(m.ref(m.db, "activeCarts"))
+      );
+      if (!snap.exists()) return;
+  
+      const val = snap.val() || {};
+      const toDelete = [];
+  
+      for (const [id, cart] of Object.entries(val)) {
+        if (id === _cartId) continue; // salta il carrello attivo
+        const meta = cart.meta || {};
+        const owner = id.split("_")[0].replace(/^C/, "");
+        if (owner !== _user.id) continue;           // non toccare quelli di altri
+        if ((meta.status || "modifica") !== "modifica") continue; // solo "modifica"
+        const lines = cart.lines || {};
+        if (Object.keys(lines).length > 0) continue; // solo vuoti
+  
+        toDelete.push(id);
+      }
+  
+      if (toDelete.length === 0) return;
+  
+      const { db, ref, remove } = await import("../../core/firebase-init.js");
+      for (const id of toDelete) {
+        await remove(ref(db, `activeCarts/${id}`));
+      }
+      console.log(`🧹 Puliti ${toDelete.length} carrelli vuoti`);
+    } catch (err) {
+      console.error("Errore cleanupEmptyModificaCarts:", err);
+    }
+  }
+/* ============================================
+   🆕 VISTA COMPLETA (toggle dentro la modale)
+   ============================================ */
+   function wireOrdersViewToggle() {
+    const btn = document.getElementById("ordersViewToggle");
+    if (!btn || btn._hasToggleListener) return;
+    btn._hasToggleListener = true;
+  
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      _ordersFullView = !_ordersFullView;
+      renderOrdersDropdown();
+    });
+  }
+
+function updateOrdersTabStyle() {
+  const tab = document.getElementById("btnTabOrdini");
+  if (!tab) return;
+  if (_ordersFullView) {
+    tab.classList.add("is-full-view");
+  } else {
+    tab.classList.remove("is-full-view");
+  }
 }
