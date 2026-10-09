@@ -471,6 +471,10 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
             } else if (action === "stampa") {
               const { openPrintOrdersModal } = await import("../components/print-orders-modal.js");
               const filtered = filterOrders(_orders);
+
+              // 🆕 Escludi le fatture: quelle si stampano con "🖨 Stampa DDT" direttamente
+              const ordersOnly = filtered.filter(o => !o.invoiceNumber);
+
               const filterLabels = {
                 nuovi: "🟡 NUOVI",
                 fatti: "🟢 FATTI",
@@ -478,7 +482,7 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
                 pronto: "🟣 PRONTO"
               };
               openPrintOrdersModal({
-                orders: filtered,
+                orders: ordersOnly,
                 currentOrderId: orderId,
                 filterLabel: filterLabels[_activeFilter] || _activeFilter
               });
