@@ -1064,6 +1064,7 @@ body {
   min-height: 44px;
   box-sizing: border-box;
   transition: border-color 0.15s ease;
+  text-align: right;
 }
 .uff-order-note-textarea:focus {
   border-color: #facc15;
@@ -1084,6 +1085,7 @@ body {
   word-break: break-word;
   transition: background 0.15s ease, border-color 0.15s ease;
   min-height: 38px;
+  text-align: right;
 }
 .uff-order-note-display:hover {
   background: #222;

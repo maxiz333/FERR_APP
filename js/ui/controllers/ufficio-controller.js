@@ -44,6 +44,7 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
    let _notifiedOrders = new Map();   // "cartId|status" → timestamp
    let _firstLoadDone = false;        // evita la raffica al primo caricamento
    let _editingNoteCarts = new Set(); // 🆕 cartId con nota in edit mode
+let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
    
    /* ============================================
       INIT
@@ -159,6 +160,16 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
 
       // 🔔 Blocco 4 — notifica i nuovi ordini da altri utenti
       _maybeNotifyNewOrders(carts);
+
+      // 🛡️ ANTI-FALSO-BLUR: se una nota è in edit mode,
+      // NON fare refresh ora (altrimenti la textarea verrebbe
+      // distrutta e l'utente perderebbe focus + testo).
+      // Il refresh verrà fatto quando l'edit mode si chiude.
+      if (_editingNoteCarts.size > 0) {
+        _pendingRefresh = true;
+        console.log("⏸ Refresh rinviato (nota in edit mode)");
+        return;
+      }
 
       refresh();
     });
@@ -286,6 +297,8 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
               clearTimeout(timer);
               updateNote(orderId, ta.value).then(() => {
                 _editingNoteCarts.delete(orderId);
+                // 🛡️ Se c'era un refresh in sospeso, fallo ora
+                _pendingRefresh = false;
                 refresh();
               });
             }
@@ -294,10 +307,18 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
           // 🆕 Se clicchi fuori: salva e passa in display (o torna a placeholder se vuota)
           ta.addEventListener("blur", () => {
             setTimeout(() => {
-              const v = (ta.value || "").trim();
+              // 🛡️ ANTI-FALSO-BLUR: se la textarea è stata rimossa dal DOM
+              // (perché un re-render di Firebase l'ha ricostruita), NON chiudere
+              // l'edit mode. Il "blur" è stato causato dal re-render, non dall'utente.
+              if (!document.body.contains(ta)) {
+                return;
+              }
+
               clearTimeout(timer);
               updateNote(orderId, ta.value).then(() => {
                 _editingNoteCarts.delete(orderId);
+                // 🛡️ Se c'era un refresh in sospeso, fallo ora
+                _pendingRefresh = false;
                 refresh();
               });
             }, 150);

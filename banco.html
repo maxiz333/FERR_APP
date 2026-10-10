@@ -68,13 +68,41 @@
 
     <!-- SEARCH -->
     <div class="banco-search">
-      <div class="search-input-wrapper">
+      <div class="search-mode-bar">
+        <button class="search-mode-btn search-mode-code" data-mode="code" type="button">
+          🔢 CODICE
+        </button>
+        <button class="search-mode-btn search-mode-name" data-mode="name" type="button">
+          🔤 NOME
+        </button>
+      </div>
+
+      <div class="search-input-wrapper is-hidden">
         <span class="icon-left">🔍</span>
         <input type="text" class="input" id="searchInput"
-               placeholder="Cerca per codice o descrizione..."
+               placeholder="Cerca..."
                autocomplete="off">
-        <button class="icon-clear" id="searchClear" style="display:none;">✕</button>
+        <button class="icon-close-mode" type="button" title="Chiudi">✕</button>
       </div>
+
+      <!-- 🆕 Tastierino numerico inline (solo modalità CODICE) -->
+      <div class="inline-keypad is-hidden" id="inlineKeypad">
+        <div class="inline-keypad-grid">
+          <button class="inline-kp" data-k="1">1</button>
+          <button class="inline-kp" data-k="2">2</button>
+          <button class="inline-kp" data-k="3">3</button>
+          <button class="inline-kp" data-k="4">4</button>
+          <button class="inline-kp" data-k="5">5</button>
+          <button class="inline-kp" data-k="6">6</button>
+          <button class="inline-kp" data-k="7">7</button>
+          <button class="inline-kp" data-k="8">8</button>
+          <button class="inline-kp" data-k="9">9</button>
+          <button class="inline-kp inline-kp-danger" data-k="clear">C</button>
+          <button class="inline-kp" data-k="0">0</button>
+          <button class="inline-kp inline-kp-accent" data-k="backspace">⌫</button>
+        </div>
+      </div>
+
       <div class="search-results" id="searchResults"></div>
     </div>
 

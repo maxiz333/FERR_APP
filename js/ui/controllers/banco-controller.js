@@ -309,14 +309,17 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
         const area = document.getElementById("cartArea");
         if (!area) return;
 
-        // 🆕 Salva stato textarea nota (se l'utente sta scrivendo)
+        // 🆕 Salva stato textarea nota (se sei in edit mode)
+        // 🛡️ ANTI-FALSO-BLUR: salvo SEMPRE il valore, non solo se ha il focus,
+        // perché il re-render di Firebase può rubare il focus per 1 frame.
         const prevNoteInput = document.getElementById("orderNoteInput");
         let noteState = null;
-        if (prevNoteInput && document.activeElement === prevNoteInput) {
+        if (prevNoteInput && _orderNoteEditMode) {
           noteState = {
             value: prevNoteInput.value,
-            selStart: prevNoteInput.selectionStart,
-            selEnd: prevNoteInput.selectionEnd
+            selStart: prevNoteInput.selectionStart ?? prevNoteInput.value.length,
+            selEnd: prevNoteInput.selectionEnd ?? prevNoteInput.value.length,
+            wasFocused: document.activeElement === prevNoteInput
           };
         }
       
@@ -512,13 +515,16 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
       
         const noteInput = document.getElementById("orderNoteInput");
         if (noteInput) {
-          // 🆕 Se l'utente stava scrivendo, ripristina valore + cursore + focus
+          // 🆕 Ripristina valore + cursore + focus
           if (noteState) {
             noteInput.value = noteState.value;
-            noteInput.focus();
-            try {
-              noteInput.setSelectionRange(noteState.selStart, noteState.selEnd);
-            } catch (e) { /* ignora */ }
+            // Ripristina focus + cursore SOLO se li aveva prima del re-render
+            if (noteState.wasFocused) {
+              noteInput.focus();
+              try {
+                noteInput.setSelectionRange(noteState.selStart, noteState.selEnd);
+              } catch (e) { /* ignora */ }
+            }
           }
 
           let noteTimer = null;
