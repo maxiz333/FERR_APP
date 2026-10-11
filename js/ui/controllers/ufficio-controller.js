@@ -25,6 +25,7 @@
    import { openInvoiceModal } from "../components/invoice-modal.js";
    import { openInvoiceNumberModal } from "../components/invoice-number-modal.js";
    import { printInvoice } from "../components/print-invoice.js";
+import { printDDT } from "../components/print-ddt.js";
    import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
    import { getClientByKey } from "../../data/client-repository.js";
    import { updateClient } from "../../data/cart-repository.js";
@@ -546,21 +547,22 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
                         }
 
             // 🆕 Blocco 7 — Ristampa DDT
-            } else if (action === "stampa-ddt") {
-              const order = _orders.find((o) => o.id === orderId);
-              if (!order || !order.invoiceNumber) return;
+          } else if (action === "stampa-ddt") {
+            const order = _orders.find((o) => o.id === orderId);
+            if (!order || !order.invoiceNumber) return;
 
-              let client = null;
-              if (order.clientId) {
-                try { client = await getClientByKey(order.clientId); }
-                catch (e) { /* ignore */ }
-              }
+            let client = null;
+            if (order.clientId) {
+              try { client = await getClientByKey(order.clientId); }
+              catch (e) { /* ignore */ }
+            }
 
-              printInvoice({
-                cart: { meta: order, lines: order.lines },
-                invoiceNumber: order.invoiceNumber,
-                client: client
-              });
+            // 🆕 Usa il nuovo template DDT definitivo
+            printDDT({
+              cart: { meta: order, lines: order.lines },
+              invoiceNumber: order.invoiceNumber,
+              client: client
+            });
    
             } else if (action === "elimina") {
               if (!confirm("Spostare questo ordine nel cestino?")) return;

@@ -34,6 +34,7 @@ import { renderPriceDot } from "../components/price-dot.js";
 import { openInvoiceModal } from "../components/invoice-modal.js";
 import { openInvoiceNumberModal } from "../components/invoice-number-modal.js";
 import { printInvoice } from "../components/print-invoice.js";
+import { printDDT } from "../components/print-ddt.js";
 import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
 import { getClientByKey } from "../../data/client-repository.js";
 
@@ -1170,19 +1171,20 @@ async function handleBolClick() {
   const cart = getCart();
   const meta = cart?.meta || {};
 
-    // Già fatturato → il tasto è diventato "Stampa DDT" → stampa!
-    if (meta.invoiceNumber) {
-      let client = null;
-      if (meta.clientId) {
-        try { client = await getClientByKey(meta.clientId); } catch (e) {}
-      }
-      printInvoice({
-        cart: cart,
-        invoiceNumber: meta.invoiceNumber,
-        client: client
-      });
-      return;
-    }
+        // Già fatturato → il tasto è diventato "Stampa DDT" → stampa!
+        if (meta.invoiceNumber) {
+          let client = null;
+          if (meta.clientId) {
+            try { client = await getClientByKey(meta.clientId); } catch (e) {}
+          }
+          // 🆕 Usa il nuovo template DDT definitivo
+          printDDT({
+            cart: cart,
+            invoiceNumber: meta.invoiceNumber,
+            client: client
+          });
+          return;
+        }
 
   // Chiedi conferma con dialogo NATIVO
   const clientName = meta.clientName || "Cliente 1";
