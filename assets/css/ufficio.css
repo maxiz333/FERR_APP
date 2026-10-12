@@ -1175,3 +1175,39 @@ body {
   .uff-days { padding: 6px 12px; gap: 4px; }
   .uff-day { padding: 5px 10px; font-size: 0.7rem; }
 }
+/* 🆕 Barra tab compatta, niente scroll, 5 tab che stanno insieme */
+.uff-tabs {
+  overflow: hidden !important;
+  gap: 4px !important;
+  padding: 8px 8px !important;
+}
+
+.uff-tabs .uff-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding: 6px 4px;
+  font-size: 0.68rem;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.uff-tabs .uff-tab-count {
+  font-size: 0.6rem;
+  padding: 0 4px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+/* 🆕 Il tasto CESTINO (🗑) è molto più stretto degli altri */
+.uff-tabs #btnTrashUfficio {
+  flex: 0 0 42px;      /* larghezza fissa 42px, non si allarga */
+  padding: 6px 2px;
+  gap: 1px;
+}
+
+/* 🆕 Il contatore nel cestino è ancora più compatto */
+.uff-tabs #btnTrashUfficio .uff-tab-count {
+  font-size: 0.55rem;
+  padding: 0 3px;
+}

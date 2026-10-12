@@ -37,6 +37,7 @@ import { printInvoice } from "../components/print-invoice.js";
 import { printDDT } from "../components/print-ddt.js";
 import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
 import { getClientByKey } from "../../data/client-repository.js";
+import { openFornitoriModal } from "../components/fornitori-modal.js";
 
 let _user = null;
 let _cartId = null;
@@ -58,6 +59,7 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
 
      wireActionButtons();
      wireBottomButtons();
+     wireFornitoriButton();
      startOrdersCounter();
      wireOrdersDropdown();
      wireOrdersViewToggle();   // 🆕 toggle vista completa
@@ -650,6 +652,25 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
         const tooltip = `Visto da ${users} · ${hh}:${mm}`;
         return `<span class="client-eye" style="margin-left:8px;opacity:0.7;cursor:help;font-size:0.95rem;" title="${tooltip}">👁️</span>`;
       }
+            /**
+       * 👁️ Occhio per il BANNER dell'anteprima ordine.
+       * Appare solo se qualcuno ha visto l'ordine.
+       */
+            function renderEyeBanner(seenBy) {
+              if (!seenBy || typeof seenBy !== "object") return "";
+              const seen = Object.entries(seenBy)
+                .filter(([, ts]) => Number(ts) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+              if (seen.length === 0) return "";
+      
+              const users = seen.map(([uid]) => uid.toUpperCase()).join(", ");
+              const lastTs = Number(seen[0][1]) || 0;
+              const d = new Date(lastTs);
+              const hh = String(d.getHours()).padStart(2, "0");
+              const mm = String(d.getMinutes()).padStart(2, "0");
+              const tooltip = `Visto da ${users} · ${hh}:${mm}`;
+              return `<span class="banco-order-eye" title="${tooltip}" style="cursor:help;">👁️</span>`;
+            }
       /**
  * Apre il client picker e aggiorna il carrello.
  */
@@ -1658,16 +1679,19 @@ function openOrderPreview(cartId) {
         `;
       }).join("");
 
-  const total = Number(meta.totals?.grandTotal) || 0;
+      const total = Number(meta.totals?.grandTotal) || 0;
 
-  const overlay = document.createElement("div");
-  overlay.className = "fapp-modal-overlay";
-  overlay.innerHTML = `
-    <div class="fapp-modal-box banco-order-view">
-      <div class="banco-order-banner" data-status="${status}">
-        <span>${bannerInfo.text}</span>
-        <span class="banco-order-eye">👁️</span>
-      </div>
+      // 🆕 Occhio condizionale: appare solo se qualcuno l'ha visto
+      const eyeHtml = renderEyeBanner(meta.seenBy);
+    
+      const overlay = document.createElement("div");
+      overlay.className = "fapp-modal-overlay";
+      overlay.innerHTML = `
+        <div class="fapp-modal-box banco-order-view">
+          <div class="banco-order-banner" data-status="${status}">
+            <span>${bannerInfo.text}</span>
+            ${eyeHtml}
+          </div>
      
       <div class="banco-order-client">${escapeHtml(
         meta.invoiceNumber
@@ -1715,8 +1739,24 @@ function openOrderPreview(cartId) {
     setTimeout(() => openOrdersDropdown(), 10);
   });
 
-    // Pulsante STAMPA → stampa l'ordine corrente (Blocco 3.8)
+    // Pulsante STAMPA → usa il nuovo DDT se fatturato, altrimenti stampa lista
     overlay.querySelector("#boBtnStampa").addEventListener("click", async () => {
+      // 🆕 Se l'ordine è fatturato → nuovo template DDT definitivo
+      if (meta.invoiceNumber) {
+        let client = null;
+        if (meta.clientId) {
+          try { client = await getClientByKey(meta.clientId); } catch (e) {}
+        }
+        printDDT({
+          cart: { meta, lines: cart.lines || {} },
+          invoiceNumber: meta.invoiceNumber,
+          client: client
+        });
+        showToast("🖨 Apertura DDT…", "info");
+        return;
+      }
+
+      // Altrimenti (non fatturato) → vecchia stampa lista ordini
       const { printOrders } = await import("../components/print-orders-modal.js");
       printOrders([{
         id: cartId,
@@ -1934,6 +1974,17 @@ function scheduleTotalsSync() {
      });
    }
 
+      /* 🆕 Apre modale fornitori (USAG ecc) */
+      function wireFornitoriButton() {
+        const btn = document.getElementById("btnFornitori");
+        if (!btn || btn._hasFornitoriListener) return;
+        btn._hasFornitoriListener = true;
+        btn.addEventListener("click", () => {
+          openFornitoriModal();
+        });
+        console.log("✅ Pulsante FORNITORI collegato");
+      }
+   
 /* ============================================
    🆕 Tab "+ NUOVO" — crea un nuovo carrello
    ============================================ */

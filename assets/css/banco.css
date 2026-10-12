@@ -70,15 +70,33 @@
   /* === TAB BAR (in cima) === */
   .banco-tabs {
     display: flex;
-    gap: 8px;
-    padding: 10px 16px;
+    gap: 4px;
+    padding: 10px 6px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
-    overflow-x: auto;
-    scrollbar-width: none;
+    overflow: hidden;         /* 🆕 niente scroll */
     flex-shrink: 0;
   }
   .banco-tabs::-webkit-scrollbar { display: none; }
+  
+  /* 🆕 Tutti i tab si dividono lo spazio disponibile equamente */
+  .banco-tabs .banco-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding: 6px 4px;
+    font-size: 0.68rem;
+    gap: 3px;
+    overflow: hidden;
+  }
+  
+  /* 🆕 Il numero dei tab (badge) più compatto */
+  .banco-tabs .banco-tab .count {
+    padding: 0 4px;
+    font-size: 0.6rem;
+    min-width: 0;
+    flex-shrink: 0;
+  }
   
   .banco-tab {
     display: inline-flex;
@@ -2173,4 +2191,175 @@
 /* Il tastierino resta sempre della sua altezza naturale, mai schiacciato */
 .banco-search.is-code-mode .inline-keypad {
   flex-shrink: 0;
+}
+/* 🆕 Tastierino ancorato in basso in modalità CODICE */
+.banco-search.is-code-mode .inline-keypad {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  margin: 0;
+  border-radius: 12px 12px 0 0;
+  padding: 8px;
+  background: #1a1a1a;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+/* Padding al body per non nascondere contenuto sotto il tastierino */
+body:has(.banco-search.is-code-mode) .cart-area {
+  padding-bottom: 340px !important;
+}
+/* 🆕 Modale Fornitori (banco + ufficio) */
+.fornitori-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.fornitori-modal {
+  background: #14171b;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 900px;
+  height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.fornitori-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.fornitori-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #facc15;
+  letter-spacing: 0.5px;
+}
+
+.fornitori-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.fornitori-close:hover { background: rgba(255,255,255,0.08); }
+
+.fornitori-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fornitori-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  padding: 24px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.fornitori-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 40px 20px;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 1.5px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.fornitori-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+.fornitori-btn:active {
+  transform: scale(0.97);
+}
+
+/* Iframe fornitore */
+.fornitori-iframe-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.fornitori-iframe-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.fornitori-back {
+  background: transparent;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fornitori-back:hover { border-color: #facc15; color: #facc15; }
+
+.fornitori-iframe-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 1.5px;
+}
+
+.fornitori-close2 {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.fornitori-close2:hover { background: rgba(255,255,255,0.08); }
+
+.fornitori-iframe {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .fornitori-overlay { padding: 6px; }
+  .fornitori-modal { height: 96vh; border-radius: 10px; }
+  .fornitori-grid { padding: 16px; gap: 10px; }
+  .fornitori-btn { padding: 28px 12px; font-size: 1.15rem; }
 }

@@ -72,8 +72,21 @@
      /* ---------- TASTI ---------- */
    
      codeBtn?.addEventListener("click", () => openSearchMode("code"));
-     nameBtn?.addEventListener("click", () => openSearchMode("name"));
+     nameBtn?.addEventListener("click", () => {
+      // 🆕 Focus DIRETTO nel click (senza setTimeout) → iOS apre la tastiera subito
+      openSearchMode("name");
+    });
      closeBtn?.addEventListener("click", closeSearchMode);
+
+       // 🆕 Tap fuori dal tastierino (in modalità CODICE) → chiudi
+  document.addEventListener("click", (e) => {
+    // Solo in modalità CODICE (tastierino visibile)
+    if (!searchContainer?.classList.contains("is-code-mode")) return;
+    // Se il click è dentro la search area (input, risultati, tastierino) → non chiudere
+    if (searchContainer.contains(e.target)) return;
+    // Altrimenti (tap sul carrello / fuori) → chiudi tutto
+    closeSearchMode();
+  });
    
      /* ---------- TASTIERINO INLINE (solo CODICE) ---------- */
    

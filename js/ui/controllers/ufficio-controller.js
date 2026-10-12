@@ -28,6 +28,7 @@
 import { printDDT } from "../components/print-ddt.js";
    import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
    import { getClientByKey } from "../../data/client-repository.js";
+   import { openFornitoriModal } from "../components/fornitori-modal.js";
    import { updateClient } from "../../data/cart-repository.js";
 import { updateNote } from "../../data/cart-repository.js";
 import { showOfficeToast, requestNotificationPermission } from "../../core/notify.js";
@@ -100,6 +101,14 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
           .catch(err => {
             console.error("Errore caricamento articoli:", err);
           });
+
+         // 🆕 Tasto Fornitori
+         const btnForn = document.getElementById("btnFornitori");
+         if (btnForn && !btnForn._hasFornitoriListener) {
+           btnForn._hasFornitoriListener = true;
+           btnForn.addEventListener("click", () => openFornitoriModal());
+           console.log("✅ Pulsante FORNITORI collegato (ufficio)");
+         }
 
          // 🆕 Tasto F: modifica numero bolle
          const btnF = document.getElementById("btnInvoiceNumber");
