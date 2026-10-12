@@ -46,6 +46,8 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
    let _notifiedOrders = new Map();   // "cartId|status" → timestamp
    let _firstLoadDone = false;        // evita la raffica al primo caricamento
    let _editingNoteCarts = new Set(); // 🆕 cartId con nota in edit mode
+   let _dayPickerKey = null;   // 🆕 dayKey del bottone con tendina settimane aperta
+   let _dayPickerHandlers = null;
 let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
    
    /* ============================================
@@ -53,7 +55,10 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
       ============================================ */
    
    export async function initUfficioController(user) {
-     _user = user;
+    _user = user;
+
+    // 🆕 Imposta di default il giorno attivo = OGGI
+    _activeDay = dayKeyFromTs(Date.now());
    
      const userEl = document.getElementById("uffUser");
      if (userEl) userEl.textContent = _user.name;
@@ -217,7 +222,7 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         const nav = document.getElementById("uffDays");
         if (!nav) return;
 
-        // Giorni con ordini (dai _orders visibili nel tab)
+        // Ordini del tab attivo (esclusi "modifica")
         const visibleOrders = _orders.filter((o) => o.status !== "modifica");
         let tabOrders = visibleOrders;
         if (_activeFilter === "nuovi") {
@@ -227,53 +232,215 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         } else if (_activeFilter === "pronto") {
           tabOrders = tabOrders.filter(o => o.status === "pronto");
         }
-        const daysSet = new Set();
-        tabOrders.forEach((o) => {
-          const k = dayKeyFromTs(o.createdAt);
-          if (k) daysSet.add(k);
-        });
-        const days = Array.from(daysSet).sort((a, b) => b.localeCompare(a));
 
-        if (days.length === 0) {
-          nav.innerHTML = "";
-          return;
-        }
-
-        // Utente può vedere i dettagli?
+        // Lunedì di questa settimana
+        const monday = getMondayOfWeek(0);
+        const labels = ["Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab.", "D."];
+        const todayKey = dayKeyFromTs(Date.now());
         const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
 
-        nav.innerHTML = days.map((day) => {
-          const isActive = _activeDay === day;
-          const isOpen = _dayDetailOpen === day;
-          let detail = "";
+        const html = labels.map((label, i) => {
+          const dayDate = new Date(monday);
+          dayDate.setDate(monday.getDate() + i);
+          const dayKey = dayKeyFromTs(dayDate.getTime());
 
-          if (isActive && isOpen && canSeeDetails) {
-            const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === day);
-            const ordini = dayOrders.filter(o => !o.invoiceNumber);
-            const fatture = dayOrders.filter(o => o.invoiceNumber);
-            const totOrdini = ordini.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
-            const totFatture = fatture.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
-            detail = ` · ${ordini.length} ordini ${formatEuroUff(totOrdini)} · ${fatture.length} fatture ${formatEuroUff(totFatture)}`;
-          }
+          const isToday  = dayKey === todayKey;
+          const isActive = _activeDay === dayKey;
+          const isOpen   = _dayDetailOpen === dayKey;
 
-          return `<button class="uff-day ${isActive ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}" data-day="${day}">${dayLabel(day)}${detail}</button>`;
+          // 🆕 Contatore ordini del giorno (nel tab attivo)
+          const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
+          const countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
+
+          const classes = [
+            "uff-day",
+            isToday  ? "is-today"  : "",
+            isActive ? "is-active" : "",
+            isOpen   ? "is-open"   : ""
+          ].filter(Boolean).join(" ");
+
+          return `
+            <div class="uff-day-wrap">
+              <button class="${classes}" data-day="${dayKey}">${label}${countHtml}</button>
+            </div>
+          `;
         }).join("");
 
+        // 🆕 Riga dettaglio SOTTO la barra giorni (a tutta larghezza)
+        let detailBar = "";
+        if (_activeDay && _dayDetailOpen && canSeeDetails) {
+          const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === _activeDay);
+          const ordini = dayOrders.filter(o => !o.invoiceNumber);
+          const fatture = dayOrders.filter(o => o.invoiceNumber);
+          const totOrdini = ordini.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+          const totFatture = fatture.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+          detailBar = `
+            <div class="uff-day-detail-bar">
+              <span class="udd-ico">📊</span>
+              <span class="udd-txt">${ordini.length} ordini <strong>${formatEuroUff(totOrdini)}</strong> · ${fatture.length} fatture <strong>${formatEuroUff(totFatture)}</strong></span>
+            </div>
+          `;
+        }
+
+        nav.innerHTML = html + detailBar;
+
+        // 🆕 Listener: click singolo + doppio click (PC) + long press (cell)
+        let clickTimer = null;
         nav.querySelectorAll(".uff-day").forEach((btn) => {
-          btn.addEventListener("click", () => onDayClick(btn.dataset.day));
+          const dayKey = btn.dataset.day;
+
+          // Click singolo (con delay per distinguere da doppio click)
+          btn.addEventListener("click", () => {
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => {
+              if (_dayPickerKey === dayKey) return; // tendina aperta su questo → ignora
+              onDayClick(dayKey);
+            }, 220);
+          });
+
+          // Doppio click (PC) → apre tendina settimane scorse
+          btn.addEventListener("dblclick", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            clearTimeout(clickTimer);
+            openWeekPicker(btn, dayKey);
+          });
+
+          // Long press (touch su cell)
+          let pressTimer = null;
+          btn.addEventListener("touchstart", () => {
+            pressTimer = setTimeout(() => {
+              clearTimeout(clickTimer);
+              openWeekPicker(btn, dayKey);
+            }, 500);
+          }, { passive: true });
+          const cancelPress = () => clearTimeout(pressTimer);
+          btn.addEventListener("touchend", cancelPress);
+          btn.addEventListener("touchmove", cancelPress);
+          btn.addEventListener("touchcancel", cancelPress);
         });
+      }
+
+      /* 🆕 Apre la tendina con le 4 settimane scorse */
+      function openWeekPicker(btn, dayKey) {
+        closeWeekPicker();
+
+        // 🆕 Chiudi il riepilogo vendite se era aperto
+        if (_dayDetailOpen) {
+          _dayDetailOpen = null;
+          refresh();
+          // 🆕 Il btn vecchio è stato distrutto dal refresh → rileggo dal DOM
+          btn = document.querySelector(`.uff-day[data-day="${dayKey}"]`);
+          if (!btn) return;
+        }
+
+        _dayPickerKey = dayKey;
+
+        const baseDate = new Date(dayKey + "T00:00:00");
+        const items = [];
+
+        for (let w = 1; w <= 4; w++) {
+          const d = new Date(baseDate);
+          d.setDate(d.getDate() - (w * 7));
+          const key = dayKeyFromTs(d.getTime());
+          const dd = String(d.getDate()).padStart(2, "0");
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const weekLabel = w === 1 ? "scorso" : `${w} sett fa`;
+          items.push({
+            key,
+            label: `${dayLabelShort(key)} ${weekLabel} · ${dd}/${mm}`
+          });
+        }
+
+        const picker = document.createElement("div");
+        picker.className = "uff-week-picker";
+        picker.innerHTML = items.map(it => `
+          <div class="uff-week-picker-item" data-day="${it.key}">${it.label}</div>
+        `).join("");
+
+        document.body.appendChild(picker);
+
+        // Posiziona sotto il bottone
+        const r = btn.getBoundingClientRect();
+        picker.style.left = (r.left + r.width / 2) + "px";
+        picker.style.top = (r.bottom + 6) + "px";
+
+        // Click su una voce → salta a quel giorno
+        picker.querySelectorAll(".uff-week-picker-item").forEach(item => {
+          item.addEventListener("click", (e) => {
+            e.stopPropagation();
+            _activeDay = item.dataset.day;
+            _dayDetailOpen = null;
+            closeWeekPicker();
+            refresh();
+          });
+        });
+
+        // Chiudi su click fuori (con delay per non intercettare il dblclick stesso)
+        setTimeout(() => {
+          _dayPickerHandlers = (e) => {
+            const p = document.querySelector(".uff-week-picker");
+            if (!p) return;
+            if (p.contains(e.target)) return;
+            // 🆕 Chiudi anche se clicchi su un altro giorno
+            closeWeekPicker();
+          };
+          document.addEventListener("click", _dayPickerHandlers);
+
+          // Esc per chiudere
+          const escHandler = (e) => {
+            if (e.key === "Escape") {
+              closeWeekPicker();
+              document.removeEventListener("keydown", escHandler);
+            }
+          };
+          document.addEventListener("keydown", escHandler);
+          picker._escHandler = escHandler;
+        }, 350);
+      }
+
+      /* 🆕 Chiude la tendina settimane */
+      function closeWeekPicker() {
+        const picker = document.querySelector(".uff-week-picker");
+        if (picker) {
+          if (picker._escHandler) document.removeEventListener("keydown", picker._escHandler);
+          picker.remove();
+        }
+        if (_dayPickerHandlers) {
+          document.removeEventListener("click", _dayPickerHandlers);
+          _dayPickerHandlers = null;
+        }
+        _dayPickerKey = null;
+      }
+
+      /* 🆕 Etichetta breve del giorno (Lun., Mar., ...) */
+      function dayLabelShort(dayKey) {
+        const d = new Date(dayKey + "T00:00:00");
+        const names = ["Dom.", "Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab."];
+        return names[d.getDay()];
+      }
+
+      /** 🆕 Ritorna il lunedì di questa settimana (offset 0 = settimana corrente) */
+      function getMondayOfWeek(offsetWeeks) {
+        const now = new Date();
+        const dow = now.getDay(); // 0=dom, 1=lun, ..., 6=sab
+        const diffToMon = dow === 0 ? -6 : 1 - dow;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMon + (offsetWeeks * 7));
+        monday.setHours(0, 0, 0, 0);
+        return monday;
       }
 
       function onDayClick(day) {
         const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
 
         if (_activeDay === day) {
-          // già attivo → toggle dettaglio (solo se autorizzato)
+          // 🆕 Click di nuovo sullo stesso giorno → toggle totali (solo per papa/mati/massi)
           if (canSeeDetails) {
             _dayDetailOpen = _dayDetailOpen === day ? null : day;
           }
         } else {
-          // seleziona nuovo giorno
+          // 🆕 Primo click su un nuovo giorno → filtro (settimana corrente)
           _activeDay = day;
           _dayDetailOpen = null;
         }
@@ -385,9 +552,31 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         }
       
         if (_searchQuery) {
+          const q = _searchQuery.toLowerCase();
           result = result.filter((o) => {
-            const hay = `${o.clientName} ${o.createdByName} ${o.id}`.toLowerCase();
-            return hay.includes(_searchQuery);
+            // 1) Campi base (cliente, creatore, id, codice ordine, nota)
+            const hay = [
+              o.clientName,
+              o.createdByName,
+              o.id,
+              o.note || "",
+              o.orderCode || "",
+              o.orderNumber || "",
+              o.invoiceNumber || ""
+            ].join(" ").toLowerCase();
+  
+            if (hay.includes(q)) return true;
+  
+            // 2) 🆕 Ricerca dentro gli articoli (codice + descrizione)
+            const lines = o.lines || {};
+            for (const lid in lines) {
+              const l = lines[lid] || {};
+              const code = String(l.code || "").toLowerCase();
+              const desc = String(l.description || "").toLowerCase();
+              if (code.includes(q) || desc.includes(q)) return true;
+            }
+  
+            return false;
           });
         }
       
