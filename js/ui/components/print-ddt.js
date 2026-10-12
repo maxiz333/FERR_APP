@@ -151,7 +151,9 @@
        const padL = parseFloat(cs.paddingLeft) || 0;
        const padR = parseFloat(cs.paddingRight) || 0;
    
-       const availableWidth = rect.width - padL - padR - 4;
+    // 🆕 Margine di sicurezza 8% (min 10px) — compatibile Win 8 / 10 / 11
+    const safetyMargin = Math.max(10, rect.width * 0.08);
+    const availableWidth = rect.width - padL - padR - safetyMargin;
        if (availableWidth <= 4) return;
    
        measurer.style.fontFamily    = cs.fontFamily;

@@ -66,8 +66,8 @@
       </div>
     </div>
 
-    <!-- SEARCH -->
-    <div class="banco-search">
+     <!-- SEARCH -->
+     <div class="banco-search">
       <div class="search-mode-bar">
         <button class="search-mode-btn search-mode-code" data-mode="code" type="button">
           🔢 CODICE
@@ -85,7 +85,8 @@
         <button class="icon-close-mode" type="button" title="Chiudi">✕</button>
       </div>
 
-      <!-- 🆕 Tastierino numerico inline (solo modalità CODICE) -->
+      <div class="search-results" id="searchResults"></div>
+
       <div class="inline-keypad is-hidden" id="inlineKeypad">
         <div class="inline-keypad-grid">
           <button class="inline-kp" data-k="1">1</button>
@@ -102,8 +103,6 @@
           <button class="inline-kp inline-kp-accent" data-k="backspace">⌫</button>
         </div>
       </div>
-
-      <div class="search-results" id="searchResults"></div>
     </div>
 
     <!-- CLIENT BAR -->

@@ -42,30 +42,32 @@
        resultsBox.innerHTML = "";
    
        if (mode === "code") {
-         // Tastierino custom visibile, NIENTE tastiera telefono
-         input.setAttribute("inputmode", "none");
-         input.setAttribute("readonly", "readonly");   // blocca tastiera telefono
-         input.placeholder = "Cerca per codice...";
-         inlineKeypad?.classList.remove("is-hidden");
-       } else {
-         // Tastiera normale del telefono
-         input.removeAttribute("inputmode");
-         input.removeAttribute("readonly");
-         input.placeholder = "Cerca per nome...";
-         inlineKeypad?.classList.add("is-hidden");
-         setTimeout(() => input.focus(), 80);
-       }
+        // Tastierino custom visibile, NIENTE tastiera telefono
+        input.setAttribute("inputmode", "none");
+        input.setAttribute("readonly", "readonly");   // blocca tastiera telefono
+        input.placeholder = "Cerca per codice...";
+        inlineKeypad?.classList.remove("is-hidden");
+        searchContainer?.classList.add("is-code-mode");   // 🆕
+      } else {
+        input.removeAttribute("inputmode");
+        input.removeAttribute("readonly");
+        input.placeholder = "Cerca per nome...";
+        inlineKeypad?.classList.add("is-hidden");
+        searchContainer?.classList.remove("is-code-mode");   // 🆕
+        setTimeout(() => input.focus(), 80);
+      }
      }
    
      function closeSearchMode() {
-       searchContainer?.classList.remove("is-searching");
-       inputWrapper?.classList.add("is-hidden");
-       inlineKeypad?.classList.add("is-hidden");
-       input.value = "";
-       input.blur();
-       resultsBox.classList.remove("active");
-       resultsBox.innerHTML = "";
-     }
+      searchContainer?.classList.remove("is-searching");
+      searchContainer?.classList.remove("is-code-mode");   // 🆕
+      inputWrapper?.classList.add("is-hidden");
+      inlineKeypad?.classList.add("is-hidden");
+      input.value = "";
+      input.blur();
+      resultsBox.classList.remove("active");
+      resultsBox.innerHTML = "";
+    }
    
      /* ---------- TASTI ---------- */
    

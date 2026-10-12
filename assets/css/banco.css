@@ -2163,3 +2163,14 @@
   background: #3a1a1a;
   color: #f87171;
 }
+/* 🆕 Modalità CODICE: risultati compatti per far stare il tastierino sotto */
+.banco-search.is-code-mode .search-results {
+  max-height: 26vh;      /* ~220px su iPhone 13 */
+  min-height: 80px;
+  flex-shrink: 1;        /* può restringersi se serve */
+}
+
+/* Il tastierino resta sempre della sua altezza naturale, mai schiacciato */
+.banco-search.is-code-mode .inline-keypad {
+  flex-shrink: 0;
+}
