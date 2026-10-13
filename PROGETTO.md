@@ -1,9 +1,9 @@
- 📘 FerApp — Documento di Progetto Ufficiale
+📘 FerApp — Documento di Progetto Ufficiale
 
-**Versione**: 2.8  
+**Versione**: 2.9  
 **Data creazione**: 22 settembre 2026  
-**Ultima modifica**: 09 ottobre 2026  
-**Stato progetto**: In sviluppo attivo — Blocchi 1-8 completati. Prossimo: fix Occhio Cassa / Blocco 5 (Ordini Fornitori) / Blocco 2B.8 (Ricerca Generica) / DDT definitivo
+**Ultima modifica**: 12 ottobre 2026  
+**Stato progetto**: In sviluppo attivo — Blocchi 1-8 completati + DDT definitivo + Modale Fornitori USAG. Prossimo: Occhio Cassa / Pulizia debito tecnico / Blocco 2B.8 (Ricerca Generica) / Blocco 5 (Ordini Fornitori)
 
 > **Documento vivo.** Fonte unica di verità del progetto.
 > Ogni volta che si riprende il lavoro, **leggere prima questo file**.
@@ -56,7 +56,10 @@ Riscrivere **da zero** l'applicazione gestionale "FerApp" della **Ferramenta Rat
 L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase:
 
 ### 🏭 Banco (Magazzino)
-- Inserisce articoli nel carrello via ricerca/tastierino
+- **2 tasti grandi in alto** per modalità ricerca: `🔢 CODICE` (giallo) e `🔤 NOME` (nero)
+  - **CODICE** → tastierino numerico inline (fisso in basso) + risultati live sopra → match esatto aggiunge diretto
+  - **NOME** → barra di ricerca + tastiera del telefono automatica + risultati live
+  - **Tap fuori dal tastierino** → chiude la ricerca
 - Modifica quantità, unità, sconti, scaglioni
 - Usa calcolatore taglio/peso per KG/MT/MQ (**funzionante dal 04/10/2026**)
 - Crea **bozze** per far iniziare l'ufficio a mettere i prezzi
@@ -71,9 +74,10 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - **Pallini stato prezzo** accanto ai prezzi
 - **📄 BOL.** nella bottom bar → crea fattura con numero progressivo atomico
 - **📄 F** in header → modifica prossimo numero bolla
-- Stampa DDT (**funzionante dal 05/10/2026**)
+- **🖨 Stampa DDT** (nuovo template definitivo dal 12/10/2026)
 - **Tasto + NUOVO** → mette in sospeso il carrello attuale e ne apre uno nuovo
 - **Tab 🗑** → cestino con contatore
+- **Tab 💰** → apre modale fornitori (USAG)
 - **Barra in basso** ridisegnata: `BOL · RIEP · UFF · CONFERMA · 🗑` con icona sopra + label sotto
 - **Pulizia automatica** carrelli vuoti in `modifica` all'avvio
 - **Niente pulsante CASSA nel login**: l'accesso alla cassa è nascosto nel logo
@@ -86,6 +90,7 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - **Scheda prodotto** cliccando sul nome articolo
 - **Pallini stato prezzo**
 - **Occhio 👁️** se qualcuno ha visto l'ordine (tooltip *"Visto da PAPA · 22:45"*)
+  - Nel **banner dell'ordine** appare **solo se qualcuno l'ha visto** (12/10/2026)
 - **Notifiche modali** al centro schermo quando arrivano nuovi ordini da altri utenti
 - **Barra giorni** sotto i tab: filtra per giorno (OGGI/IERI/dd/mm)
   - **Solo papa/mati/massi**: click sul giorno attivo → mostra `N ordini € X · N fatture € Y` (fatture separate)
@@ -93,16 +98,28 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - **Codice articolo** cliccabile per copiarlo negli appunti
 - **Nota riga articolo** visibile in arancione con contorno nero sottile
 - **Nota ordine** con editor placeholder/textarea/div giallo (stessa logica del banco)
+  - **Allineata a destra** (12/10/2026)
+  - **Anti-falso-blur**: `_pendingRefresh` blocca refresh durante edit mode
 - Blocca/sblocca ordini
 - Chiude ordine ("Fatto") → va in tab FATTI + **sync prezzi automatico**
 - Sblocca ordini fatti → tab NUOVI + scroll automatico
 - **🖨 Stampa** ordini (multi-selezione) — **esclude le fatture**
-- **🖨 Stampa DDT** (se l'ordine è fattura)
+- **🖨 Stampa DDT** (se l'ordine è fattura) — **usa nuovo template definitivo**
 - **📄 BOL.** in ogni ordine → apre client picker + conferma → crea fattura
 - **📄 F** in header → modifica prossimo numero bolla
-- **Pulsante 🗑 in header** → cestino con contatore
+- **Pulsante 💰 Fornitori** in header → apre modale listini fornitori (USAG)
+- **Pulsante 🗑 nei tab** (dopo 🟣 PRONTO) → cestino con contatore
+- **Tab bar compatta**: 5 tab su una riga senza scroll
 
 **Accesso**: TUTTI (papa, mati, massi, paul, cassa). Tutti possono modificare tutto.
+
+### 💰 Modale Fornitori (nuova 12/10/2026)
+- Si apre da **banco** (tab 💰) e **ufficio** (header 💰)
+- **Tasti grandi colorati** per ogni fornitore (attualmente solo **USAG** rosso)
+- Click su un fornitore → si apre la sua app in un iframe dentro la modale
+- **Tasto ← Indietro** per tornare alla lista fornitori
+- **USAG**: barra ricerca codice + **tasto 📋 Incolla** (legge appunti) → mostra descrizione, codice fornitore, prezzo ivato
+- **Per aggiungere un fornitore**: basta aggiungere una riga all'array `FORNITORI` in `fornitori-modal.js` + creare il file HTML in `fornitori/`
 
 ### 💰 Cassa (Scontrino)
 **A cosa serve**: leggere l'ordine già fatto e **battere lo scontrino a mano** sul registratore di cassa fiscale fisico.
@@ -205,7 +222,11 @@ Il **logo RATTAZZI** è cliccabile → apre la Cassa.
 2. **Banco**: premi **📄 BOL.** → si apre popup con cliente + numero → confermi → fattura creata → il tasto diventa **🖨 Stampa DDT**
 3. **Ufficio**: premi **📄 BOL.** → si apre client picker → scegli cliente → confermi → fattura creata → il tasto diventa **🖨 Stampa DDT**
 4. **Numerazione atomica** (`runTransaction`): zero duplicati anche con 2 postazioni in contemporanea
-5. **🖨 Stampa DDT** → apre anteprima di stampa con template DDT (iframe isolato, mai pagina bianca)
+5. **🖨 Stampa DDT** → apre anteprima di stampa con **nuovo template DDT definitivo** (12/10/2026):
+   - File template HTML compilabile: `templates/ddt-template.html`
+   - Modulo `print-ddt.js` riempie tutti i campi
+   - **Auto-fit font** (margine sicurezza 8%) per testi lunghi
+   - Stampa in **iframe isolato** (mai pagina bianca)
 6. Il numero fattura rimane fisso anche se modifichi l'ordine dopo
 
 ### 🔓 Flusso "Sblocca e modifica"
@@ -216,6 +237,15 @@ Il **logo RATTAZZI** è cliccabile → apre la Cassa.
 5. Per richiudere, si preme di nuovo **Fatto** → `isLocked: true`, stato `fatto`
 6. **Da Ufficio**: il tab passa automaticamente a NUOVI + scroll sull'ordine
 7. **Da Cassa**: la modifica è locale (edit mode), NON cambia lo stato Firebase
+
+### 💰 Consultazione Listini Fornitori (nuovo 12/10/2026)
+1. Da **banco** premi tab **💰** oppure da **ufficio** premi **💰 Fornitori** nell'header
+2. Si apre **modale a schermo intero** con tasti grandi per ogni fornitore
+3. Click su **USAG** → si apre la sua app dentro la modale (iframe)
+4. Cerchi per codice gestionale → vedi descrizione, codice fornitore, prezzo di vendita ivato
+5. **Tasto 📋 Incolla** per copiare velocemente il codice dagli appunti (attivo su PC e mobile, con popup "Consenti" su Safari/iOS)
+6. **← Indietro** per tornare alla lista fornitori, **✕** per chiudere tutto
+7. ⚠️ **Non è integrata con il carrello** — il prezzo va ricopiato manualmente
 
 ### 🌙 Reset mezzanotte
 - **Contatore ordini** (`counters/orderNumber`) → si resetta al primo ordine del nuovo giorno
@@ -248,7 +278,10 @@ Il **logo RATTAZZI** è cliccabile → apre la Cassa.
 - Vista completa: **tutti gli utenti, tutti gli stati**, raggruppati per OGGI/IERI/dd-mm-yyyy
 
 ---
+🟩 PARTE 2/3 — Sezioni 5 → 12
+Incolla questo SUBITO SOTTO la Parte 1 (nello stesso file):
 
+text
 ## 5. Architettura Tecnica
 
 ### Pattern
@@ -338,7 +371,7 @@ ferr-app-5e277-default-rtdb/
 │ ├── isRemnant, isReturn, originalOrderId
 │ ├── isOrdered, supplier, supplierColor
 │ ├── note
-│ ├── addedBy, addedByName, addedAt, updatedAt
+│ └── addedBy, addedByName, addedAt, updatedAt
 │
 ├── orderHistory/{orderId}/
 │
@@ -406,6 +439,7 @@ text
 - Mostrato a **tutti** (in banco vicino a CAMBIA, in ufficio nel banner, in tendina accanto al nome)
 - Tooltip: *"Visto da PAPA · 22:45"*
 - Sorgente dati: `meta/seenBy/{userId}` = timestamp
+- **Nell'anteprima banco (12/10/2026)**: appare **solo se qualcuno l'ha visto** (condizionale)
 
 ### 🔔 Notifiche (Blocco 4)
 - **File**: `js/core/notify.js`
@@ -423,12 +457,21 @@ text
 
 ### 8.1 Tab Carrello (Magazzino)
 
-#### Ricerca articoli
+#### Ricerca articoli (aggiornata 12/10/2026)
 - Cache locale (~19.348 articoli)
-- Ricerca istantanea in RAM
-- Match intelligente (codice esatto > inizio > descrizione > token)
-- Max 20 risultati + "Carica altri"
-- Tastierino numerico utilizzabile per quantità e prezzi
+- **2 tasti modalità** in alto: `🔢 CODICE` (giallo) e `🔤 NOME` (nero)
+- **Modalità CODICE**:
+  - Tastierino numerico inline, **fisso in basso** (`position: fixed; bottom: 0`)
+  - Risultati live **sopra** al tastierino
+  - Match esatto su 1 codice → aggiunge diretto
+  - Tap fuori → chiude tutta la ricerca
+- **Modalità NOME**:
+  - Barra di ricerca + **tastiera iPhone/Android automatica**
+  - Focus sincrono (necessario per iOS)
+  - Risultati live con debounce 150ms
+- **Tap fuori dal tastierino** (solo in modalità CODICE) → chiude ricerca
+- **In modalità nome**: la barra resta aperta, dopo aggiunta articolo si svuota e il focus torna per ricerca multipla veloce
+- Max 20 risultati
 
 #### Riga carrello (aggiornata 08-09/10/2026)
 - **Colori righe stabili** — 10 sfondi trasparenti (`clr-0`..`clr-9`) assegnati con **hash dell'ID riga** (non cambiano quando aggiungi altri articoli)
@@ -452,12 +495,12 @@ text
 - Ordina da fornitore (dropdown — Blocco 5)
 - Elimina riga
 
-#### Nota ordine in banco (08/10/2026)
+#### Nota ordine in banco (aggiornata 12/10/2026)
 - **Nota vuota** → textarea con placeholder
 - **INVIO** → salva e diventa **div giallo** (non corsivo)
 - **Shift+Invio** → va a capo senza salvare
 - **Click sul div giallo** → torna textarea, cursore alla fine
-- **Fix cursore**: prima del render salvo `value` + `selectionStart/End` se la textarea ha focus; dopo il render ripristino tutto (bug del re-render che perdeva il focus)
+- **🆕 Anti-falso-blur (12/10)**: cattura `noteState` (value + selection) **sempre se `_orderNoteEditMode`**, anche se il focus è perso per 1 frame (es. re-render Firebase). Ripristina cursore **solo se `wasFocused`** era `true`.
 
 #### Calcolatore taglio/peso (FIX 04/10/2026)
 - Formula: `kg = metri * (totU / mtRot)`, `prezzo = kg * basePrice`
@@ -539,9 +582,13 @@ text
   - Ordini vecchi → solo se `modifica` o `bozza`
 - Chiude: click sfondo scuro o Esc
 
-#### Vista dettaglio ordine in banco (Blocco 3.5-bis)
+#### Vista dettaglio ordine in banco (Blocco 3.5-bis — aggiornata 12/10/2026)
 - Modale con banner colorato, righe readonly, totale, azioni
 - Pulsanti: **🔓 Sblocca e modifica** · **📋 Ordini** · **🗑** · **🖨 Stampa DDT**
+- **🖨 Stampa DDT** (aggiornato 12/10/2026):
+  - Se l'ordine **è fatturato** → usa **nuovo template DDT definitivo** (`printDDT`)
+  - Se l'ordine **non è fatturato** → vecchia stampa lista ordini (`printOrders`)
+- **👁️ Occhio condizionale** (12/10/2026): nel banner appare **solo se qualcuno l'ha visto** (con tooltip)
 - 🗑 → cestina solo se `modifica`
 
 #### Tasto F (header banco)
@@ -552,12 +599,19 @@ text
 - ✏️ se `status === "modifica"` **oppure** `wasModified === true`
 - 🔵 se `status === "bozza"`
 
+#### Tab bar (aggiornata 12/10/2026)
+- **Niente scroll orizzontale** → `overflow: hidden`, `gap: 4px`
+- **4 tab**: `+ NUOVO | 💰 | 📋 ORDINI N | 🗑 N`
+- **Rimosso** `👥 CLIENTI`
+- **Aggiunto** `💰` (Fornitori) al secondo posto
+- Font 0.68rem, padding 6px 4px, badge count 0.6rem
+
 ---
 
 ### 8.2 Tab Ordini (Ufficio)
 
 #### Filtri
-- Tab: **🟡 NUOVI** / **🟢 FATTI** / **📋 TUTTI** / **🟣 PRONTO**
+- Tab: **🟡 NUOVI** / **🟢 FATTI** / **📋 TUTTI** / **🟣 PRONTO** / **🗑 N** (12/10/2026)
 - **Barra giorni** sotto i tab (09/10/2026):
   - Mostra solo i giorni con ordini nel tab attivo
   - Etichette: `OGGI`, `IERI`, `dd/mm`
@@ -574,6 +628,9 @@ text
 - Pulsanti secondari: **🖨 Stampa** (esclude le fatture) · **📋 Pronto** · **🗑 Elimina**
 - Pulsante **📄 BOL.** (sparisce se già fatturato)
 - **Nota ordine** con stessa logica del banco: placeholder `📝 Nota` compatto quando vuota → textarea → div giallo (INVIO o click fuori salva)
+  - **Allineata a destra** (12/10/2026) — sia display che textarea
+  - **Anti-falso-blur** (12/10/2026): `_pendingRefresh` blocca refresh durante edit mode; refresh al close
+- **🖨 Stampa DDT** (12/10/2026) → usa **nuovo template definitivo**
 
 #### Azioni sblocco (Blocco 3.5-bis)
 - Click **🔓 Sblocca e modifica** → stato `sbloccato` + `isLocked: false`
@@ -603,8 +660,14 @@ text
 - **Beep** + **notifica nativa PC**
 - Click **Vai agli Ordini** → scroll + flash + scrive `seenBy`
 
-#### Cestino ufficio (Blocco 8)
-- Pulsante **🗑** in header con contatore
+#### Cestino ufficio (Blocco 8 — aggiornato 12/10/2026)
+- **Pulsante 🗑 nei tab** (dopo 🟣 PRONTO), **rimosso dall'header**
+- **Stretto** (`flex: 0 0 42px`, font count 0.55rem)
+- Apre modale con lista ordini cestinati
+
+#### Tasto 💰 Fornitori (nuovo 12/10/2026)
+- Nell'**header** (`💰 Fornitori`)
+- Click → apre modale fornitori (`openFornitoriModal()`)
 
 ---
 
@@ -669,7 +732,7 @@ text
 
 | Pallino | Colore | Significato |
 |---|---|---|
-| ⚫ | Grigio | Prezzo mai verificato |
+| ⚪ | Grigio | Prezzo mai verificato |
 | 🟢 | Verde | Verificato 0-1 mese |
 | 🟡 | Giallo | 1-3 mesi |
 | 🟠 | Arancione | 3-6 mesi |
@@ -684,670 +747,1125 @@ text
 
 ---
 
-### 8.7 Template DDT ⚠️ (PROVVISORIO — IN ATTESA DEL DEFINITIVO)
+### 8.7 Template DDT ✅ DEFINITIVO (dal 12/10/2026)
 
-> ⚠️ **NOTA IMPORTANTE (05/10/2026)**: Il template DDT attuale è **provvisorio**. L'utente fornirà un **template definitivo** (file HTML compilabile, identico all'originale cartaceo).
-> Quando arriverà, sostituire:
-> - Funzione `renderDDT()` in `js/ui/components/print-invoice.js`
-> - CSS in `assets/css/invoice.css` (sezione `@media print`)
-
-#### Formato attuale
-HTML + CSS A4 verticale con:
-- Intestazione RATTAZZI S.R.L. + indirizzo + dati fiscali
-- Campi: **N. DDT** (`invoiceNumber`), **Data** (oggi), **Ora** (adesso), **Ditta**, **Residenza**, **Comune**
-- Righe articoli: Codice · Descrizione · Prezzo · UM · Quantità
-- 12 righe vuote in fondo
-- Campi vuoti: Pagamento / Luogo destinazione / N. Colli / Kg / Vettore / Firme / Annotazioni
-
-#### Stampa
-- **Iframe isolato** con `srcdoc` → mai pagina bianca
-- CSS `@media print` agisce **solo dentro l'iframe**
-- **Nessun** header/footer del browser
-- Non tocca mai la pagina principale
+> ✅ **AGGIORNATO 12/10/2026**: Il template DDT è ora **definitivo**. È il file HTML compilabile fornito dall'utente, identico all'originale cartaceo.
 
 #### File
-- `js/ui/components/print-invoice.js`
-- `assets/css/invoice.css`
+- **Template HTML**: `templates/ddt-template.html` (immagine scansita del DDT cartaceo + input posizionati in %)
+- **Modulo logica**: `js/ui/components/print-ddt.js`
+- **Vecchio template** (`print-invoice.js` + `invoice.css`): **rimasto come fallback** ma **non usato dal flusso principale**
 
----
+#### API pubblica
+```js
+import { printDDT } from '../components/print-ddt.js';
 
-### 8.8 Ordini Fornitori (FUTURO — Blocco 5)
+printDDT({
+  cart: { meta, lines },       // obbligatorio
+  invoiceNumber: 1234,          // opzionale (default: meta.invoiceNumber)
+  client: { name, address, city, province }  // opzionale (se manca, scarica da Firebase via meta.clientId)
+});
+Come riempie il template
+Header: doc_numero (= numero DDT), doc_data (data oggi), ditta (nome cliente), residenza (= "CITTÀ (PV) VIA CIVICO"), data_inizio (data), ora_inizio (ora), cb_vendita (spuntato)
 
-#### Da carrello
-- Tasto **ORDINA** → dropdown fornitori colorati
-- 🔴 usag, 🟢 as, 🔵 vm, 🟡 EuroBit, ⚪ Maestri, 🟣 AirCom, 🌸 sabart, ⚫ custom
+Luogo di destinazione: VUOTO (comune/via/n.)
 
-#### Sotto-tab CSV
-- Carichi CSV fattura fornitore
-- Tabella: codice, descrizione, prezzo vecchio/nuovo, qty vecchia/nuova
-- Aggiorna solo prezzi e qty per match codice
+Footer: annotazioni = meta.note
 
-#### Storico prezzi
-- Max **5 prezzi** per articolo (FIFO)
+Righe articoli: 23 righe rN_*, ordinate per addedAt DESC (come banco)
 
----
+rN_codici = codice
 
-### 8.9 Cassa (Scontrino) — aggiornato 07/10/2026
+rN_descrizione = descrizione
 
-#### Vista LISTA
-- Card piccole: cliente / `Ordine #N - L` · stato + codice · N° articoli + data · totale giallo
-- Border-left colorato per stato
+rN_extra = prezzo unitario (unitPrice ?? basePrice)
 
-#### Vista DETTAGLIO
-- Pulsante **←** per tornare alla lista
-- Header cliente + `#xxxxxx · data · N articoli`
-- Righe: n° riga + descrizione · **codice articolo giallo più grande e no a capo** · **BADGE QTY GIALLO** · prezzo · pallino · totale
-- **Totale grande in basso**
-- Pulsante **🔓 Sblocca e modifica** + **✅ FATTO**
+rN_um = unità (maiuscola)
 
-#### Modalità EDIT
-- Default sola lettura
-- **🔓 Sblocca e modifica** → edit mode **locale** (NON cambia stato Firebase):
-  - Pulsante diventa **🔒 Blocca modifiche** (giallo)
-  - Badge qty e prezzo cliccabili → tastierino → salvataggio automatico
-  - **Refresh live** + ricalcolo totale automatico
-- **⚠️ IMPORTANTE**: l'edit mode è **locale**, NON cambia lo stato Firebase
+rN_quantita = qty formattata
 
-#### Aggiornamento 07/10/2026
-- `.cas-det-name` 15px · `.cas-det-code` 14px (no a capo) · `.cas-det-qty-badge` 14px · `.cas-det-price` e `.cas-det-linetotal` 16px · `.cas-det-client` 18px
+rN_prezzo = VUOTO (lo compila un altro programma)
 
-#### Futuro (rinviato)
-- Integrazione con registratore di cassa fiscale
+Righe non usate → svuotate
 
-#### File
-- `cassa.html`, `js/ui/controllers/cassa-controller.js`, `js/ui/views/cassa-view.js`, `assets/css/cassa.css`
+Auto-fit font (12/10/2026)
+Misura con span invisibile (dipende dal font di sistema)
 
----
+Riduce il font di 0.5px alla volta finché il testo sta nel riquadro
 
-## 9. UI/UX
+Margine di sicurezza 8% (min 10px) → compatibile Windows 8/10/11
 
-### Temi
+Esprime il font risultante in cqw (scala con container, ok anche in A4 print)
 
-| Elemento | Dark | Light |
-|---|---|---|
-| Sfondo | `#0a0a0a` | `#f5f5f5` |
-| Card | `#1a1a1a` | `#ffffff` |
-| Primario | `#facc15` | `#dc2626` |
-| Testo | `#ffffff` | `#111111` |
-| Successo | `#22c55e` | `#16a34a` |
-| Pericolo | `#ef4444` | `#dc2626` |
+Limite minimo: 3px (sotto non si legge)
 
-### Layout Banco (aggiornato 09/10/2026)
-┌────────────────────────────────────────────────────────┐
+Nota: il padding di .page è gestito con container-type: inline-size + cqw
+
+Stampa
+Iframe isolato con srcdoc — mai pagina bianca
+
+Iframe con width: 900px; height: 1300px; opacity: 0; pointer-events: none; z-index: -1 (dimensioni reali per far calcolare il layout)
+
+Doppio requestAnimationFrame + delay 150ms per far applicare i font
+
+Poi contentWindow.print() dopo 400ms
+
+CSS @media print agisce solo dentro l'iframe
+
+Nessun header/footer del browser
+
+Note compatibilità
+✅ Chrome/Edge — perfetto
+
+⚠️ Firefox — può tagliare l'ultimo carattere per differenze di motore di rendering (accettato per ora, usare Chrome per stampare)
+
+✅ Windows 8/10/11 — margine 8% copre le differenze di font
+
+8.8 Consultazione Listini Fornitori (nuovo 12/10/2026)
+Cosa fa
+Modale a schermo intero con tasti grandi per ogni fornitore
+
+Click su un fornitore → si apre la sua app dentro la modale (iframe)
+
+Pulsante ← Indietro per tornare alla lista
+
+File
+Modulo: js/ui/components/fornitori-modal.js
+
+App USAG: fornitori/usag.html (file di terzi, 716 articoli)
+
+Aggiungere un nuovo fornitore
+Basta modificare l'array FORNITORI in fornitori-modal.js:
+
+js
+const FORNITORI = [
+  { id: 'usag', nome: 'USAG', colore: '#e11d48', path: 'fornitori/usag.html' },
+  // { id: 'as', nome: 'AS', colore: '#16a34a', path: 'fornitori/as.html' },
+  // { id: 'vm', nome: 'VM', colore: '#3b82f6', path: 'fornitori/vm.html' },
+];
+E creare il corrispondente file HTML in fornitori/.
+
+App USAG
+716 articoli in costante DATA (codice gestionale → [descrizione, prezzo ivato, affidabilità, codice fornitore])
+
+Barra ricerca codice + tasto 📋 Incolla (legge navigator.clipboard)
+
+Mostra: descrizione, codice fornitore, prezzo di vendita ivato
+
+Tasto 📋 attivo su PC e mobile (su Safari/iOS chiede "Consenti" al primo utilizzo)
+
+Dove si apre
+Banco: tab 💰 nella tab bar
+
+Ufficio: pulsante 💰 Fornitori nell'header
+
+⚠️ Attenzione sicurezza
+L'app USAG contiene prezzi di vendita ivati e codici fornitore → NON pubblicare su GitHub Pages pubblico
+
+Uso interno (Live Server / rete locale)
+
+⚠️ Integrazione col carrello
+NON integrata — il prezzo va ricopiato manualmente
+
+8.9 Ordini Fornitori (FUTURO — Blocco 5)
+Da carrello
+Tasto ORDINA → dropdown fornitori colorati
+
+🔴 usag, 🟢 as, 🔵 vm, 🟡 EuroBit, ⚪ Maestri, 🟣 AirCom, 🌸 sabart, ⚫ custom
+
+Sotto-tab CSV
+Carichi CSV fattura fornitore
+
+Tabella: codice, descrizione, prezzo vecchio/nuovo, qty vecchia/nuova
+
+Aggiorna solo prezzi e qty per match codice
+
+Storico prezzi
+Max 5 prezzi per articolo (FIFO)
+
+8.10 Cassa (Scontrino) — aggiornato 07/10/2026
+Vista LISTA
+Card piccole: cliente / Ordine #N - L · stato + codice · N° articoli + data · totale giallo
+
+Border-left colorato per stato
+
+Vista DETTAGLIO
+Pulsante ← per tornare alla lista
+
+Header cliente + #xxxxxx · data · N articoli
+
+Righe: n° riga + descrizione · codice articolo giallo più grande e no a capo · BADGE QTY GIALLO · prezzo · pallino · totale
+
+Totale grande in basso
+
+Pulsante 🔓 Sblocca e modifica + ✅ FATTO
+
+Modalità EDIT
+Default sola lettura
+
+🔓 Sblocca e modifica → edit mode locale (NON cambia stato Firebase):
+
+Pulsante diventa 🔒 Blocca modifiche (giallo)
+
+Badge qty e prezzo cliccabili → tastierino → salvataggio automatico
+
+Refresh live + ricalcolo totale automatico
+
+⚠️ IMPORTANTE: l'edit mode è locale, NON cambia lo stato Firebase
+
+Aggiornamento 07/10/2026
+.cas-det-name 15px · .cas-det-code 14px (no a capo) · .cas-det-qty-badge 14px · .cas-det-price e .cas-det-linetotal 16px · .cas-det-client 18px
+
+Futuro (rinviato)
+Integrazione con registratore di cassa fiscale
+
+File
+cassa.html, js/ui/controllers/cassa-controller.js, js/ui/views/cassa-view.js, assets/css/cassa.css
+
+9. UI/UX
+Temi
+Elemento	Dark	Light
+Sfondo	#0a0a0a	#f5f5f5
+Card	#1a1a1a	#ffffff
+Primario	#facc15	#dc2626
+Testo	#ffffff	#111111
+Successo	#22c55e	#16a34a
+Pericolo	#ef4444	#dc2626
+Layout Banco (aggiornato 12/10/2026)
+text
+┌────────────────────────────────────────────────┐
 │ ⚙ RATTAZZI CARTELLINI [📄 F] [🏢 Ufficio] [🚪] │
-├────────────────────────────────────────────────────────┤
-│ [+ NUOVO] [👥 CLIENTI] [📋 ORDINI N] [🗑 N] │
-├────────────────────────────────────────────────────────┤
-│ 🔍 Cerca per codice o descrizione… │
-├────────────────────────────────────────────────────────┤
-│ Ordine #N - L 🔵 • N art. 👁️ [👤 CAMBIA] │
-├────────────────────────────────────────────────────────┤
-│ PRODOTTO Q.TÀ PREZZO TOT │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ 1. ARTICOLO [− 1 +] 10,00 € 10,00 │ │
-│ │ 6240005 • MQ [MQ ▼] │ │
-│ │ H[]×L[] │ │
-│ │ PREZZO BASE [10,00] │ │
-│ │ 📝 nota riga (se presente) │ │
-│ │ [✂] [%] [📄] [🛒] [🗑] (toggle da codice) │ │
-│ └──────────────────────────────────────────────────┘ │
-│ [📝 Nota ordine] │
-├────────────────────────────────────────────────────────┤
-│ TOTALE € 0,00 │
-│ [BOL.] [RIEP.] [UFF.] [CONFERMA] [🗑] │
-└────────────────────────────────────────────────────────┘
+├────────────────────────────────────────────────┤
+│ [+ NUOVO] [💰] [📋 ORDINI N] [🗑 N]            │
+├────────────────────────────────────────────────┤
+│  [🔢 CODICE]              [🔤 NOME]            │
+├────────────────────────────────────────────────┤
+│  (in modalità: input ricerca + risultati)      │
+│  (in modalità CODICE: tastierino fisso sotto)  │
+├────────────────────────────────────────────────┤
+│ Ordine #N - L 🔵 • N art. 👁️ [👤 CAMBIA]      │
+├────────────────────────────────────────────────┤
+│ PRODOTTO              Q.TÀ    PREZZO    TOT    │
+│ ...righe carrello...                           │
+├────────────────────────────────────────────────┤
+│ [📝 Nota ordine]                               │
+├────────────────────────────────────────────────┤
+│ TOTALE € 0,00                                  │
+│ [BOL.] [RIEP.] [UFF.] [CONFERMA] [🗑]          │
+└────────────────────────────────────────────────┘
+Barra in basso: bottoni con icona sopra + label sotto, niente scroll orizzontale
 
+BOL viola · RIEP giallo · UFF blu · CONFERMA verde · cestino rosso
+
+Tab bar (12/10/2026):
+
+overflow: hidden, gap: 4px, padding: 10px 6px
+
+Ogni tab flex: 1 1 0, padding 6px 4px, font 0.68rem
+
+Badge count 0.6rem, padding 0 4px
+
+Rimosso 👥 CLIENTI, aggiunto 💰 al secondo posto
+
+Layout Ufficio (aggiornato 12/10/2026)
 text
+┌────────────────────────────────────────────┐
+│ ⚙ RATTAZZI [📄 F] [💰 Fornitori] [🏭 Banco] [🚪] │
+├────────────────────────────────────────────┤
+│ [🟡 NUOVI] [🟢 FATTI] [📋 TUTTI] [🟣 PRONTO] [🗑 N] │
+├────────────────────────────────────────────┤
+│ [OGGI] [IERI] [07/10] [06/10] ← giorni    │
+├────────────────────────────────────────────┤
+│ 🔍 Cerca… [📖]                             │
+├────────────────────────────────────────────┤
+│ [card ordine espansa]                      │
+│ banner colorato per stato + 👁️ condizionale │
+│ PRODOTTO | Q.TÀ | PREZZO | TOT             │
+│ codice giallo copiabile + nota arancione   │
+│ [✅ Fatto]                                 │
+│ [🖨 Stampa] [📋 Pronto] [🗑 Elimina]        │
+│ [📄 BOL.] ← solo se non fatturato           │
+└────────────────────────────────────────────┘
+Tab bar ufficio (12/10/2026):
 
-**Barra in basso** (aggiornata 09/10/2026):
-- Bottoni con **icona sopra + label sotto**
-- **Niente scroll orizzontale** → tutto in una riga
-- BOL viola · RIEP giallo · UFF blu · CONFERMA verde (più largo) · cestino rosso (40px)
+overflow: hidden, gap: 4px
 
-### Layout Ufficio (aggiornato 09/10/2026)
-┌──────────────────────────────────────────────────┐
-│ ⚙ RATTAZZI [📄 F] [🗑 N] [🏭 Banco] [🚪] │
-├──────────────────────────────────────────────────┤
-│ [🟡 NUOVI] [🟢 FATTI] [📋 TUTTI] [🟣 PRONTO] │
-├──────────────────────────────────────────────────┤
-│ [OGGI] [IERI] [07/10] [06/10] [05/10] ← giorni │
-├──────────────────────────────────────────────────┤
-│ 🔍 Cerca… [📖] │
-├──────────────────────────────────────────────────┤
-│ [card ordine espansa] │
-│ banner colorato per stato + 👁️ se visto │
-│ PRODOTTO | Q.TÀ | PREZZO | TOT │
-│ codice giallo copiabile + nota arancione │
-│ [✅ Fatto] │
-│ [🖨 Stampa] [📋 Pronto] [🗑 Elimina] │
-│ [📄 BOL.] ← solo se non fatturato │
-└──────────────────────────────────────────────────┘
+Tab: flex: 1 1 0, padding 6px 4px, font 0.68rem
 
+Cestino 🗑: flex: 0 0 42px (stretto), count 0.55rem
+
+Aggiunto 🗑 in fondo (rimosso dall'header)
+
+Header ufficio:
+
+Rimosso pulsante 🗑
+
+Aggiunto 💰 Fornitori
+
+Modale Fornitori (nuovo 12/10/2026)
 text
+┌─────────────────────────────────────────┐
+│ 💰 Listini fornitori                 ✕ │
+├─────────────────────────────────────────┤
+│  ┌──────────┐                            │
+│  │  USAG    │  (rosso, tasto grande)     │
+│  └──────────┘                            │
+└─────────────────────────────────────────┘
 
-### Elementi UI
-- Banner colorati per stati ordine
-- Badge per stati e conteggi
-- Toast per notifiche temporanee
-- **Modale centrale** per notifiche ufficio
-- Modali per input e conferme
-- Tastierino numerico custom
-- **Pallini stato prezzo**
-- **Scheda prodotto** con tendine espandibili
-- **Dialoghi nativi** (`confirm`, `prompt`, `alert`) per BOL/F/nota riga
-- Icona **✏️** accanto al nome cliente
-- Icona **👁️** quando qualcuno ha visto l'ordine
-- **Input inline** per modifica prezzo (ufficio)
-- **Colori alternati righe** (banco)
-- **Barra giorni** (ufficio)
-- **Placeholder nota** compatto quando vuota, div giallo quando piena
+(click USAG → dentro la modale:)
+┌─────────────────────────────────────────┐
+│ [← Indietro]    USAG    [✕]              │
+├─────────────────────────────────────────┤
+│ [iframe app USAG]                       │
+│  [codice] [📋] [Cerca]                  │
+│  risultato...                            │
+└─────────────────────────────────────────┘
+Elementi UI
+Banner colorati per stati ordine
 
-### Rimosso dall'app attuale
-- Tasto % nell'header
-- Tab Inventario, Fatture, Cartellini, Altro
-- Partita IVA obbligatoria alla creazione cliente
-- **Pulsante "CASSA" verde dal login**
-- **Tastierino per modifica prezzo in ufficio** (sostituito da input inline)
-- **Fascia header colonne** `.cart-cols-header` (creava disallineamento)
-- **Doppio/triplo `<link>` a `invoice.css`** in banco.html
+Badge per stati e conteggi
 
----
+Toast per notifiche temporanee
 
-## 10. Struttura File Completa
+Modale centrale per notifiche ufficio
+
+Modali per input e conferme
+
+Tastierino numerico custom
+
+Tastierino inline ricerca codice (.inline-keypad, .inline-kp) fisso in basso
+
+2 tasti modalità ricerca banco (.search-mode-btn CODICE giallo / NOME nero)
+
+Modale fornitori (.fornitori-* — overlay + tasti grandi + iframe)
+
+Pallini stato prezzo
+
+Scheda prodotto con tendine espandibili
+
+Dialoghi nativi (confirm, prompt, alert) per BOL/F/nota riga
+
+Icona ✏️ accanto al nome cliente
+
+Icona 👁️ quando qualcuno ha visto l'ordine (condizionale)
+
+Input inline per modifica prezzo (ufficio)
+
+Colori alternati righe (banco)
+
+Barra giorni (ufficio)
+
+Placeholder nota compatto quando vuota, div giallo quando piena
+
+Rimosso dall'app attuale
+Tasto % nell'header
+
+Tab Inventario, Fatture, Cartellini, Altro
+
+Partita IVA obbligatoria alla creazione cliente
+
+Pulsante "CASSA" verde dal login
+
+Tastierino per modifica prezzo in ufficio (sostituito da input inline)
+
+Fascia header colonne .cart-cols-header (creava disallineamento)
+
+Doppio/triplo <link> a invoice.css in banco.html
+
+Vecchia barra ricerca fissa in banco (sostituita da 2 tasti CODICE/NOME)
+
+Tab 👥 CLIENTI in banco (sostituito da 💰 Fornitori)
+
+Pulsante 🗑 nell'header ufficio (spostato nei tab)
+
+Occhio fisso nel banner anteprima banco (ora condizionale)
+
+10. Struttura File Completa
+text
 ferr_app definitiva/
 ├── index.html ✅
 ├── banco.html ✅
 ├── ufficio.html ✅
 ├── cassa.html ✅
 ├── import.html ✅
-├── PROGETTO.md ✅ (v2.8)
+├── PROGETTO.md ✅ (v2.9)
+├── templates/                      ← 🆕 (12/10/2026)
+│   └── ddt-template.html           ← 🆕
+├── fornitori/                      ← 🆕 (12/10/2026)
+│   └── usag.html                   ← 🆕
 ├── assets/
-│ └── css/
-│ ├── base.css ✅
-│ ├── components.css ✅
-│ ├── theme-dark.css ✅
-│ ├── theme-light.css ✅
-│ ├── banco.css ✅ (+ .clv2-, .clr-, .bb-, .smv2-, .order-note-display)
-│ ├── ufficio.css ✅ (+ .uff-inline-price-input, .uff-line-note, .uff-days, .uff-day, .uff-order-note-*)
-│ ├── cassa.css ✅
-│ ├── print.css ✅
-│ ├── product-card.css ✅
-│ ├── price-dot.css ✅
-│ └── invoice.css ✅
+│   └── css/
+│       ├── base.css ✅
+│       ├── components.css ✅
+│       ├── theme-dark.css ✅
+│       ├── theme-light.css ✅
+│       ├── banco.css ✅ (+ .clv2-, .clr-, .bb-, .smv2-, .order-note-display, .fornitori-*, .search-mode-btn, .inline-keypad)
+│       ├── ufficio.css ✅ (+ .uff-inline-price-input, .uff-line-note, .uff-days, .uff-day, .uff-order-note-*, tab compressi, cestino stretto)
+│       ├── cassa.css ✅
+│       ├── print.css ✅
+│       ├── product-card.css ✅
+│       ├── price-dot.css ✅
+│       └── invoice.css ✅
 └── js/
-├── app.js ✅
-├── core/
-│ ├── firebase-config.js ✅
-│ ├── firebase-init.js ✅
-│ ├── auth.js ✅ (poli → paul)
-│ ├── file-parser.js ✅
-│ ├── notify.js ✅ (Blocco 4)
-│ └── utils.js ❌ (mai creato)
-├── data/
-│ ├── article-repository.js ✅
-│ ├── cart-repository.js ✅ (+ writeSeenBy, syncOrderPricesToArticles, generateOrderCode, updateLineLock, markCartAsModified)
-│ ├── client-repository.js ✅
-│ ├── invoice-repository.js ✅ (Blocco 7)
-│ ├── trash-repository.js ✅ (Blocco 8)
-│ ├── order-repository.js ❌
-│ └── supplier-repository.js ❌
-├── domain/
-│ ├── article-service.js ✅
-│ ├── cart-service.js ✅
-│ ├── client-service.js ✅
-│ └── ...altri ❌
-└── ui/
-├── components/
-│ ├── search-bar.js ✅
-│ ├── keypad.js ✅
-│ ├── cut-calculator.js ✅
-│ ├── modal.js ✅
-│ ├── client-picker.js ✅
-│ ├── summary-modal.js ✅ (v2 stile vecchia app)
-│ ├── compare-articles.js ✅
-│ ├── cart-line.js ✅
-│ ├── product-card.js ✅
-│ ├── print-orders-modal.js ✅ (+ print-area fix)
-│ ├── price-dot.js ✅
-│ ├── invoice-modal.js ✅ (creato, non usato)
-│ ├── invoice-number-modal.js ✅ (creato, non usato)
-│ ├── print-invoice.js ✅
-│ └── ...altri ❌
-├── controllers/
-│ ├── banco-controller.js ✅ (~2000 righe, da rifattorizzare)
-│ ├── ufficio-controller.js ✅
-│ └── cassa-controller.js ✅
-└── views/
-├── login-view.js ✅
-├── import-view.js ✅
-├── banco-view.js ✅
-├── ufficio-view.js ✅
-└── cassa-view.js ✅
+    ├── app.js ✅
+    ├── core/
+    │   ├── firebase-config.js ✅
+    │   ├── firebase-init.js ✅
+    │   ├── auth.js ✅ (poli → paul)
+    │   ├── file-parser.js ✅
+    │   ├── notify.js ✅ (Blocco 4)
+    │   └── utils.js ❌ (mai creato)
+    ├── data/
+    │   ├── article-repository.js ✅
+    │   ├── cart-repository.js ✅ (+ writeSeenBy, syncOrderPricesToArticles, generateOrderCode, updateLineLock, markCartAsModified)
+    │   ├── client-repository.js ✅
+    │   ├── invoice-repository.js ✅ (Blocco 7)
+    │   ├── trash-repository.js ✅ (Blocco 8)
+    │   ├── order-repository.js ❌
+    │   └── supplier-repository.js ❌
+    ├── domain/
+    │   ├── article-service.js ✅
+    │   ├── cart-service.js ✅
+    │   ├── client-service.js ✅
+    │   └── ...altri ❌
+    └── ui/
+        ├── components/
+        │   ├── search-bar.js ✅ (riscritto 12/10/2026: 2 modalità + tastierino inline)
+        │   ├── keypad.js ✅
+        │   ├── cut-calculator.js ✅
+        │   ├── modal.js ✅
+        │   ├── client-picker.js ✅
+        │   ├── summary-modal.js ✅ (v2 stile vecchia app)
+        │   ├── compare-articles.js ✅
+        │   ├── cart-line.js ✅
+        │   ├── product-card.js ✅
+        │   ├── print-orders-modal.js ✅ (+ print-area fix)
+        │   ├── price-dot.js ✅
+        │   ├── invoice-modal.js ✅ (creato, non usato)
+        │   ├── invoice-number-modal.js ✅ (creato, non usato)
+        │   ├── print-invoice.js ✅ (fallback vecchio DDT)
+        │   ├── print-ddt.js              ← 🆕 (12/10/2026)
+        │   ├── fornitori-modal.js         ← 🆕 (12/10/2026)
+        │   └── ...altri ❌
+        ├── controllers/
+        │   ├── banco-controller.js ✅ (~2000 righe, da rifattorizzare)
+        │   ├── ufficio-controller.js ✅
+        │   └── cassa-controller.js ✅
+        └── views/
+            ├── login-view.js ✅
+            ├── import-view.js ✅
+            ├── banco-view.js ✅
+            ├── ufficio-view.js ✅
+            └── cassa-view.js ✅
+11. Ambiente di Sviluppo
+Setup
+Editor: Cursor
+
+Estensione: Live Server (Ritwick Dey)
+
+Server: http://127.0.0.1:5500
+
+Browser: Chrome/Edge con DevTools
+
+Sistema: Windows
+
+Deploy: GitHub Pages → https://maxiz333.github.io/FERR_APP/
+
+Regole operative
+Sempre Ctrl + S prima di testare
+
+Ctrl + Shift + R per ricaricare forzato
+
+Aprire SEMPRE con Live Server
+
+Mai usare la preview interna di Cursor
+
+Controllare sempre la Console
+
+Se vedi "pagina bianca": chiudi tutte le tab + riapri + Ctrl+Shift+R
+
+Firebase
+Progetto: ferr-app-5e277
+
+Regione: europe-west1
+
+Regole attuali: .read: true, .write: true (sviluppo)
+
+SDK: Firebase v10 via CDN
+
+runTransaction: esportato da firebase-init.js
+
+GitHub
+Repo: https://github.com/maxiz333/FERR_APP
+
+Sito online: https://maxiz333.github.io/FERR_APP/
+
+Deploy: automatico al push su main
+
+⚠️ Attenzione: l'app USAG contiene prezzi di vendita ivati — NON pubblicare su GitHub Pages pubblico
+
+12. Roadmap Completa
+✅ COMPLETATI
+Blocchi 1-9 (v1.0 → v2.8):
+
+✅ BLOCCO 1 — Login
+
+✅ BLOCCO 2A — Import articoli
+
+✅ BLOCCO 2B.1 — Layout Banco + Ricerca
+
+✅ BLOCCO 2B.2 — Carrello base
+
+✅ BLOCCO 2B.3.1 — Tastierino + Sconti
+
+✅ BLOCCO 2B.3.2 — Ciclo forbici
+
+✅ BLOCCO 2B.3.3 — Calcolatore taglio/peso
+
+✅ BLOCCO 2B.3.4a — Note riga + note ordine
+
+✅ BLOCCO 2B.3.4b — Cliente Picker
+
+✅ BLOCCO 2B.4 — Riepilogo → v2 08-09/10
+
+✅ BLOCCO 2B.5 — Bozza / Conferma / Invio / Trash
+
+✅ BLOCCO 2B.6 — Scheda Prodotto
+
+✅ BLOCCO 2B.7 — Pallini Stato Prezzo
+
+✅ BLOCCO 3.1 — Layout Ufficio
+
+✅ BLOCCO 3.2 — Collegamento Firebase
+
+✅ BLOCCO 3.3 — Contatori + tendina ordini giorno
+
+✅ BLOCCO 3.4 — Vista dettaglio ordine
+
+✅ BLOCCO 3.5 — Azioni ordine
+
+✅ BLOCCO 3.5-bis — Sblocco ordine
+
+✅ BLOCCO 3.7 (parte 1) — Codice Ordine Ordine #N - L
+
+✅ BLOCCO 3.8 — Stampa Multi-Ordine
+
+✅ BLOCCO 3B — Pagina Cassa
+
+✅ BLOCCO 3B-bis — Cassa stile COMPATTO
+
+✅ BLOCCO 4 — Occhio + Notifiche
+
+✅ BLOCCO 5A — Import Clienti (~3.651)
+
+✅ BLOCCO 6 — Anagrafica Clienti
+
+✅ BLOCCO 7 — Fatturazione DDT
+
+✅ BLOCCO 8 — Cestino condiviso
+
+✅ LAVORO A — Ordinamento articoli banco
+
+✅ LAVORO B — 10 colori righe
+
+✅ LAVORO C — Layout MQ (H×L + PREZZO BASE)
+
+✅ LAVORO D — Tasti azione nascosti + codice cliccabile
+
+✅ Barra giorni ufficio
+
+✅ Vista completa tendina banco
+
+✅ Pulizia carrelli vuoti
+
+✅ Fix stampe print-area
+
+✅ Nota ordine banco + ufficio
+
+✅ Nota riga articolo in ufficio arancione
+
+✅ Codice articolo copiabile in ufficio
+
+✅ Rinomina poli → paul
+
+✅ Barra in basso banco (icona + label, no scroll)
+
+✅ Modale riepilogo v2
+
+✅ Colori righe stabili
+
+Sessione 12/10/2026 (v2.9):
+
+✅ DDT definitivo — template HTML compilabile + auto-fit font
+
+✅ DDT collegato a banco (BOL ristampa, anteprima ordine)
+
+✅ DDT collegato a ufficio (bottone Stampa DDT su fatture)
+
+✅ Modale fornitori + USAG integrata (tasto 📋 Incolla)
+
+✅ Tasti 💰 banco/ufficio
+
+✅ Ricerca banco 2 modalità (CODICE/NOME)
+
+✅ Tastierino inline fisso in basso (CODICE)
+
+✅ Tastiera iPhone automatica (NOME)
+
+✅ Tap fuori tastierino → chiude
+
+✅ Anti-falso-blur note ufficio (_pendingRefresh)
+
+✅ Anti-falso-blur note banco (noteState in edit mode)
+
+✅ Nota ordine ufficio allineata a destra
+
+✅ Occhio condizionale in anteprima banco
+
+✅ Tab banco/ufficio compatti (no scroll)
+
+✅ Cestino ufficio nei tab (stretto)
+
+🔄 IN CORSO
+(nessuno)
+
+📋 DA FARE (in ordine di priorità)
+#	Blocco	Cosa	Complessità
+1	Occhio 👁️ in Cassa	Simmetrico a banco e ufficio	🟡 Bassa
+2	Pulizia debito tecnico	banco-controller.js (2000+ righe) → spezzare; banco.css regole duplicate; utils.js mai creato	🟠 Alta
+3	2B.8 — Barra Ricerca Generica (nel logo)	3 tab: articoli/clienti/ordini	🟡 Media
+4	5 — Ordini Fornitori + CSV	Con addedAt, addedBy, lastOrderedAt articolo	🟠 Alta
+5	10 — Scaglioni (auto-apply + UI)		🟡 Media
+6	11 — Tema Light + Selettore		🟡 Media
+7	12 — Regole Firebase + Deploy produzione		🟠 Alta
+8	Estensione fornitori	Aggiungere AS, VM, EuroBit, ecc. alla modale	🟡 Media
+9	Test Firefox DDT	Se necessario, refactor auto-fit	🟡 Media
+10	3.7 p2 — Anti-truffa		🟠 Rinviato
+📌 RINVIATI
+📌 Reset mezzanotte "carrelli modifica → nuovo" — mai implementato, forse non più necessario con filtro giorni
+
+📌 BLOCCO 13 — Tasti avanti/indietro
+
+📌 BLOCCO 14 — Categorie/Sottocategorie
+
+📌 FUTURO — Integrazione registratore di cassa fiscale
+
+📌 FUTURO — Fattura fiscale (la fa il commercialista)
+
+📌 Codice fornitore f. XXX — Serve import (Blocco 5)
+
+📌 Cartellini — Funzione vecchia app, non si farà
 
 text
 
 ---
 
-## 11. Ambiente di Sviluppo
+## 🟩 PARTE 3/3 — Sezioni 13 → Fine + Cronologia
 
-### Setup
-- **Editor**: Cursor
-- **Estensione**: Live Server (Ritwick Dey)
-- **Server**: `http://127.0.0.1:5500`
-- **Browser**: Chrome/Edge con DevTools
-- **Sistema**: Windows
-- **Deploy**: GitHub Pages → `https://maxiz333.github.io/FERR_APP/`
+**Incolla questo SUBITO SOTTO la Parte 2** (nello stesso file):
+13. Stato Avanzamento Attuale
+📊 Riepilogo
+Blocco	Descrizione	Stato
+1	Login	✅
+2A	Import articoli	✅
+2B.1	Layout Banco + Ricerca	✅
+2B.2	Carrello base	✅
+2B.3.1	Tastierino + Sconti	✅
+2B.3.2	Ciclo forbici	✅
+2B.3.3	Calcolatore taglio/peso	✅
+2B.3.4a	Note riga + ordine	✅
+2B.3.4b	Cliente Picker	✅
+2B.4	Riepilogo + Confronto	✅ (v2 09/10)
+2B.5	Bozza/Conferma/Invio	✅
+2B.6	Scheda Prodotto	✅
+2B.7	Pallini Stato Prezzo	✅
+2B.8	Barra Ricerca Generica	⏳
+3.1	Layout Ufficio	✅
+3.2	Ordini reali da Firebase	✅
+3.3	Contatori + Tendina ordini	✅
+3.4	Vista dettaglio ordine	✅
+3.5	Azioni ordine	✅
+3.5-bis	Sblocco ordine	✅
+3.6	Fattura fiscale	❌ (non si fa)
+3.7 p1	Codice Ordine #N - L	✅
+3.7 p2	Anti-truffa	⏳ rinviato
+3.8	Stampa Multi-Ordine	✅
+3B	Pagina Cassa	✅
+3B-bis	Cassa stile COMPATTO	✅
+4	Occhio + Notifiche	✅
+DDT definitivo	Template HTML + auto-fit	✅ (12/10)
+Modale Fornitori USAG	Tab 💰 banco/ufficio	✅ (12/10)
+Ricerca banco 2 modalità	CODICE/NOME + tastierino inline	✅ (12/10)
+5	Ordini Fornitori + CSV	⏳
+5A	Import Clienti	✅
+6	Anagrafica Clienti	✅
+7	Fatturazione DDT	✅ (template definitivo 12/10)
+8	Cestino + Reset	✅ (manca reset mezzanotte)
+9	Storico prezzi	✅
+10	Scaglioni	⏳
+11	Tema Light	⏳
+12	Regole + Deploy	⏳
+LAVORO A	Ordinamento articoli banco	✅
+LAVORO B	10 colori righe	✅
+LAVORO C	Layout MQ (H×L + PREZZO BASE)	✅
+LAVORO D	Tasti nascosti (logica + estetica)	✅
+Barra giorni ufficio	Filtro + totali	✅
+Vista completa tendina banco	Raggruppata per giorno	✅
+Anti-falso-blur note	Banco + ufficio	✅ (12/10)
+Occhio condizionale banco	Solo se visto	✅ (12/10)
+Stampa DDT in anteprima banco	Nuovo template	✅ (12/10)
+Tab banco/ufficio compatti	No scroll	✅ (12/10)
+Cestino ufficio nei tab	Stretto	✅ (12/10)
+🎯 Prossimo passo immediato
+Occhio 👁️ in Cassa (simmetrico a banco/ufficio) · Pulizia debito tecnico · Barra Ricerca Generica (2B.8)
 
-### Regole operative
-1. **Sempre `Ctrl + S`** prima di testare
-2. **`Ctrl + Shift + R`** per ricaricare forzato
-3. **Aprire SEMPRE con Live Server**
-4. **Mai usare la preview interna di Cursor**
-5. **Controllare sempre la Console**
-6. **Se vedi "pagina bianca"**: chiudi tutte le tab + riapri + Ctrl+Shift+R
+14. Note Tecniche Importanti
+Struttura cartelle CRITICA
+search-bar.js in js/ui/components/
 
-### Firebase
-- **Progetto**: `ferr-app-5e277`
-- **Regione**: europe-west1
-- **Regole attuali**: `.read: true, .write: true` (sviluppo)
-- **SDK**: Firebase v10 via CDN
-- **`runTransaction`**: esportato da `firebase-init.js`
+banco-controller.js in js/ui/controllers/
 
-### GitHub
-- **Repo**: `https://github.com/maxiz333/FERR_APP`
-- **Sito online**: `https://maxiz333.github.io/FERR_APP/`
-- **Deploy**: automatico al push su `main`
+Se sposti un file, aggiorna gli import
 
----
+Salvataggio file
+Cursor non ha autosave. Sempre Ctrl + S.
 
-## 12. Roadmap Completa
+Ricarica forzata
+Ctrl + Shift + R
 
-### ✅ COMPLETATI
+Errori innocui (IGNORALI)
+favicon.ico 404
 
-- ✅ **BLOCCO 1** — Login
-- ✅ **BLOCCO 2A** — Import articoli
-- ✅ **BLOCCO 2B.1** — Layout Banco + Ricerca
-- ✅ **BLOCCO 2B.2** — Carrello base
-- ✅ **BLOCCO 2B.3.1** — Tastierino + Sconti
-- ✅ **BLOCCO 2B.3.2** — Ciclo forbici
-- ✅ **BLOCCO 2B.3.3** — Calcolatore taglio/peso
-- ✅ **BLOCCO 2B.3.4a** — Note riga + note ordine
-- ✅ **BLOCCO 2B.3.4b** — Cliente Picker
-- ✅ **BLOCCO 2B.4** — Riepilogo (>1 articolo, spunta tutto) → **v2 08-09/10**
-- ✅ **BLOCCO 2B.5** — Bozza / Conferma / Invio / Trash
-- ✅ **BLOCCO 2B.6** — Scheda Prodotto
-- ✅ **BLOCCO 2B.7** — Pallini Stato Prezzo
-- ✅ **BLOCCO 3.1** — Layout Ufficio
-- ✅ **BLOCCO 3.2** — Collegamento Firebase
-- ✅ **BLOCCO 3.3** — Contatori + tendina ordini giorno
-- ✅ **BLOCCO 3.4** — Vista dettaglio ordine
-- ✅ **BLOCCO 3.5** — Azioni ordine
-- ✅ **BLOCCO 3.5-bis** — Sblocco ordine
-- ✅ **BLOCCO 3.7 (parte 1)** — Codice Ordine `Ordine #N - L`
-- ✅ **BLOCCO 3.8** — Stampa Multi-Ordine (+ fix print-area 09/10)
-- ✅ **BLOCCO 3B** — Pagina Cassa
-- ✅ **BLOCCO 3B-bis** — Cassa stile COMPATTO
-- ✅ **BLOCCO 4** — Occhio + Notifiche (06-07/10)
-- ✅ **BLOCCO 5A** — Import Clienti (~3.651)
-- ✅ **BLOCCO 6** — Anagrafica Clienti
-- ✅ **BLOCCO 7** — Fatturazione DDT
-- ✅ **BLOCCO 8** — Cestino condiviso (06/10)
-- ✅ **LAVORO A** — Ordinamento articoli banco (07/10)
-- ✅ **LAVORO B** — 10 colori righe vicine (07-09/10)
-- ✅ **LAVORO C** — Layout MQ (H×L + PREZZO BASE) (07/10)
-- ✅ **LAVORO D (estetica + logica)** — Tasti azione nascosti + codice cliccabile (07-08/10)
-- ✅ **Barra giorni ufficio** — filtra + totali per giorno (09/10)
-- ✅ **Vista completa tendina banco** — tutti gli ordini per giorno (09/10)
-- ✅ **Pulizia carrelli vuoti** — automatica all'avvio (09/10)
-- ✅ **Fix stampe** — `print-area` mancante (09/10)
-- ✅ **Nota ordine** — banco + ufficio con editor inline (08-09/10)
-- ✅ **Nota riga articolo** — visibile in ufficio in arancione (09/10)
-- ✅ **Codice articolo** — copiabile in ufficio (08-09/10)
-- ✅ **Rinomina poli → paul** (09/10)
-- ✅ **Barra in basso banco** — bottoni con icona + label, no scroll (09/10)
-- ✅ **Modale riepilogo v2** — stile vecchia app (09/10)
-- ✅ **Fix `_orderNoteEditMode`** — variabile mancante (09/10)
-- ✅ **Fix `updateOrdersTabStyle` duplicata** (09/10)
-- ✅ **Colori righe stabili** — hash ID riga (09/10)
-- ✅ **GitHub Pages** — deploy automatico
+DevTools is now available in Italian
 
-### 🔄 IN CORSO
+[Violation] Permissions policy violation: unload is not allowed
 
-- *(nessuno)*
+WebSocket connection to 'wss://srcdoc/...' failed: ERR_NAME_NOT_RESOLVED ← iframes con srcdoc
 
-### 📋 DA FARE (in ordine di priorità)
+WebSocket ... BFCache
 
-| # | Blocco | Cosa | Complessità |
-|---|---|---|---|
-| 1 | **DDT definitivo** | Sostituire template attuale con quello ufficiale (file HTML dell'utente) | 🟡 Media |
-| 2 | **Occhio 👁️ in Cassa** | Simmetrico a banco e ufficio | 🟡 Bassa |
-| 3 | **Occhio condizionale preview banco** | Attualmente fisso, dovrebbe apparire solo se altri hanno visto | 🟡 Bassa |
-| 4 | **Pulizia debito tecnico** | `banco-controller.js` (2000+ righe) → spezzare in più file; `banco.css` regole duplicate; `js/core/utils.js` mai creato | 🟠 Alta |
-| 5 | **2B.8** — Barra Ricerca Generica (nel logo) | 3 tab: articoli/clienti/ordini | 🟡 Media |
-| 6 | **5** — Ordini Fornitori + CSV | Con `addedAt`, `addedBy`, `lastOrderedAt` articolo | 🟠 Alta |
-| 7 | **10** — Scaglioni (auto-apply + UI) | | 🟡 Media |
-| 8 | **11** — Tema Light + Selettore | | 🟡 Media |
-| 9 | **12** — Regole Firebase + Deploy produzione | | 🟠 Alta |
-| 10 | **3.7 p2** — Anti-truffa | | 🟠 Rinviato |
+[Violation] Avoid using document.write()
 
-### 📌 RINVIATI
+Eventuali warning CORS in sviluppo
 
-- 📌 **Reset mezzanotte "carrelli modifica → nuovo"** — mai implementato, forse non più necessario con filtro giorni
-- 📌 **BLOCCO 13** — Tasti avanti/indietro
-- 📌 **BLOCCO 14** — Categorie/Sottocategorie
-- 📌 **FUTURO** — Integrazione registratore di cassa fiscale
-- 📌 **FUTURO** — Fattura fiscale (la fa il commercialista)
-- 📌 **Codice fornitore `f. XXX`** — Serve import (Blocco 5)
-- 📌 **Cartellini** — Funzione vecchia app, non si farà (app deve restare semplice)
+🛡️ Guardia anti-loop scheduleTotalsSync
+In banco-controller.js c'è scheduleTotalsSync() con debounce 400ms e guardia _lastSyncedKey. NON rimuoverla.
 
----
+🔒 updateLineLock
+In ufficio-controller.js è locale. In cart-repository.js è esportata.
 
-## 13. Stato Avanzamento Attuale
+🔒 saveOrderNote
+In banco-controller.js è locale, usa updateNote da cart-repository.js.
 
-### 📊 Riepilogo
+🔒 markOrderAsModified vs markCartAsModified
+markOrderAsModified() in banco-controller.js: chiamata in banco dopo modifiche, scrive solo se stato sbloccato
 
-| Blocco | Descrizione | Stato |
-|---|---|---|
-| 1 | Login | ✅ |
-| 2A | Import articoli | ✅ |
-| 2B.1 | Layout Banco + Ricerca | ✅ |
-| 2B.2 | Carrello base | ✅ |
-| 2B.3.1 | Tastierino + Sconti | ✅ |
-| 2B.3.2 | Ciclo forbici | ✅ |
-| 2B.3.3 | Calcolatore taglio/peso | ✅ |
-| 2B.3.4a | Note riga + ordine | ✅ |
-| 2B.3.4b | Cliente Picker | ✅ |
-| 2B.4 | Riepilogo + Confronto | ✅ (v2 09/10) |
-| 2B.5 | Bozza/Conferma/Invio | ✅ |
-| 2B.6 | Scheda Prodotto | ✅ |
-| 2B.7 | Pallini Stato Prezzo | ✅ |
-| 2B.8 | Barra Ricerca Generica | ⏳ |
-| 3.1 | Layout Ufficio | ✅ |
-| 3.2 | Ordini reali da Firebase | ✅ |
-| 3.3 | Contatori + Tendina ordini | ✅ |
-| 3.4 | Vista dettaglio ordine | ✅ |
-| 3.5 | Azioni ordine | ✅ |
-| 3.5-bis | Sblocco ordine | ✅ |
-| 3.6 | Fattura fiscale | ❌ (non si fa) |
-| 3.7 p1 | Codice Ordine `#N - L` | ✅ |
-| 3.7 p2 | Anti-truffa | ⏳ rinviato |
-| 3.8 | Stampa Multi-Ordine | ✅ (+ fix print-area) |
-| 3B | Pagina Cassa | ✅ |
-| 3B-bis | Cassa stile COMPATTO | ✅ |
-| 4 | Occhio + Notifiche | ✅ |
-| 5 | Ordini Fornitori + CSV | ⏳ |
-| 5A | Import Clienti | ✅ |
-| 6 | Anagrafica Clienti | ✅ |
-| 7 | Fatturazione DDT | ✅ (template provvisorio) |
-| 8 | Cestino + Reset | ✅ (manca reset mezzanotte) |
-| 9 | Storico prezzi | ✅ |
-| 10 | Scaglioni | ⏳ |
-| 11 | Tema Light | ⏳ |
-| 12 | Regole + Deploy | ⏳ |
-| LAVORO A | Ordinamento articoli banco | ✅ |
-| LAVORO B | 10 colori righe | ✅ |
-| LAVORO C | Layout MQ (H×L + PREZZO BASE) | ✅ |
-| LAVORO D | Tasti nascosti (logica + estetica) | ✅ |
-| Barra giorni ufficio | Filtro + totali | ✅ |
-| Vista completa tendina banco | Raggruppata per giorno | ✅ |
+markCartAsModified(cartId) in cart-repository.js: esportata, chiamata da ufficio
 
-### 🎯 Prossimo passo immediato
+🎫 generateOrderCode(cartId) — Blocco 3.7
+Esportata in cart-repository.js
 
-**DDT definitivo** (quando arriva il file HTML) · **Occhio in Cassa** · **Pulizia debito tecnico**
+Genera Ordine #N - L con alfabeto alternato A-Z-B-Y-C-X...
 
----
+Incrementa counters/orderNumber, salva meta/orderNumber + meta/orderCode
 
-## 14. Note Tecniche Importanti
+Reset automatico a mezzanotte
 
-### Struttura cartelle CRITICA
-- `search-bar.js` in `js/ui/components/`
-- `banco-controller.js` in `js/ui/controllers/`
-- Se sposti un file, aggiorna gli import
+Chiamata in sendDraftToOffice() e confirmOrder() — solo se il carrello non ha già un codice
 
-### Salvataggio file
-Cursor **non ha autosave**. Sempre `Ctrl + S`.
+🎯 switchToCart(cartId) — Blocco 3.5-bis
+In banco-controller.js: stacca listener, imposta nuovo _cartId, carica carrello, riattacca
 
-### Ricarica forzata
-`Ctrl + Shift + R`
+Usata da 🔓 Sblocca e modifica
 
-### Errori innocui (IGNORALI)
-- `favicon.ico 404`
-- `DevTools is now available in Italian`
-- `[Violation] Permissions policy violation: unload is not allowed`
-- `WebSocket ... BFCache`
-- `[Violation] Avoid using document.write()`
-- Eventuali warning CORS in sviluppo
+📝 wasModified
+Salvato in meta/wasModified (bool)
 
-### 🛡️ Guardia anti-loop `scheduleTotalsSync`
-In `banco-controller.js` c'è `scheduleTotalsSync()` con debounce 400ms e guardia `_lastSyncedKey`. **NON rimuoverla**.
+Settato solo se sbloccato, resta true per sempre
 
-### 🔒 `updateLineLock`
-In `ufficio-controller.js` è **locale**. In `cart-repository.js` è **esportata**.
+Visibile come ✏️ accanto al nome cliente
 
-### 🔒 `saveOrderNote`
-In `banco-controller.js` è **locale**, usa `updateNote` da `cart-repository.js`.
+Numerazione fatture — Blocco 7
+generateInvoiceNumber() in invoice-repository.js usa runTransaction
 
-### 🔒 `markOrderAsModified` vs `markCartAsModified`
-- **`markOrderAsModified()`** in `banco-controller.js`: chiamata in banco dopo modifiche, scrive solo se stato `sbloccato`
-- **`markCartAsModified(cartId)`** in `cart-repository.js`: esportata, chiamata da ufficio
+Parte da 2000, salvato in counters/invoiceNumber
 
-### 🎫 `generateOrderCode(cartId)` — Blocco 3.7
-- Esportata in `cart-repository.js`
-- Genera `Ordine #N - L` con alfabeto alternato A-Z-B-Y-C-X...
-- Incrementa `counters/orderNumber`, salva `meta/orderNumber` + `meta/orderCode`
-- Reset automatico a mezzanotte
-- Chiamata in **`sendDraftToOffice()` (bozza)** e in **`confirmOrder()` (ordine diretto senza bozza)** — solo se il carrello non ha già un codice
+NON si resetta
 
-### 🎯 `switchToCart(cartId)` — Blocco 3.5-bis
-- In `banco-controller.js`: stacca listener, imposta nuovo `_cartId`, carica carrello, riattacca
-- Usata da **🔓 Sblocca e modifica**
+peekNextInvoiceNumber() mostra il prossimo senza assegnarlo
 
-### 📝 `wasModified`
-- Salvato in `meta/wasModified` (bool)
-- Settato **solo se `sbloccato`**, resta `true` per sempre
-- Visibile come **✏️** accanto al nome cliente
+setNextInvoiceNumber(n) modifica manuale (tasto F)
 
-### Numerazione fatture — Blocco 7
-- **`generateInvoiceNumber()`** in `invoice-repository.js` usa `runTransaction`
-- Parte da **2000**, salvato in `counters/invoiceNumber`
-- **NON si resetta**
-- **`peekNextInvoiceNumber()`** mostra il prossimo senza assegnarlo
-- **`setNextInvoiceNumber(n)`** modifica manuale (tasto F)
-- **`saveInvoiceToCart(cartId, num)`** salva `meta/invoiceNumber` + `meta/invoiceDate`
+saveInvoiceToCart(cartId, num) salva meta/invoiceNumber + meta/invoiceDate
 
-### 🖨️ Stampa senza pagina bianca
-- **Regola d'oro**: MAI `window.print()` sulla pagina principale
-- **Soluzione**: iframe nascosto con `srcdoc` + `iframe.contentWindow.print()`
-- CSS `@media print` agisce **solo dentro l'iframe**
-- **NON** usare `window.open()`
-- **NON** usare `document.write()` direttamente
-- **`print-orders-modal.js`**: il contenuto degli ordini DEVE essere dentro `<div class="print-area">` (bug fix 09/10) — altrimenti `body > *:not(.print-area) { display: none }` nasconde tutto
+🖨️ Stampa senza pagina bianca
+Regola d'oro: MAI window.print() sulla pagina principale
 
-### Dialoghi nativi per BOL e F
-- BOL in banco → `confirm()`
-- BOL in ufficio → `openClientPicker()` + `confirm()`
-- Tasto F → `prompt()` + `alert()`
-- Motivo: le modali custom (`invoice-modal.js`, `invoice-number-modal.js`) esistono ma non sono utilizzate
+Soluzione: iframe nascosto con srcdoc + iframe.contentWindow.print()
 
-### Cache locale articoli
-- **`updateArticleInCache(key, fields)`** in `article-service.js`
-- Usato da: `product-card.js`, `ufficio-controller.js`, `cassa-controller.js`, `banco-controller.js`
-- **`ensureArticlesLoaded().then(() => refresh())`** in ufficio/cassa
+CSS @media print agisce solo dentro l'iframe
 
-### Sync prezzi ordine → articoli
-- **`syncOrderPricesToArticles(orderId)`** in `cart-repository.js`
-- Chiamato quando ordine va in `fatto`
+NON usare window.open()
 
-### Calcolatore taglio/peso
-- `qty = result.kg`, `unitPrice = basePrice` (invariato), `mtTotal`, `kgTotal`
-- **NON cambia mai `basePrice`** dell'articolo
+NON usare document.write() direttamente
 
-### 🆕 Cestino condiviso — Blocco 8
-- **`trashCart(cartId, source, user)`** in `trash-repository.js`
-  - Copia in `trash/carts/{id}` + rimuove da `activeCarts`
-  - Aggiunge `trashedAt`, `trashedBy`, `source`
-- **`restoreCart(cartId)`**: rimette in `activeCarts` con `status: "modifica"` + `isLocked: false`
-- **`runScheduledCleanup()`**: chiamata al boot
-  - Cestino banco → 1 volta al giorno
-  - Cestino ufficio → la domenica
+print-orders-modal.js: il contenuto degli ordini DEVE essere dentro <div class="print-area"> — altrimenti body > *:not(.print-area) { display: none } nasconde tutto
 
-### 🆕 Occhio 👁️ — Blocco 4
-- **`writeSeenBy(cartId, userId)`** in `cart-repository.js`
-- Scrive `meta/seenBy/{userId} = Date.now()`
-- Idempotente: skip se già scritto negli ultimi 60s
-- **Chiamata solo da ufficio**: `editLinePrice`, `editLineQty`, `editLineDiscount`, click notifica
-- **NON chiamata dal banco**
-- In banco: mostrato vicino a CAMBIA
-- In ufficio: nel banner
-- In tendina banco: accanto al nome (solo vista normale)
+Dialoghi nativi per BOL e F
+BOL in banco → confirm()
 
-### 🆕 Notifiche — Blocco 4
-- **`showOfficeToast({status, clientName, body, time, onClick})`** in `js/core/notify.js`
-- Modale centrale, una alla volta (`_currentNotifOverlay`)
-- Colori: `ferapp-notif-bozza/nuovo/in_arrivo`
-- **CSS in `<style>` dentro `ufficio.html`**
-- `playBeep()`: 880Hz + 1320Hz
-- `requestNotificationPermission()`: al primo click
-- `showNativeNotification()`: notifica nativa PC
+BOL in ufficio → openClientPicker() + confirm()
 
-### 🆕 Ordinamento articoli in banco
-- In `renderCart`, `lines.sort((a,b) => (b.addedAt||0) - (a.addedAt||0))`
+Tasto F → prompt() + alert()
 
-### 🆕 Colori righe carrello (LAVORO B + fix 09/10)
-- Classe `clr-{hashLineId(line.id) % 10}` in `renderCart`
-- **`hashLineId(id)`** in `banco-controller.js` → hash stabile dell'ID
-- Colori **trasparenti** `rgba` con opacità 9-11%:
-  - clr-0 giallo · clr-1 grigio · clr-2 verde · clr-3 blu · clr-4 rosso · clr-5 viola · clr-6 arancio · clr-7 turchese · clr-8 rosa · clr-9 marrone
-- CSS in `banco.css`
+Cache locale articoli
+updateArticleInCache(key, fields) in article-service.js
 
-### 🆕 Layout riga articolo MQ (LAVORO C)
-- HTML: `.cart-line-grid` (4 colonne: prod | qty-col | price | tot)
-- Colonna qty (`.clv2-col-qty`): qty stepper + select unità + H×L (MQ) + PREZZO BASE
-- H×L: input `data-field="h"` e `data-field="l"` → `onHlChange()` calcola `qty = h * l`
-- PREZZO BASE: label `data-action="edit-price-base"` → calcolatore · riquadro `data-action="edit-price"` → tastierino
-- CSS mobile in `banco.css` con `@media (max-width: 640px)` e `(max-width: 420px)`
+Usato da: product-card.js, ufficio-controller.js, cassa-controller.js, banco-controller.js
 
-### 🆕 Tasti azione nascosti + codice cliccabile (LAVORO D)
-- `<div class="cart-line-actions" hidden>` di default
-- `<button class="cart-line-code-toggle" data-action="toggle-actions">` sul codice
-- Handler in `onLineAction`: toggle `hidden` + aggiorna `_openActionsLines` Set
-- **Stato persistente**: `_openActionsLines` mantiene i lineId con tasti aperti → al re-render i tasti restano aperti
-- Reset al cambio carrello (`switchToNewCart`, `switchToCart`)
+ensureArticlesLoaded().then(() => refresh()) in ufficio/cassa
 
-### 🆕 Modifica prezzo inline in ufficio
-- `editLinePrice` **NON usa tastierino**
-- Crea `<input>` inline dentro il bottone prezzo
-- **Invio** o blur salva, **Esc** annulla
+Sync prezzi ordine → articoli
+syncOrderPricesToArticles(orderId) in cart-repository.js
 
-### 🆕 Tasto "+ NUOVO" in banco
-- `wireNewCartTab()` in `banco-controller.js`
-- Click → conferma → `switchToNewCart()`
+Chiamato quando ordine va in fatto
 
-### 🆕 Cassa — testi più grandi (07/10)
+Calcolatore taglio/peso
+qty = result.kg, unitPrice = basePrice (invariato), mtTotal, kgTotal
 
-### 🆕 localStorage — chiavi usate
-- `ferapp_session`, `ferapp_current_cart_id`, `firebase:host:*`
-- ⚠️ Se su `maxiz333.github.io` il localStorage si riempie di chiavi `cp4_*` (vecchia app): cancellarle con
+NON cambia mai basePrice dell'articolo
+
+🆕 Cestino condiviso — Blocco 8
+trashCart(cartId, source, user) in trash-repository.js
+
+Copia in trash/carts/{id} + rimuove da activeCarts
+
+Aggiunge trashedAt, trashedBy, source
+
+restoreCart(cartId): rimette in activeCarts con status: "modifica" + isLocked: false
+
+runScheduledCleanup(): chiamata al boot
+
+Cestino banco → 1 volta al giorno
+
+Cestino ufficio → la domenica
+
+🆕 Occhio 👁️ — Blocco 4
+writeSeenBy(cartId, userId) in cart-repository.js
+
+Scrive meta/seenBy/{userId} = Date.now()
+
+Idempotente: skip se già scritto negli ultimi 60s
+
+Chiamata solo da ufficio: editLinePrice, editLineQty, editLineDiscount, click notifica
+
+NON chiamata dal banco
+
+In banco: mostrato vicino a CAMBIA
+
+In ufficio: nel banner
+
+In tendina banco: accanto al nome (solo vista normale)
+
+🆕 Nell'anteprima banco: renderEyeBanner(seenBy) — appare solo se qualcuno l'ha visto (12/10)
+
+🆕 Notifiche — Blocco 4
+showOfficeToast({status, clientName, body, time, onClick}) in js/core/notify.js
+
+Modale centrale, una alla volta (_currentNotifOverlay)
+
+Colori: ferapp-notif-bozza/nuovo/in_arrivo
+
+CSS in <style> dentro ufficio.html
+
+playBeep(): 880Hz + 1320Hz
+
+requestNotificationPermission(): al primo click
+
+showNativeNotification(): notifica nativa PC
+
+🆕 Ordinamento articoli in banco
+In renderCart, lines.sort((a,b) => (b.addedAt||0) - (a.addedAt||0))
+
+🆕 Anche in printDDT: le righe del DDT ordinate per addedAt DESC (12/10)
+
+🆕 Colori righe carrello
+Classe clr-{hashLineId(line.id) % 10} in renderCart
+
+hashLineId(id) in banco-controller.js → hash stabile dell'ID
+
+Colori trasparenti rgba con opacità 9-11%:
+
+clr-0 giallo · clr-1 grigio · clr-2 verde · clr-3 blu · clr-4 rosso · clr-5 viola · clr-6 arancio · clr-7 turchese · clr-8 rosa · clr-9 marrone
+
+CSS in banco.css
+
+🆕 Layout riga articolo MQ (LAVORO C)
+HTML: .cart-line-grid (4 colonne: prod | qty-col | price | tot)
+
+Colonna qty (.clv2-col-qty): qty stepper + select unità + H×L (MQ) + PREZZO BASE
+
+H×L: input data-field="h" e data-field="l" → onHlChange() calcola qty = h * l
+
+PREZZO BASE: label data-action="edit-price-base" → calcolatore · riquadro data-action="edit-price" → tastierino
+
+CSS mobile in banco.css con @media (max-width: 640px) e (max-width: 420px)
+
+🆕 Tasti azione nascosti + codice cliccabile (LAVORO D)
+<div class="cart-line-actions" hidden> di default
+
+<button class="cart-line-code-toggle" data-action="toggle-actions"> sul codice
+
+Handler in onLineAction: toggle hidden + aggiorna _openActionsLines Set
+
+Stato persistente: _openActionsLines mantiene i lineId con tasti aperti → al re-render i tasti restano aperti
+
+Reset al cambio carrello (switchToNewCart, switchToCart)
+
+🆕 Modifica prezzo inline in ufficio
+editLinePrice NON usa tastierino
+
+Crea <input> inline dentro il bottone prezzo
+
+Invio o blur salva, Esc annulla
+
+🆕 Tasto "+ NUOVO" in banco
+wireNewCartTab() in banco-controller.js
+
+Click → conferma → switchToNewCart()
+
+🆕 Cassa — testi più grandi (07/10)
+🆕 localStorage — chiavi usate
+ferapp_session, ferapp_current_cart_id, firebase:host:*
+
+⚠️ Se su maxiz333.github.io il localStorage si riempie di chiavi cp4_* (vecchia app): cancellarle con
+
+js
 Object.keys(localStorage).filter(k => k.startsWith("cp4_")).forEach(k => localStorage.removeItem(k))
+🆕 Nota ordine (banco + ufficio) — comportamento unificato
+Vuota → textarea con placeholder
 
-text
+INVIO o click fuori → salva e passa a div giallo
 
-### 🆕 Nota ordine (banco + ufficio) — comportamento unificato
-- **Vuota** → textarea con placeholder
-- **INVIO** o **click fuori** → salva e passa a **div giallo**
-- **Shift+Invio** → va a capo
-- **Click sul div giallo** → torna textarea, cursore alla fine
-- **Fix cursore banco**: prima del render salvo `value` + `selectionStart/End` se textarea ha focus
-- **Memoria stato**: `_orderNoteEditMode` (banco), `_editingNoteCarts` Set (ufficio)
+Shift+Invio → va a capo
 
-### 🆕 Nota riga articolo in ufficio
-- Visibile sotto il codice articolo con `✏️`
-- Stile: **arancione** (`#fb923c`), `font-size: 1rem`, `font-weight: 700`
-- **Contorno nero sottile attorno alle lettere** (`-webkit-text-stroke: 0.4px #000` + `text-shadow` 4 direzioni)
-- Solo se `line.note` esiste
+Click sul div giallo → torna textarea, cursore alla fine
 
-### 🆕 Codice articolo copiabile in ufficio
-- **Giallo brillante** (`var(--primary, #facc15)`), `font-size: 0.95rem`, `font-weight: 900`, monospace
-- **Click** → copia negli appunti + toast
-- Fallback `execCommand('copy')` per browser vecchi
-- **Fix importante**: rimosso `opacity: 0.6` da `.uff-line-sub`
+Memoria stato: _orderNoteEditMode (banco), _editingNoteCarts Set (ufficio)
 
-### 🆕 Barra giorni ufficio
-- HTML: `<nav class="uff-days" id="uffDays"></nav>` dopo i tab
-- JS: `renderDaysBar()` in `ufficio-controller.js`
-- Variabili: `_activeDay`, `_dayDetailOpen`
-- Totali visibili solo a `papa`/`mati`/`massi`
-- **Ordini e fatture separati**: `invoiceNumber` presente → fattura
+🆕 Ufficio (12/10):
 
-### 🆕 Vista completa tendina banco
-- Variabile `_ordersFullView`
-- Pulsante toggle `#ordersViewToggle` in `banco.html`
-- Click in `wireOrdersViewToggle()` → toggle + `renderOrdersDropdown()`
-- Vista completa: raggruppata per giorno via `groupCartsByDay(carts)`
-- Vista normale: lista piatta
+Display e textarea allineati a destra
 
-### 🆕 Pulizia carrelli vuoti all'avvio
-- **`cleanupEmptyModificaCarts()`** in `banco-controller.js`
-- Chiamata in `initBancoController` dopo `runScheduledCleanup()`
-- Cancella da `activeCarts` i carrelli vuoti (`lines = {}`) dell'utente corrente in stato `modifica`, tranne quello attivo
+Anti-falso-blur: _pendingRefresh blocca refresh durante edit mode
 
-### 🆕 Barra in basso banco (09/10)
-- Bottoni con icona sopra + label sotto: `.bb-btn`
-- Classi colore: `.bb-bol` (viola), `.bb-riep` (giallo), `.bb-uff` (blu), `.bb-conf` (verde, flex 1.25)
-- `.bb-trash` (flex 0 0 40px, rosso)
-- Niente scroll orizzontale → `overflow: hidden` su `.bottom-actions`
-- **Bug fix**: `updateBolButton()` aggiorna solo `.bb-icon` e `.bb-label`, non `textContent`
+Guardia aggiuntiva in blur: if (!document.body.contains(ta)) return;
 
-### 🆕 Modale riepilogo v2 (08-09/10)
-- Classi CSS: `.smv2-*` in `banco.css`
-- Header: cliente + counter `N/M` giallo + X
-- Box TOTALE ORDINE grande
-- Righe: `€ prezzo x qty unità = € totale` a destra
-- Verde scuro quando spuntata
-- Footer: Reset spunte (bordo giallo) + Chiudi (giallo pieno)
-- **Chiudi** conferma solo se tutto spuntato
-- **Memoria spunte** `savedCheckedByLineId` fuori dallo state → sopravvive a `close()`
+🆕 Banco (12/10):
 
-### 🆕 Hash lineId per colore stabile
-- **`hashLineId(id)`** in `banco-controller.js`
-- Restituisce numero 0-9 (modulo 10)
-- Usato in `renderCart` per classe colore
+Cattura noteState (value + selection) sempre se _orderNoteEditMode (non solo se ha focus)
 
-### 🆕 Rinomina poli → paul
-- In `auth.js`: `id: "poli"`, `name: "paul"`
-- Ordini esistenti con `createdBy: "poli"` continuano a funzionare
+Ripristina cursore solo se wasFocused
 
----
+🆕 Nota riga articolo in ufficio
+Visibile sotto il codice articolo con ✏️
 
-## 15. Come Riprendere il Lavoro
+Stile: arancione (#fb923c), font-size: 1rem, font-weight: 700
 
-### In una NUOVA chat
-Allega `PROGETTO.md` e scrivi:
-> *"Leggi PROGETTO.md del mio progetto FerApp e riprendiamo dal prossimo blocco."*
+Contorno nero sottile attorno alle lettere (-webkit-text-stroke: 0.4px #000 + text-shadow 4 direzioni)
 
-### In una SESSIONE normale
-1. Apri Cursor su `ferr_app definitiva`
-2. Verifica Live Server attivo su `http://127.0.0.1:5500`
-3. Apri `index.html` → login "papa"
-4. Controlla console (F12)
-5. Riprendi dal blocco in corso
+Solo se line.note esiste
 
-### Checklist pre-sessione
-- [ ] Live Server attivo
-- [ ] Firebase raggiungibile
-- [ ] Cache articoli carica (~19.348)
-- [ ] Cache clienti carica (~3.651)
-- [ ] Login funziona
-- [ ] Nessun errore rosso in console
+🆕 Codice articolo copiabile in ufficio
+Giallo brillante (var(--primary, #facc15)), font-size: 0.95rem, font-weight: 900, monospace
 
-### Se vedi "pagina bianca"
-1. Chiudi **tutte** le tab
-2. Riapri con `Ctrl + Shift + R`
-3. F12 → Network → **Disable cache** → ricarica
-4. Se ancora: F12 → Application → **Clear site data**
+Click → copia negli appunti + toast
 
-### Comandi git frequenti
-```bash
+Fallback execCommand('copy') per browser vecchi
+
+🆕 Barra giorni ufficio
+HTML: <nav class="uff-days" id="uffDays"></nav> dopo i tab
+
+JS: renderDaysBar() in ufficio-controller.js
+
+Variabili: _activeDay, _dayDetailOpen
+
+Totali visibili solo a papa/mati/massi
+
+Ordini e fatture separati: invoiceNumber presente → fattura
+
+🆕 Vista completa tendina banco
+Variabile _ordersFullView
+
+Pulsante toggle #ordersViewToggle in banco.html
+
+Click in wireOrdersViewToggle() → toggle + renderOrdersDropdown()
+
+Vista completa: raggruppata per giorno via groupCartsByDay(carts)
+
+🆕 Pulizia carrelli vuoti all'avvio
+cleanupEmptyModificaCarts() in banco-controller.js
+
+Cancella da activeCarts i carrelli vuoti dell'utente corrente in stato modifica, tranne quello attivo
+
+🆕 Barra in basso banco
+Bottoni con icona sopra + label sotto: .bb-btn
+
+Classi colore: .bb-bol (viola), .bb-riep (giallo), .bb-uff (blu), .bb-conf (verde, flex 1.25)
+
+.bb-trash (flex 0 0 40px, rosso)
+
+Niente scroll orizzontale → overflow: hidden su .bottom-actions
+
+Bug fix: updateBolButton() aggiorna solo .bb-icon e .bb-label, non textContent
+
+🆕 Modale riepilogo v2 (08-09/10)
+Classi CSS: .smv2-* in banco.css
+
+Header: cliente + counter N/M giallo + X
+
+Box TOTALE ORDINE grande
+
+Righe: € prezzo x qty unità = € totale a destra
+
+Verde scuro quando spuntata
+
+Footer: Reset spunte (bordo giallo) + Chiudi (giallo pieno)
+
+Chiudi conferma solo se tutto spuntato
+
+Memoria spunte savedCheckedByLineId fuori dallo state → sopravvive a close()
+
+🆕 Hash lineId per colore stabile
+hashLineId(id) in banco-controller.js
+
+Restituisce numero 0-9 (modulo 10)
+
+Usato in renderCart per classe colore
+
+🆕 Rinomina poli → paul
+In auth.js: id: "poli", name: "paul"
+
+Ordini esistenti con createdBy: "poli" continuano a funzionare
+
+🆕 Ricerca banco (2 modalità) — 12/10/2026
+File: js/ui/components/search-bar.js (riscritto)
+
+HTML: .search-mode-bar (2 tasti) + .search-input-wrapper.is-hidden + .search-results + .inline-keypad.is-hidden (nell'ordine: risultati sopra, tastierino sotto)
+
+Stato iniziale: solo 2 tasti grandi CODICE/NOME
+
+Apertura CODICE:
+
+input.setAttribute("inputmode", "none") + input.setAttribute("readonly", "readonly") (blocca tastiera telefono)
+
+inlineKeypad.classList.remove("is-hidden")
+
+searchContainer.classList.add("is-code-mode") → tastierino fisso in basso via CSS
+
+Apertura NOME:
+
+Rimuove inputmode e readonly
+
+inlineKeypad.classList.add("is-hidden")
+
+input.focus() sincrono (necessario per iOS che richiede user-gesture)
+
+Rimuove .is-code-mode
+
+Ricerca live: debounce 150ms → searchArticles()
+
+In CODICE: filtro per codice, match esatto su 1 → aggiunge diretto
+
+Tap fuori dal tastierino (solo in CODICE): closeSearchMode()
+
+CSS chiave:
+
+.search-mode-btn.search-mode-code → giallo
+
+.search-mode-btn.search-mode-name → nero/giallo
+
+.inline-keypad.is-hidden { display: none !important; }
+
+.banco-search.is-code-mode .inline-keypad { position: fixed; left:0; right:0; bottom:0; z-index: 500; ... }
+
+body:has(.banco-search.is-code-mode) .cart-area { padding-bottom: 340px; }
+
+🆕 Template DDT definitivo — 12/10/2026
+File template: templates/ddt-template.html (input HTML compilabili con nomi tipo rN_codici, rN_descrizione, ecc.)
+
+File modulo: js/ui/components/print-ddt.js
+
+Riempimento input:
+
+el.value = ... + el.setAttribute('value', ...) (per serializzare in outerHTML)
+
+Checkbox: el.checked = true + el.setAttribute('checked', 'checked')
+
+Auto-fit font: misura span invisibile (con font reali del sistema) → riduce di 0.5px finché il testo sta → converte in cqw (scala con container)
+
+Margine sicurezza: 8% (min 10px) → compatibile Win 8/10/11
+
+Iframe: width: 900px; height: 1300px; opacity: 0; pointer-events: none; z-index: -1 (dimensioni reali per far calcolare il layout)
+
+Doppio requestAnimationFrame + delay 150ms prima dell'auto-fit
+
+Print dopo 400ms
+
+🆕 Modale Fornitori — 12/10/2026
+File: js/ui/components/fornitori-modal.js
+
+API: openFornitoriModal(), closeFornitoriModal()
+
+Array FORNITORI:
+
+js
+const FORNITORI = [
+  { id: 'usag', nome: 'USAG', colore: '#e11d48', path: 'fornitori/usag.html' }
+];
+Apertura banco: wireFornitoriButton() in banco-controller.js
+
+Apertura ufficio: listener in initUfficioController
+
+CSS in banco.css: .fornitori-overlay, .fornitori-modal, .fornitori-btn, .fornitori-iframe-*
+
+App USAG: fornitori/usag.html con tasto 📋 pasteBtn (usa navigator.clipboard.readText())
+
+15. Come Riprendere il Lavoro
+In una NUOVA chat
+Allega PROGETTO.md e scrivi:
+
+"Leggi PROGETTO.md del mio progetto FerApp e riprendiamo dal prossimo blocco."
+
+In una SESSIONE normale
+Apri Cursor su ferr_app definitiva
+
+Verifica Live Server attivo su http://127.0.0.1:5500
+
+Apri index.html → login "papa"
+
+Controlla console (F12)
+
+Riprendi dal blocco in corso
+
+Checklist pre-sessione
+□ Live Server attivo
+□ Firebase raggiungibile
+□ Cache articoli carica (~19.348)
+□ Cache clienti carica (~3.651)
+□ Login funziona
+□ Nessun errore rosso in console (a parte srcdoc e unload)
+Se vedi "pagina bianca"
+Chiudi tutte le tab
+
+Riapri con Ctrl + Shift + R
+
+F12 → Network → Disable cache → ricarica
+
+Se ancora: F12 → Application → Clear site data
+
+Comandi git frequenti
+bash
 git add .
 git commit -m "descrizione"
 git push
@@ -1369,39 +1887,32 @@ Live Server	porta 5500
 16. Blocchi in Dettaglio
 16.1 🔤 BLOCCO 3.7 — Codice Ordine + Anti-Truffa
 ✅ PARTE 1 — COMPLETATA (30/09/2026)
+
 Formato: Ordine #N - L
 
 N = numero progressivo (1, 2, 3, ...)
 
-L = lettera alfabeto alternato
+L = lettera alfabeto alternato: A, Z, B, Y, C, X, D, W, E, V, F, U, G, T, H, S, I, R, J, Q, K, P, L, O, M, N
 
-Alfabeto alternato:
-
-text
-A, Z, B, Y, C, X, D, W, E, V, F, U, G, T,
-H, S, I, R, J, Q, K, P, L, O, M, N
 Reset giornaliero: numero e lettera si azzerano a mezzanotte
 
-Salvataggio:
+Salvataggio: activeCarts/{cartId}/meta/orderNumber, meta/orderCode, counters/orderNumber, counters/lastResetDate
 
-text
-activeCarts/{cartId}/meta/orderNumber
-activeCarts/{cartId}/meta/orderCode
-counters/orderNumber
-counters/lastResetDate
 Implementazione: generateOrderCode(cartId) in cart-repository.js
 
-Chiamata in sendDraftToOffice() (bozza)
+Chiamata in: sendDraftToOffice() (bozza) + confirmOrder() (ordine diretto)
 
 Aggiornamento 09/10: anche in confirmOrder() (ordine diretto senza bozza)
 
 ⏳ PARTE 2 — ANTI-TRUFFA (da fare)
+
 Doppia protezione se stesso cliente fa più ordini
 
 Nota utente: "non metteremo più il timer, ci limitiamo ad usare il numero dal progetto"
 
 16.2 🔓 BLOCCO 3.5-bis — Sblocco Ordine
 ✅ COMPLETATO (30/09/2026)
+
 Ordine fatto di default bloccato (sola lettura)
 
 Pulsante 🔓 Sblocca e modifica in Ufficio/Banco/Cassa
@@ -1414,47 +1925,56 @@ Per richiudere: Fatto → isLocked: true
 
 16.3 💰 BLOCCO 3B-bis — Cassa stile COMPATTO
 ✅ COMPLETATO (30/09/2026)
+
 LISTA: card piccole con cliente/codice/stato/N art./data/totale
+
 DETTAGLIO: righe con badge qty giallo + prezzo + pallino + totale
+
 EDIT MODE: locale, no Firebase, refresh live
 
 16.4 🖨️ BLOCCO 3.8 — Stampa Multi-Ordine
 ✅ COMPLETATO (01/10/2026) — fix print-area 09/10
+
 Ufficio: 🖨 Stampa → modale multi-selezione → anteprima
+
 Banco: 🖨 Stampa DDT nel dettaglio → stampa singolo ordine
 
 Bug fix 09/10: il contenuto degli ordini deve essere dentro <div class="print-area"> in print-orders-modal.js
 
-Il CSS print.css ha body > *:not(.print-area) { display: none } → se manca .print-area il browser nasconde tutto
-
-Aggiornamento 09/10: la stampa ordini esclude le fatture (quelle si stampano con 🖨 Stampa DDT diretta)
+Aggiornamento 09/10: la stampa ordini esclude le fatture
 
 16.5 📦 BLOCCO 2B.6 — Scheda Prodotto
 ✅ COMPLETATO (04/10/2026)
+
 Vedi sezione 8.3
 
 16.6 🎯 BLOCCO 2B.7 — Pallini Stato Prezzo
 ✅ COMPLETATO (04/10/2026)
+
 Vedi sezione 8.6
 
 16.7 📥 BLOCCO 5A — Import Clienti
 ✅ COMPLETATO (04/10/2026)
+
 Vedi sezione 8.5
 
 16.8 👥 BLOCCO 6 — Anagrafica Clienti
 ✅ COMPLETATO (04/10/2026)
+
 Client picker da Firebase clients/
 
 Accesso da banco (👤 CAMBIA) e ufficio (popup BOL)
 
 16.9 📄 BLOCCO 7 — Fatturazione DDT
 ✅ COMPLETATO (05/10/2026)
+
 Vedi sezioni 4 (Flusso Fatturazione) e 8.7 (Template DDT)
 
 File creati: invoice-repository.js, print-invoice.js, invoice.css, invoice-modal.js (non usato), invoice-number-modal.js (non usato)
 
 16.10 🗑 BLOCCO 8 — Cestino Condiviso
 ✅ COMPLETATO (06/10/2026)
+
 File: js/data/trash-repository.js
 
 Funzioni: trashCart, listenTrashCarts, restoreCart, deleteCartPermanently, emptyTrashBySource, runScheduledCleanup
@@ -1469,27 +1989,31 @@ Banco altri stati → nuovo carrello, non cestina
 
 Ufficio → cestina sempre
 
-Svuotamento automatico al boot (banco 1x/die, ufficio la domenica)
+Svuotamento automatico al boot
 
 16.11 👁️ BLOCCO 4 — Occhio + Notifiche
 ✅ COMPLETATO (06-07/10/2026)
+
 File: js/core/notify.js
 
 Occhio: writeSeenBy da ufficio su edit reali + click notifica
+
 Notifiche: modale centrale colorata + beep + nativa PC
 
 16.12 🎨 LAVORO A/B/C/D
 ✅ COMPLETATI (07-08/10/2026)
+
 LAVORO A: ordinamento articoli banco (nuovo in cima)
 
 LAVORO B: 10 colori righe vicine (fissi per ID riga dal 09/10)
 
 LAVORO C: layout MQ (H×L + PREZZO BASE)
 
-LAVORO D: tasti azione nascosti + codice cliccabile (logica + estetica)
+LAVORO D: tasti azione nascosti + codice cliccabile
 
 16.13 🗂 SESSIONE 08/10/2026 — Note, scampolo, ordine senza bozza
 ✅ COMPLETATO (08/10/2026)
+
 Tasti azione logica — forbici/nota/ordina/cestino funzionanti, stato persistente
 
 SCAMPOLO — sconto 30% automatico + tasto % editabile + importo sconto rosso
@@ -1498,17 +2022,18 @@ ROTOLO — rimuove sconto
 
 SCAGLIONATO — solo stato visivo
 
-Prezzo/totale a 3 righe con sconto (pieno barrato + giallo + rosso)
+Prezzo/totale a 3 righe con sconto
 
-Nota riga in banco (giallo corsivo sotto la riga)
+Nota riga in banco
 
-Codice articolo ufficio (giallo brillante + copia)
+Codice articolo ufficio
 
-Ordine diretto senza bozza — anche CONFERMA genera Ordine #N - L
+Ordine diretto senza bozza
 
 16.14 🗂 SESSIONE 09/10/2026 — Barra giorni, vista completa tendina, fix
 ✅ COMPLETATO (09/10/2026)
-POMERIGGIO:
+
+Pomeriggio:
 
 Fix stampa ordini — print-area mancante
 
@@ -1522,7 +2047,7 @@ Nota riga in ufficio — arancione + contorno nero lettere
 
 Codice ordine anche su CONFERMA
 
-SERA:
+Sera:
 
 Pulizia carrelli vuoti — cleanupEmptyModificaCarts()
 
@@ -1536,18 +2061,88 @@ Fix _orderNoteEditMode — variabile mancante
 
 Fix updateOrdersTabStyle duplicata
 
-Barra giorni ufficio — filtra + totali per papa/mati/massi
+Barra giorni ufficio
 
 Rinomina poli → paul
 
 Modale riepilogo v2
 
-Barra in basso banco — BOL/RIEP/UFF/CONFERMA/🗑, no scroll
+Barra in basso banco
 
-Colori righe stabili — hash dell'ID riga
+Colori righe stabili
 
-Bug fix: updateBolButton usava textContent → distruggeva gli span (fix: aggiorna solo .bb-icon e .bb-label)
-Rimosso invoice.css duplicato 3 volte in banco.html
+16.15 📄 SESSIONE 12/10/2026 — DDT definitivo + Fornitori + Ricerca
+✅ COMPLETATO (12/10/2026)
+
+DDT definitivo:
+
+Template HTML compilabile (templates/ddt-template.html) — 23 righe articoli + header + footer
+
+Modulo print-ddt.js con auto-fit font (margine 8%, min 10px)
+
+Riempie: numero DDT, data, ditta, residenza (= "CITTÀ (PV) VIA CIVICO"), data+ora inizio trasporto, ☒ Vendita spuntato, annotazioni
+
+Righe articoli ordinate come banco (addedAt DESC)
+
+Colonne: codice, descrizione, prezzo unitario, UM, quantità. Colonna "prezzo" (estrema destra) VUOTA
+
+Collegato a:
+
+Banco: pulsante BOL (già fatturato → ristampa), anteprima ordine (🖨 Stampa DDT)
+
+Ufficio: pulsante 🖨 Stampa DDT su fatture
+
+Vecchio print-invoice.js rimasto come fallback ma non usato dal flusso principale
+
+Modale Fornitori:
+
+fornitori-modal.js + fornitori/usag.html
+
+Array FORNITORI (attualmente solo USAG rosso)
+
+Tasto 💰 in banco (nella tab bar) e ufficio (nell'header)
+
+App USAG in iframe + tasto 📋 Incolla (navigator.clipboard.readText())
+
+Modale a schermo intero + pulsante ← Indietro
+
+Ricerca banco:
+
+2 tasti CODICE/NOME (sostituisce vecchia barra fissa)
+
+Tastierino inline in basso (modalità CODICE) — fisso, non si muove
+
+Tastiera iPhone automatica (modalità NOME) — focus sincrono nel click
+
+Tap fuori dal tastierino → chiude
+
+Match esatto codice → aggiunge diretto
+
+Fix note ordine:
+
+Ufficio:
+
+Display e textarea allineati a destra
+
+Anti-falso-blur: _pendingRefresh blocca refresh durante edit mode
+
+Guardia document.body.contains(ta) nel blur
+
+Banco:
+
+noteState catturato sempre se _orderNoteEditMode
+
+Ripristina cursore solo se wasFocused
+
+UI:
+
+Tab bar banco: rimosso 👥 CLIENTI, aggiunto 💰 al secondo posto, overflow: hidden, tab compressi
+
+Tab bar ufficio: aggiunto 🗑 (stretto, flex: 0 0 42px), 5 tab su una riga senza scroll
+
+Header ufficio: rimosso 🗑, aggiunto 💰 Fornitori
+
+Occhio condizionale nell'anteprima ordine banco (appare solo se qualcuno l'ha visto)
 
 📝 Cronologia Modifiche
 Data	Modifica
@@ -1565,19 +2160,78 @@ Data	Modifica
 07/10/2026	v2.7 (2) — LAVORO A/B/C/D. Fix tasto +NUOVO, cassa testi, ufficio prezzo inline
 08/10/2026	v2.7 (3) — LAVORO D logica (forbici/scampolo/rotolo), nota banco fix cursore + div giallo, codice ufficio copia, ordine senza bozza genera codice, card carrello non annidate
 09/10/2026	v2.8 — Fix stampa ordini (print-area), nota ufficio (placeholder/div giallo), barra giorni ufficio, vista completa tendina banco (raggruppata per giorno + anteprima articoli + occhio), pulizia carrelli vuoti, filtro tendina più stretto, rinomina poli → paul, barra in basso ristrutturata (BOL/RIEP/UFF/CONFERMA/🗑 con icona+label), modale riepilogo v2 stile vecchia app, colori righe stabili per hash ID, nota riga articolo in ufficio arancione. Fix _orderNoteEditMode, updateOrdersTabStyle duplicata, updateBolButton che distruggeva gli span. Rimossi invoice.css duplicati in banco.html
-Ultima sessione: 09/10/2026
-Versione attuale: v2.8
+12/10/2026	v2.9 — DDT definitivo (template HTML + auto-fit font 8%), modale fornitori + USAG integrata (tasto 📋 Incolla), 2 tasti CODICE/NOME in banco con tastierino inline in basso, tastiera iOS auto su NOME, anti-falso-blur note ufficio (_pendingRefresh) + banco (noteState in edit mode), occhio condizionale in anteprima ordine banco, stampa DDT in anteprima banco (nuovo template), tab banco/ufficio compatti (no scroll), cestino ufficio nei tab (stretto), nota ordine ufficio allineata a destra, rimossi CLIENTI da banco / cestino da header ufficio
+Ultima sessione: 12/10/2026
+Versione attuale: v2.9
 
 Fine documento.
 
-text
 
----
+---/////////////////////////////////////////////////-----//////////////////////////------------------/////////////////-----
 
-## 🚀 Come salvarlo
+## 17. Sessione 13/10/2026 — Barra giorni settimanale + Ricerca articoli
 
-1. Apri `PROGETTO.md` in Cursor
-2. **Ctrl + A** (seleziona tutto)
-3. **Ctrl + V** (incolla questo testo — sostituisce il vecchio)
-4. **Ctrl + S**
-5. Poi nel terminale:
+**Versione**: v2.9 → v2.10  
+**Data**: 13 ottobre 2026  
+**Sessione**: notturna (dopo v2.9)
+
+### 🆕 Ricerca ufficio dentro gli articoli
+- La **barra di ricerca ufficio** ora cerca anche **dentro gli articoli** degli ordini (codice + descrizione)
+- Prima: cercava solo in cliente, creatore, id ordine
+- Adesso: cerca anche in **nota**, **codice ordine**, **numero fattura**, **codice articolo**, **descrizione articolo**
+- Funziona in **tutti i tab** (NUOVI / FATTI / TUTTI / PRONTO)
+- File: `js/ui/controllers/ufficio-controller.js` → funzione `filterOrders`
+
+### 🆕 Barra giorni settimanale (sostituisce OGGI/IERI)
+- **7 giorni fissi**: `Lun. · Mar. · Mer. · Gio. · Ven. · Sab. · D.` (domenica = "D." abbreviata)
+- **Riempie tutta la larghezza** (ogni giorno = 1/7 dello spazio) — PC + mobile
+- **Oggi** → bordo giallo (indicatore)
+- **Selezionato** → sfondo giallo pieno
+- **Di default = oggi** selezionato all'avvio
+- **Contatore** dentro ogni giorno (in base al tab attivo): es. `Mer. 5`
+- **Click singolo** su un giorno → filtra gli ordini di **quel giorno della settimana corrente**
+- **Click di nuovo** sullo stesso giorno → mostra il **riepilogo vendite** (barra gialla a tutta larghezza sotto la barra giorni):
+  - Formato: `📊 3 ordini € 55,00 · 2 fatture € 120,00`
+  - Visibile solo a `papa` / `mati` / `massi`
+- **Doppio click PC** o **long press cell** (500ms) su un giorno → apre tendina con le **4 settimane scorse**:
+  - `Lun. scorso · 08/10`
+  - `Lun. 2 sett fa · 01/10`
+  - `Lun. 3 sett fa · 24/09`
+  - `Lun. 4 sett fa · 17/09`
+  - Click su una voce → salta a quella settimana e seleziona quel giorno
+- **Click fuori / Esc / click su altro giorno** → tendina si chiude
+- **Ricarica pagina** → torna al giorno attuale (oggi)
+- **Solo ufficio**, banco **non toccato**
+
+### 🐛 Bug fix durante la sessione
+- **Tendina settimane si apriva in alto a sinistra** quando il riepilogo vendite era aperto → fix: dopo il `refresh()`, il bottone viene riletto dal DOM prima di calcolare la posizione
+- **Tendina settimane non si chiudeva** cliccando fuori → fix: rimosso `e.stopPropagation()` dal click sul giorno
+- **Delay "chiudi fuori"** portato da 10ms a 350ms per evitare conflitti con il `dblclick`
+- **CSS duplicati** rimossi (vecchi blocchi `.uff-day-detail` popover)
+
+### 📁 File toccati
+- `js/ui/controllers/ufficio-controller.js`:
+  - `filterOrders()` → cerca anche dentro articoli
+  - `renderDaysBar()` → riscritto per barra settimanale + tendina
+  - `onDayClick()` → invariato nella logica
+  - `openWeekPicker()` / `closeWeekPicker()` → **nuove funzioni**
+  - `getMondayOfWeek()` / `dayLabelShort()` → **nuove funzioni**
+  - Variabili nuove: `_dayPickerKey`, `_dayPickerHandlers`
+- `assets/css/ufficio.css`:
+  - `.uff-days` → `flex-wrap: wrap` per far andare a capo il riepilogo
+  - `.uff-day` → `flex: 1 1 0`, `is-today` (bordo giallo), `is-active` (sfondo giallo)
+  - `.uff-day-count` → contatore dentro il giorno
+  - `.uff-day-wrap` → wrapper relativo
+  - `.uff-day-detail-bar` → **nuovo** riepilogo vendite a tutta larghezza
+  - `.uff-week-picker` + `.uff-week-picker-item` → **nuovo** tendina settimane
+  - **Rimosso**: `.uff-day-detail`, `.uff-day-detail::before`, `@keyframes uffDayDetailIn`
+
+### ⚠️ Note tecniche
+- La tendina `openWeekPicker` usa `position: fixed` + coordinate calcolate dal `getBoundingClientRect()` del bottone
+- Il long press su mobile è 500ms e viene annullato se l'utente muove il dito (`touchmove`)
+- Il click singolo ha un **delay di 220ms** per distinguere dal doppio click
+- Il "chiudi fuori" viene attivato dopo **350ms** per non intercettare il doppio click stesso
+- **Baco noto**: nessuno
+
+**Ultima sessione**: 13/10/2026  
+**Versione attuale**: v2.10

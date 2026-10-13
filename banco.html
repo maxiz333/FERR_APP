@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="assets/css/price-dot.css">
   <link rel="stylesheet" href="assets/css/print.css">
   <link rel="stylesheet" href="assets/css/invoice.css">
+  <link rel="stylesheet" href="assets/css/esauriti.css">
 </head>
 <body>
 
@@ -41,14 +42,18 @@
       <button class="banco-tab active" data-tab="nuovo">
         + NUOVO
       </button>
-      <button class="banco-tab" id="btnFornitori" type="button" title="Listino fornitori">
-        💰
+      <button class="banco-tab" id="btnEsauriti" type="button" title="Esauriti">
+        📦 ESAUR.
+      </button>
+      <button class="banco-tab banco-tab-icon" id="btnFornitori" type="button" title="Listino fornitori">
+        <span class="tab-emoji">💰</span>
       </button>
       <button class="banco-tab" id="btnTabOrdini" data-tab="ordini">
         📋 ORDINI <span class="count" id="countOrdini">0</span>
       </button>
-      <button class="banco-tab" data-tab="cestino">
-        🗑 <span class="count" id="countCestino">0</span>
+      <button class="banco-tab banco-tab-icon" data-tab="cestino" title="Cestino">
+        <span class="tab-emoji">🗑</span>
+        <span class="count" id="countCestino">0</span>
       </button>
     </nav>
 

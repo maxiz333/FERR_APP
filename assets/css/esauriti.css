@@ -1,0 +1,458 @@
+/* ============================================================
+   ESAURITI.CSS — Modale "Esauriti" (Step 3)
+   ============================================================ */
+
+   .esauriti-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+  
+  .esauriti-modal {
+    background: #14171b;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 900px;
+    height: 95vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  }
+  
+  .esauriti-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #2a2a2a;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-title {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #facc15;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  
+  .esauriti-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .esauriti-close:hover { background: rgba(255,255,255,0.08); }
+  
+  /* --- Switch Esauriti / Catalogo --- */
+  .esauriti-switch {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 0;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-switch-btn {
+    flex: 1;
+    padding: 10px 14px;
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 10px;
+    color: #888;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .esauriti-switch-btn.is-active {
+    background: #facc15;
+    color: #0a0a0a;
+    border-color: #facc15;
+  }
+  
+  /* --- Barra ricerca --- */
+  .esauriti-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-search-label {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #facc15;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-search-wrapper {
+    position: relative;
+    flex: 1;
+  }
+  
+  .esauriti-search-input {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 40px 10px 12px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .esauriti-search-input:focus { border-color: #facc15; }
+  
+  .esauriti-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 6px 8px;
+  }
+  .esauriti-search-clear:hover { color: #ef4444; }
+  
+  /* --- Tasti fornitori --- */
+  .esauriti-fornitori {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 16px 12px;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-forn-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #1a1a1a;
+    border: 2px solid var(--forn-color, #333);
+    border-radius: 20px;
+    color: #ccc;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .esauriti-forn-btn:hover {
+    background: #222;
+  }
+  
+  .esauriti-forn-btn.is-active {
+    background: #facc15;
+    border-color: #facc15;
+    color: #0a0a0a;
+  }
+  
+  .esauriti-forn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  
+  .esauriti-forn-count {
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    font-size: 0.68rem;
+    font-weight: 900;
+  }
+  
+  .esauriti-forn-btn.is-active .esauriti-forn-count {
+    background: rgba(0,0,0,0.2);
+  }
+  
+  .esauriti-forn-add {
+    padding: 6px 12px;
+    background: transparent;
+    border: 2px dashed #facc15;
+    border-radius: 20px;
+    color: #facc15;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .esauriti-forn-add:hover { background: rgba(250, 204, 21, 0.1); }
+  
+  /* --- Contenuto --- */
+  .esauriti-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    border-top: 1px solid #2a2a2a;
+  }
+  
+  .esauriti-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 20px;
+    gap: 12px;
+    color: #666;
+    text-align: center;
+  }
+  
+  .esauriti-empty-icon { font-size: 60px; opacity: 0.4; }
+  .esauriti-empty-text { font-size: 1rem; font-weight: 700; color: #888; }
+  .esauriti-empty-hint { font-size: 0.82rem; color: #666; }
+  
+  /* Mobile */
+  @media (max-width: 640px) {
+    .esauriti-overlay { padding: 4px; }
+    .esauriti-modal { height: 98vh; border-radius: 10px; }
+    .esauriti-header { padding: 10px 12px; }
+    .esauriti-switch { padding: 10px 12px 0; gap: 6px; }
+    .esauriti-switch-btn { font-size: 0.72rem; padding: 8px 8px; }
+    .esauriti-search-row { padding: 10px 12px 6px; }
+    .esauriti-fornitori { padding: 4px 12px 10px; gap: 4px; }
+    .esauriti-forn-btn { padding: 5px 10px; font-size: 0.72rem; }
+  }
+/* ============================================================
+   🆕 STEP 3B — Lista esauriti raggruppata per data
+   ============================================================ */
+
+   .esauriti-day-group {
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .esauriti-day-group:last-child {
+    border-bottom: none;
+  }
+  
+  .esauriti-day-header {
+    padding: 10px 16px 6px;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    color: #facc15;
+    text-transform: uppercase;
+    background: rgba(250, 204, 21, 0.04);
+  }
+  
+  .esauriti-day-list {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .esauriti-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a1a1a;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    border-left: 4px solid var(--forn-color, transparent);
+  }
+  .esauriti-item:last-child { border-bottom: none; }
+  .esauriti-item:hover { background: #1a1a1a; }
+  
+  .esauriti-item.is-expanded {
+    background: #1a1a1a;
+  }
+  
+  .esauriti-item-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .esauriti-item-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .esauriti-item-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  
+  .esauriti-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .esauriti-item-desc {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.25;
+    /* Di default: tronca a 1 riga */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .esauriti-item.is-expanded .esauriti-item-desc {
+    white-space: normal;
+    word-break: break-word;
+  }
+  
+  .esauriti-item-meta {
+    font-size: 0.72rem;
+    color: #888;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  
+  .esauriti-item-code {
+    color: #facc15;
+    font-family: monospace;
+    font-weight: 700;
+  }
+  
+  .esauriti-item-note {
+    font-size: 0.75rem;
+    color: #fb923c;
+    font-weight: 700;
+    margin-top: 4px;
+    /* Di default: tronca */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .esauriti-item.is-expanded .esauriti-item-note {
+    white-space: normal;
+    word-break: break-word;
+  }
+  
+  .esauriti-item-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .esauriti-item-qty {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #ddd;
+    background: #2a2a2a;
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+  
+  .esauriti-item-price {
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: #facc15;
+  }
+  
+  /* Mobile */
+  @media (max-width: 640px) {
+    .esauriti-item { padding: 9px 12px; }
+    .esauriti-item-desc { font-size: 0.82rem; }
+    .esauriti-item-meta { font-size: 0.68rem; }
+    .esauriti-item-qty { font-size: 0.72rem; padding: 1px 6px; }
+    .esauriti-item-price { font-size: 0.78rem; }
+    .esauriti-item-note { font-size: 0.7rem; }
+  }
+  /* ============================================================
+   🆕 STEP 3C — Lista risultati catalogo
+   ============================================================ */
+
+.esauriti-cat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a1a1a;
+    transition: background 0.12s ease;
+  }
+  .esauriti-cat-item:last-child { border-bottom: none; }
+  .esauriti-cat-item:hover { background: #1a1a1a; }
+  
+  .esauriti-cat-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .esauriti-cat-desc {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.25;
+  }
+  
+  .esauriti-cat-meta {
+    font-size: 0.72rem;
+    color: #888;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  
+  .esauriti-cat-code {
+    color: #facc15;
+    font-family: monospace;
+    font-weight: 700;
+  }
+  
+  .esauriti-cat-order {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    background: #facc15;
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0a;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 0.78rem;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .esauriti-cat-order:hover {
+    background: #fde047;
+    transform: scale(1.03);
+  }
+  .esauriti-cat-order:active { transform: scale(0.97); }
+  
+  /* Mobile */
+  @media (max-width: 640px) {
+    .esauriti-cat-item { padding: 9px 12px; gap: 8px; }
+    .esauriti-cat-desc { font-size: 0.82rem; }
+    .esauriti-cat-meta { font-size: 0.68rem; }
+    .esauriti-cat-order { padding: 7px 10px; font-size: 0.72rem; }
+  }

@@ -38,6 +38,9 @@ import { printDDT } from "../components/print-ddt.js";
 import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
 import { getClientByKey } from "../../data/client-repository.js";
 import { openFornitoriModal } from "../components/fornitori-modal.js";
+import { ESAURITI_FORNITORI } from "../components/esauriti-fornitori.js";
+import { openEsauritiModal } from "../components/esauriti-modal.js";
+import { openFornitoriTendina, openEsauritoPopup } from "../components/esauriti-helpers.js";
 
 let _user = null;
 let _cartId = null;
@@ -60,6 +63,7 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
      wireActionButtons();
      wireBottomButtons();
      wireFornitoriButton();
+     wireEsauritiButton();
      startOrdersCounter();
      wireOrdersDropdown();
      wireOrdersViewToggle();   // 🆕 toggle vista completa
@@ -300,7 +304,27 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
           });
         }
         else if (action === "order") {
-          showToast("Funzione Ordina: in arrivo nel Blocco 2B.5", "info");
+          // 🆕 Step 2A — tendina fornitori sotto al tasto 🛒
+          const anchorBtn = document.querySelector(
+            `.cart-line[data-line-id="${lineId}"] [data-action="order"]`
+          );
+          if (!anchorBtn) return;
+          openFornitoriTendina(anchorBtn, (fornitore) => {
+            openEsauritoPopup({
+              description: line.description,
+              fornitore,
+              initialQty: line.esauritoQty ?? 0,
+              initialNote: line.esauritoNote || "",
+              onConfirm: async (qty, note) => {
+                await updateLine(_cartId, lineId, {
+                  esauritoFornitore: fornitore,
+                  esauritoQty: qty,
+                  esauritoNote: note
+                });
+                showToast(`📦 Esaurito · ${fornitore.nome}`, "success");
+              }
+            });
+          });
         }
       }
    
@@ -380,9 +404,13 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
         // 🎨 LAVORO B — colore STABILE basato su hash dell'ID riga
         // (non cambia quando aggiungi altri articoli)
         const colorClass = `clr-${hashLineId(line.id) % 10}`;
+        // 🆕 Step 2B — bordo colorato se l'articolo è esaurito
+        const esauritoStyle = line.esauritoFornitore
+          ? `border-color:${line.esauritoFornitore.colore} !important;`
+          : "";
       
                      return `
-            <div class="cart-line ${colorClass}" data-line-id="${line.id}">
+              <div class="cart-line ${colorClass}" data-line-id="${line.id}" style="${esauritoStyle}">
               <div class="cart-line-grid">
 
                 <!-- Colonna 1: descrizione + codice cliccabile -->
@@ -393,6 +421,11 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
                   <button class="cart-line-code-toggle" data-action="toggle-actions" type="button" title="Mostra/nascondi tasti">
                     ${escapeHtml(line.code)} • ${escapeHtml(line.unit)}
                   </button>
+                  ${line.esauritoFornitore ? `
+                    <div class="cart-line-esaurito" style="color:${line.esauritoFornitore.colore};">
+                      📦 ESAURITO · ${escapeHtml(line.esauritoFornitore.nome)}
+                    </div>
+                  ` : ""}
                 </div>
 
                 <!-- Colonna 2: qty + unità + H×L + prezzo base -->
@@ -2175,3 +2208,61 @@ function updateOrdersTabStyle() {
     tab.classList.remove("is-full-view");
   }
 }
+
+/* ============================================
+   🆕 STEP 3C — Aggiunge/aggiorna esaurito da CATALOGO
+   Se l'articolo è già nel carrello → aggiorna la riga.
+   Se non c'è → aggiunge una nuova riga con l'esaurito.
+   ============================================ */
+
+export async function addOrUpdateEsaurito(articleKey, fornitore, qty, note) {
+     if (!_cartId || !_user) return false;
+   
+     const article = getArticleFromCache(articleKey);
+     if (!article) return false;
+   
+     // Cerca riga esistente
+     const existing = getLines().find(l => l.articleId === article.key);
+   
+     if (existing) {
+       await updateLine(_cartId, existing.id, {
+         esauritoFornitore: fornitore,
+         esauritoQty: qty,
+         esauritoNote: note
+       });
+       return true;
+     }
+   
+     // Nuova riga con esaurito
+     const lineId = newLineId();
+     const baseLine = createLineFromArticle(article, _user);
+     const line = computeLine({
+       ...baseLine,
+       esauritoFornitore: fornitore,
+       esauritoQty: qty,
+       esauritoNote: note
+     });
+     await addLine(_cartId, lineId, line);
+     return true;
+   }
+
+   /* ============================================
+   🆕 STEP 2B — POPUP CONFERMA ESAURITO
+   Qty (default 0) + Nota, entrambi opzionali.
+   Salva i dati direttamente sulla riga del carrello.
+   ============================================ */
+
+/* ============================================
+   🆕 STEP 3A — Tasto 📦 ESAUR. apre modale
+   ============================================ */
+
+   function wireEsauritiButton() {
+    const btn = document.getElementById("btnEsauriti");
+    if (!btn || btn._hasEsauritiListener) return;
+    btn._hasEsauritiListener = true;
+    btn.addEventListener("click", () => {
+      // 🆕 Passiamo la callback: la modale non importa banco-controller → no cicli
+      openEsauritiModal({ onAddEsaurito: addOrUpdateEsaurito });
+    });
+    console.log("✅ Pulsante ESAUR. collegato");
+  }

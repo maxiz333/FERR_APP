@@ -249,8 +249,12 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
           const isOpen   = _dayDetailOpen === dayKey;
 
           // 🆕 Contatore ordini del giorno (nel tab attivo)
-          const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
-          const countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
+          // Nel tab PRONTO: niente contatore (i pronti si vedono tutti, non per giorno)
+          let countHtml = "";
+          if (_activeFilter !== "pronto") {
+            const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
+            countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
+          }
 
           const classes = [
             "uff-day",
@@ -267,8 +271,9 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         }).join("");
 
         // 🆕 Riga dettaglio SOTTO la barra giorni (a tutta larghezza)
+        // Nel tab PRONTO: niente riepilogo (non filtra per giorno)
         let detailBar = "";
-        if (_activeDay && _dayDetailOpen && canSeeDetails) {
+        if (_activeFilter !== "pronto" && _activeDay && _dayDetailOpen && canSeeDetails) {
           const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === _activeDay);
           const ordini = dayOrders.filter(o => !o.invoiceNumber);
           const fatture = dayOrders.filter(o => o.invoiceNumber);
@@ -432,6 +437,9 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
       }
 
       function onDayClick(day) {
+        // Nel tab PRONTO il click sul giorno non fa nulla (i pronti si vedono tutti)
+        if (_activeFilter === "pronto") return;
+
         const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
 
         if (_activeDay === day) {
@@ -546,8 +554,9 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
           result = result.filter((o) => o.status === "pronto");
         }
    
-        // 🆕 Filtro per giorno
-        if (_activeDay) {
+        // 🆕 Filtro per giorno — NON applicato al tab PRONTO
+        // (i pronti si vedono sempre tutti, indipendentemente dal giorno)
+        if (_activeDay && _activeFilter !== "pronto") {
           result = result.filter((o) => dayKeyFromTs(o.createdAt) === _activeDay);
         }
       

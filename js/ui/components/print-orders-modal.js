@@ -154,7 +154,8 @@ export function openPrintOrdersModal({ orders, currentOrderId, filterLabel = "" 
      export function printOrders(orders) {
       if (!orders || orders.length === 0) return;
     
-      const html = orders.map(renderPrintOrder).join("");
+          // 🆕 Inverti l'ordine: il primo ordine va in cima, l'ultimo in fondo
+    const html = [...orders].reverse().map(renderPrintOrder).join("");
       const cssHref = new URL("assets/css/print.css", window.location.href).href;
     
       const fullHtml = `<!DOCTYPE html>
