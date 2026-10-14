@@ -456,3 +456,593 @@
     .esauriti-cat-meta { font-size: 0.68rem; }
     .esauriti-cat-order { padding: 7px 10px; font-size: 0.72rem; }
   }
+  /* ============================================================
+   🆕 STEP 4A.1 — Riga Nota + Invia & Archivia
+   ============================================================ */
+
+.esauriti-order-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 16px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+.esauriti-order-actions[hidden] { display: none !important; }
+
+.esauriti-note-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 0;
+}
+
+.esauriti-note-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.esauriti-note-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  min-width: 0;
+}
+.esauriti-note-input::placeholder { color: #666; }
+
+.esauriti-archive-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #22c55e;
+  border: none;
+  border-radius: 8px;
+  color: #0a0a0a;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 0.8rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+.esauriti-archive-btn:hover:not(:disabled) { background: #4ade80; }
+.esauriti-archive-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   🆕 STEP 4A.1 — Sezione "GIÀ ORDINATI (ultimi 5)"
+   ============================================================ */
+
+.esauriti-storico {
+  border-top: 2px solid #2a2a2a;
+  margin-top: 12px;
+  padding: 12px 0 4px;
+}
+
+.esauriti-storico-title {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #facc15;
+  text-transform: uppercase;
+  padding: 0 16px 8px;
+}
+
+.esauriti-storico-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.esauriti-storico-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1a1a1a;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #ccc;
+  transition: background 0.12s ease;
+}
+.esauriti-storico-item:last-child { border-bottom: none; }
+.esauriti-storico-item:hover { background: #1a1a1a; color: #fff; }
+
+.esauriti-storico-data {
+  font-family: monospace;
+  font-weight: 700;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.esauriti-storico-sep { color: #444; }
+
+.esauriti-storico-forn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.esauriti-storico-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.esauriti-storico-count {
+  color: #facc15;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* ============================================================
+   🆕 STEP 4A.1 — Modale conferma archiviazione
+   ============================================================ */
+
+.esauriti-archive-modal {
+  background: #14171b;
+  border-radius: 12px;
+  width: 92vw;
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.esauriti-archive-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 2px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.esauriti-archive-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.esauriti-archive-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.esauriti-archive-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.esauriti-archive-sub {
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.esauriti-archive-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.esauriti-archive-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.esauriti-archive-footer .btn {
+  padding: 9px 16px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ============================================================
+   🆕 STEP 4A.1 — Tabella archivio (comune a conferma + dettaglio)
+   ============================================================ */
+
+.esauriti-archivio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.esauriti-archivio-table thead th {
+  background: #1a1a1a;
+  color: #facc15;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a2a2a;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.esauriti-archivio-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #1a1a1a;
+  color: #ddd;
+  vertical-align: top;
+}
+.esauriti-archivio-table tr:last-child td { border-bottom: none; }
+
+.esauriti-archivio-table td.mono {
+  font-family: monospace;
+  color: #facc15;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.esauriti-archivio-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.esauriti-archivio-note {
+  font-size: 0.8rem;
+  color: #fb923c;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-top: 1px solid #2a2a2a;
+  background: rgba(251, 146, 60, 0.05);
+}
+
+/* ============================================================
+   🆕 STEP 4A.1 — Dettaglio archivio (Step 4A.2 aggiungerà stampa + CSV)
+   ============================================================ */
+
+.esauriti-archivio-detail {
+  background: #14171b;
+  border-radius: 12px;
+  width: 92vw;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.esauriti-archivio-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 2px solid #2a2a2a;
+  flex-wrap: wrap;
+}
+
+.esauriti-archivio-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.esauriti-archivio-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.esauriti-archivio-sub {
+  font-size: 0.75rem;
+  color: #888;
+  margin-left: auto;
+}
+
+.esauriti-archivio-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.esauriti-archivio-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.esauriti-archivio-todo {
+  font-size: 0.7rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .esauriti-order-actions { flex-wrap: wrap; padding: 8px 12px 10px; }
+  .esauriti-note-row { width: 100%; }
+  .esauriti-archive-btn { width: 100%; }
+  .esauriti-archivio-table { font-size: 0.72rem; }
+  .esauriti-archivio-table thead th,
+  .esauriti-archivio-table td { padding: 6px 8px; }
+}
+/* ============================================================
+   🆕 STEP 4A.2 — Nota articolo in tabella archivio
+   ============================================================ */
+
+   .esauriti-archivio-artnote {
+    font-size: 0.7rem;
+    color: #fb923c;
+    font-weight: 700;
+    margin-top: 3px;
+    font-style: italic;
+  }
+  /* ============================================================
+   🆕 STEP 4C — Menu contestuale item (Modifica/Elimina)
+   ============================================================ */
+
+.esauriti-item-menu {
+  position: fixed;
+  z-index: 10005;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 5px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  animation: esauritiMenuIn 0.12s ease;
+}
+
+@keyframes esauritiMenuIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.esauriti-item-menu-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 9px 12px;
+  text-align: left;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.esauriti-item-menu-btn:hover {
+  background: #2a2a2a;
+}
+
+.esauriti-item-menu-danger {
+  color: #f87171;
+}
+.esauriti-item-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* 🆕 Bottone cambio fornitore nel popup */
+.esaurito-popup-change {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.esaurito-popup-change:hover {
+  border-color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+}
+/* ============================================================
+   🆕 Mini-popup fornitori (Modifica / Aggiungi)
+   ============================================================ */
+
+   .forn-popup {
+    background: #14171b;
+    border-radius: 12px;
+    width: 92vw;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  }
+  
+  .forn-popup-header {
+    padding: 14px 18px;
+    font-size: 1rem;
+    font-weight: 900;
+    color: #facc15;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  
+  .forn-popup-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  
+  .forn-popup-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .forn-popup-field > span {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+  }
+  
+  .forn-popup-field input[type="text"] {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    outline: none;
+  }
+  .forn-popup-field input[type="text"]:focus {
+    border-color: #facc15;
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.15);
+  }
+  
+  .forn-popup-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .forn-popup-color-row input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: 2px solid #333;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px;
+  }
+  
+  .forn-popup-color-row span {
+    font-family: monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ccc;
+    letter-spacing: 0.5px;
+  }
+  
+  .forn-popup-actions {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid #2a2a2a;
+  }
+  
+  .forn-popup-actions .btn {
+    flex: 1;
+    padding: 10px 14px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  /* ============================================================
+   🆕 STEP 4D — Sezione "Dall'archivio" (ricerca estesa)
+   ============================================================ */
+
+.esauriti-arch-section {
+  border-top: 2px solid #2a2a2a;
+  margin-top: 12px;
+  padding: 12px 0 4px;
+}
+
+.esauriti-arch-title {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fb923c;
+  text-transform: uppercase;
+  padding: 0 16px 8px;
+}
+
+.esauriti-arch-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.esauriti-arch-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1a1a1a;
+  border-left: 3px solid #fb923c;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #ccc;
+  transition: background 0.12s ease;
+}
+.esauriti-arch-result:last-child { border-bottom: none; }
+.esauriti-arch-result:hover { background: #1a1a1a; color: #fff; }
+/* 🆕 Riga principale (data — fornitore — count) */
+.esauriti-arch-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.esauriti-arch-row-main .esauriti-storico-count {
+  margin-left: auto;
+}
+
+/* 🆕 Anteprima articoli che hanno fatto match */
+.esauriti-arch-preview {
+  font-size: 0.72rem;
+  color: #888;
+  font-style: italic;
+  padding-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.esauriti-arch-preview.esauriti-arch-note {
+  color: #fb923c;
+  font-style: normal;
+  font-weight: 700;
+}
+/* 🆕 STEP 4E — Data/ora + autore nella riga esaurito */
+.esauriti-item-when {
+  font-size: 0.68rem;
+  color: #666;
+  font-weight: 600;
+  margin-top: 2px;
+  letter-spacing: 0.2px;
+}

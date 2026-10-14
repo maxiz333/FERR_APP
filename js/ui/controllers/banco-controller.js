@@ -38,7 +38,7 @@ import { printDDT } from "../components/print-ddt.js";
 import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
 import { getClientByKey } from "../../data/client-repository.js";
 import { openFornitoriModal } from "../components/fornitori-modal.js";
-import { ESAURITI_FORNITORI } from "../components/esauriti-fornitori.js";
+import { ESAURITI_FORNITORI, loadFornitori } from "../components/esauriti-fornitori.js";
 import { openEsauritiModal } from "../components/esauriti-modal.js";
 import { openFornitoriTendina, openEsauritoPopup } from "../components/esauriti-helpers.js";
 
@@ -64,6 +64,9 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
      wireBottomButtons();
      wireFornitoriButton();
      wireEsauritiButton();
+
+     // 🆕 Carica fornitori da Firebase (in background)
+     loadFornitori().catch(err => console.error("loadFornitori:", err));
      startOrdersCounter();
      wireOrdersDropdown();
      wireOrdersViewToggle();   // 🆕 toggle vista completa
@@ -2210,41 +2213,26 @@ function updateOrdersTabStyle() {
 }
 
 /* ============================================
-   🆕 STEP 3C — Aggiunge/aggiorna esaurito da CATALOGO
-   Se l'articolo è già nel carrello → aggiorna la riga.
-   Se non c'è → aggiunge una nuova riga con l'esaurito.
+   🆕 STEP 4B — Aggiunge esaurito da CATALOGO
+   NON tocca il carrello. Va nel nodo esauriti/.
    ============================================ */
 
-export async function addOrUpdateEsaurito(articleKey, fornitore, qty, note) {
-     if (!_cartId || !_user) return false;
-   
-     const article = getArticleFromCache(articleKey);
-     if (!article) return false;
-   
-     // Cerca riga esistente
-     const existing = getLines().find(l => l.articleId === article.key);
-   
-     if (existing) {
-       await updateLine(_cartId, existing.id, {
-         esauritoFornitore: fornitore,
-         esauritoQty: qty,
-         esauritoNote: note
-       });
-       return true;
-     }
-   
-     // Nuova riga con esaurito
-     const lineId = newLineId();
-     const baseLine = createLineFromArticle(article, _user);
-     const line = computeLine({
-       ...baseLine,
-       esauritoFornitore: fornitore,
-       esauritoQty: qty,
-       esauritoNote: note
-     });
-     await addLine(_cartId, lineId, line);
-     return true;
-   }
+   export async function addOrUpdateEsaurito(articleKey, fornitore, qty, note) {
+    if (!_user) return false;
+  
+    const article = getArticleFromCache(articleKey);
+    if (!article) return false;
+  
+    const { addEsaurito } = await import("../../data/esauriti-repository.js");
+    await addEsaurito({
+      fornitore,
+      articolo: article,
+      qty,
+      note,
+      user: _user
+    });
+    return true;
+  }
 
    /* ============================================
    🆕 STEP 2B — POPUP CONFERMA ESAURITO
@@ -2261,8 +2249,74 @@ export async function addOrUpdateEsaurito(articleKey, fornitore, qty, note) {
     if (!btn || btn._hasEsauritiListener) return;
     btn._hasEsauritiListener = true;
     btn.addEventListener("click", () => {
-      // 🆕 Passiamo la callback: la modale non importa banco-controller → no cicli
-      openEsauritiModal({ onAddEsaurito: addOrUpdateEsaurito });
+      openEsauritiModal({
+        onAddEsaurito: addOrUpdateEsaurito,
+        onArchivia: rimuoviEsauritiPerFornitore
+      });
     });
     console.log("✅ Pulsante ESAUR. collegato");
+  }
+
+/* ============================================
+   🆕 STEP 4A.1 — Rimuove gli esauriti di un fornitore.
+   - Da carrello → scollega la riga + salva in archivio
+   - Da catalogo → rimuove dal nodo esauriti/ + salva in archivio
+   ============================================ */
+
+   async function rimuoviEsauritiPerFornitore(fornitore, articoli, note) {
+    if (!_user) return;
+  
+    const { archiviaEsauriti } = await import("../../data/esauriti-archivio-repository.js");
+    const { removeEsauritiByFornitore } = await import("../../data/esauriti-repository.js");
+  
+    // Prepara articoli completi per l'archivio
+    const lines = getLines();
+    const articoliCompleti = articoli.map(it => {
+      let supplierCode = it.supplierCode || "";
+      // Se è da carrello, arricchisci con supplierCode dalla cache
+      if (it.source === "carrello" && it.cartId && it.lineId) {
+        const line = lines.find(l => l.id === it.lineId);
+        if (line && line.articleId) {
+          const articleData = getArticleFromCache(line.articleId);
+          if (articleData && articleData.supplierCode) {
+            supplierCode = articleData.supplierCode;
+          }
+        }
+      }
+      return {
+        code: it.code,
+        supplierCode,
+        description: it.description,
+        note: it.note || "",
+        qty: it.qty,
+        unit: it.unit,
+        price: it.price
+      };
+    });
+  
+    // 1) Salva su archivio
+    await archiviaEsauriti({
+      fornitore,
+      articoli: articoliCompleti,
+      note,
+      user: _user
+    });
+  
+    // 2) Scollega dal carrello (solo gli item di origine "carrello")
+    if (_cartId) {
+      for (const line of lines) {
+        if (line.esauritoFornitore && line.esauritoFornitore.id === fornitore.id) {
+          await updateLine(_cartId, line.id, {
+            esauritoFornitore: null,
+            esauritoQty: null,
+            esauritoNote: null
+          });
+        }
+      }
+    }
+  
+    // 3) Rimuove dal nodo esauriti/ (solo quelli di origine "catalogo")
+    await removeEsauritiByFornitore(fornitore.id);
+  
+    console.log(`📦 Archiviati ${articoli.length} articoli per ${fornitore.nome}`);
   }

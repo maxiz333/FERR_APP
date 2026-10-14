@@ -90,74 +90,95 @@
    /* ---------- Popup conferma esaurito ---------- */
    
    export function openEsauritoPopup(opts) {
-     const {
-       description = "",
-       fornitore,
-       initialQty = 0,
-       initialNote = "",
-       onConfirm
-     } = opts || {};
-     if (!fornitore || typeof onConfirm !== "function") return;
-   
-     const overlay = document.createElement("div");
-     overlay.className = "fapp-modal-overlay";
-     overlay.innerHTML = `
-       <div class="fapp-modal-box esaurito-popup">
-         <div class="esaurito-popup-header" style="border-color:${fornitore.colore};">
-           <span class="esaurito-popup-dot" style="background:${fornitore.colore};"></span>
-           <span class="esaurito-popup-title">Esaurito · ${escapeHtml(fornitore.nome)}</span>
-         </div>
-   
-         <div class="esaurito-popup-body">
-           <div class="esaurito-popup-desc">${escapeHtml(description)}</div>
-   
-           <label class="esaurito-popup-field">
-             <span class="esaurito-popup-label">Quantità (opzionale)</span>
-             <input type="number" class="esaurito-popup-input" id="esauritoQty"
-                    value="${initialQty}" min="0" step="0.01" inputmode="decimal"
-                    placeholder="0">
-           </label>
-   
-           <label class="esaurito-popup-field">
-             <span class="esaurito-popup-label">Nota (opzionale)</span>
-             <textarea class="esaurito-popup-textarea" id="esauritoNote"
-                       rows="3" placeholder="Es. da ordinare entro venerdì...">${escapeHtml(initialNote)}</textarea>
-           </label>
-         </div>
-   
-         <div class="esaurito-popup-actions">
-           <button class="btn btn-outline" id="esauritoBtnCancel" type="button">Annulla</button>
-           <button class="btn btn-primary" id="esauritoBtnOk" type="button">Conferma</button>
-         </div>
-       </div>
-     `;
-     document.body.appendChild(overlay);
-   
-     const close = () => overlay.remove();
-   
-     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-     document.addEventListener("keydown", function esc(e) {
-       if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
-     });
-   
-     overlay.querySelector("#esauritoBtnCancel").addEventListener("click", close);
-   
-     overlay.querySelector("#esauritoBtnOk").addEventListener("click", async () => {
-       const qty = parseFloat(overlay.querySelector("#esauritoQty").value) || 0;
-       const note = overlay.querySelector("#esauritoNote").value.trim();
-       try {
-         await onConfirm(qty, note);
-         close();
-       } catch (err) {
-         console.error("Errore salvataggio esaurito:", err);
-       }
-     });
-   
-     setTimeout(() => {
-       const q = overlay.querySelector("#esauritoQty");
-       if (q) q.focus();
-     }, 50);
-   }
+    const {
+      description = "",
+      fornitore,
+      initialQty = 0,
+      initialNote = "",
+      allowFornitoreChange = false,
+      onConfirm
+    } = opts || {};
+    if (!fornitore || typeof onConfirm !== "function") return;
+  
+    let currentFornitore = fornitore;
+  
+    const overlay = document.createElement("div");
+    overlay.className = "fapp-modal-overlay";
+    overlay.innerHTML = `
+      <div class="fapp-modal-box esaurito-popup">
+        <div class="esaurito-popup-header" id="esauritoPopupHeader" style="border-color:${currentFornitore.colore};">
+          <span class="esaurito-popup-dot" id="esauritoPopupDot" style="background:${currentFornitore.colore};"></span>
+          <span class="esaurito-popup-title" id="esauritoPopupTitle">Esaurito · ${escapeHtml(currentFornitore.nome)}</span>
+          ${allowFornitoreChange ? `<button class="esaurito-popup-change" id="esauritoPopupChange" type="button" title="Cambia fornitore">🔄</button>` : ""}
+        </div>
+  
+        <div class="esaurito-popup-body">
+          <div class="esaurito-popup-desc">${escapeHtml(description)}</div>
+  
+          <label class="esaurito-popup-field">
+            <span class="esaurito-popup-label">Quantità (opzionale)</span>
+            <input type="number" class="esaurito-popup-input" id="esauritoQty"
+                   value="${initialQty}" min="0" step="0.01" inputmode="decimal"
+                   placeholder="0">
+          </label>
+  
+          <label class="esaurito-popup-field">
+            <span class="esaurito-popup-label">Nota (opzionale)</span>
+            <textarea class="esaurito-popup-textarea" id="esauritoNote"
+                      rows="3" placeholder="Es. da ordinare entro venerdì...">${escapeHtml(initialNote)}</textarea>
+          </label>
+        </div>
+  
+        <div class="esaurito-popup-actions">
+          <button class="btn btn-outline" id="esauritoBtnCancel" type="button">Annulla</button>
+          <button class="btn btn-primary" id="esauritoBtnOk" type="button">Conferma</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  
+    const close = () => overlay.remove();
+  
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", function esc(e) {
+      if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
+    });
+  
+    overlay.querySelector("#esauritoBtnCancel").addEventListener("click", close);
+  
+    // 🆕 Cambio fornitore
+    const changeBtn = overlay.querySelector("#esauritoPopupChange");
+    if (changeBtn) {
+      changeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openFornitoriTendina(changeBtn, (f) => {
+          currentFornitore = f;
+          const header = overlay.querySelector("#esauritoPopupHeader");
+          const dot = overlay.querySelector("#esauritoPopupDot");
+          const title = overlay.querySelector("#esauritoPopupTitle");
+          if (header) header.style.borderColor = f.colore;
+          if (dot) dot.style.background = f.colore;
+          if (title) title.textContent = `Esaurito · ${f.nome}`;
+        });
+      });
+    }
+  
+    overlay.querySelector("#esauritoBtnOk").addEventListener("click", async () => {
+      const qty = parseFloat(overlay.querySelector("#esauritoQty").value) || 0;
+      const note = overlay.querySelector("#esauritoNote").value.trim();
+      try {
+        await onConfirm(qty, note, currentFornitore);
+        close();
+      } catch (err) {
+        console.error("Errore salvataggio esaurito:", err);
+      }
+    });
+  
+    setTimeout(() => {
+      const q = overlay.querySelector("#esauritoQty");
+      if (q) q.focus();
+    }, 50);
+  }
    
    function escapeHtml(s) {
      return String(s || "")
