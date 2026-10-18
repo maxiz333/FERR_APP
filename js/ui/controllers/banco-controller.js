@@ -85,23 +85,14 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
         });
       }
     
-      // 🆕 Tasto F: modifica numero bolle
-      const btnF = document.getElementById("btnInvoiceNumber");
-      if (btnF && !btnF._hasFListener) {
-        btnF._hasFListener = true;
-        btnF.addEventListener("click", async () => {
-          const current = await peekNextInvoiceNumber();
-          const input = prompt("Numero prossima bolla:", current);
-          if (input === null) return;
-          const n = parseInt(input, 10);
-          if (!Number.isFinite(n) || n < 0) {
-            alert("Numero non valido");
-            return;
-          }
-          await setNextInvoiceNumber(n);
-          alert("✅ Prossima bolla: " + n);
-        });
-      }
+            // 🆕 Tasto F: impostazioni bolla
+            const btnF = document.getElementById("btnInvoiceNumber");
+            if (btnF && !btnF._hasFListener) {
+              btnF._hasFListener = true;
+              btnF.addEventListener("click", () => {
+                openInvoiceNumberModal();
+              });
+            }
    
      // Carica o crea il carrello attivo
      await ensureActiveCart();
@@ -615,6 +606,7 @@ let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true 
         }
       
         renderTotals();
+        updateBolButton(); // 🆕 Forza l'aggiornamento del tasto BOL
         scheduleTotalsSync();
       }
       
@@ -1220,6 +1212,11 @@ function updateBolButton() {
  * - Se già fatturato → ristampa
  * - Altrimenti → popup → genera numero → salva → stampa
  */
+/**
+ * Handler del tasto BOL.
+ * - Se già fatturato → ristampa
+ * - Altrimenti → chiede CLIENTE → conferma → genera numero → salva → stampa
+ */
 async function handleBolClick() {
   if (isEmpty()) {
     alert("Carrello vuoto");
@@ -1228,22 +1225,40 @@ async function handleBolClick() {
   const cart = getCart();
   const meta = cart?.meta || {};
 
-        // Già fatturato → il tasto è diventato "Stampa DDT" → stampa!
-        if (meta.invoiceNumber) {
-          let client = null;
-          if (meta.clientId) {
-            try { client = await getClientByKey(meta.clientId); } catch (e) {}
-          }
-          // 🆕 Usa il nuovo template DDT definitivo
-          printDDT({
-            cart: cart,
-            invoiceNumber: meta.invoiceNumber,
-            client: client
-          });
-          return;
-        }
+  // Già fatturato → il tasto è diventato "Stampa DDT" → stampa!
+  if (meta.invoiceNumber) {
+    let client = null;
+    if (meta.clientId) {
+      try { client = await getClientByKey(meta.clientId); } catch (e) {}
+    }
+    // Usa il nuovo template DDT definitivo
+    printDDT({
+      cart: cart,
+      invoiceNumber: meta.invoiceNumber,
+      client: client
+    });
+    return;
+  }
 
-  // Chiedi conferma con dialogo NATIVO
+  // 🆕 1) Apri il selettore cliente
+  const pick = await openClientPicker({
+    currentClientName: meta.clientName || "Cliente 1"
+  });
+
+  // Se l'utente annulla il selettore, fermiamo tutto
+  if (!pick) return;
+
+  // 🆕 2) Se ha scelto un cliente, salvalo sul carrello
+  if (pick.clientKey) {
+    try {
+      await updateClient(_cartId, pick.clientKey, pick.name);
+      meta.clientName = pick.name; // aggiorna in memoria per il messaggio
+    } catch (e) {
+      console.error("Errore salvataggio cliente:", e);
+    }
+  }
+
+  // 🆕 3) Ora chiedi conferma con il cliente corretto
   const clientName = meta.clientName || "Cliente 1";
   const preview = await peekNextInvoiceNumber();
   const ok = confirm(

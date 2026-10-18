@@ -2,149 +2,256 @@
    ARTICLE-REPOSITORY.JS
    CRUD articoli su Firebase.
    Unico punto di contatto con il nodo `articles`.
+   🆕 Aggiunta Cache Locale (IndexedDB) per velocizzare il caricamento.
    ============================================ */
 
-   import { db, ref, update, get, set, remove }
-   from "../core/firebase-init.js";
- import { extractSearchTokens } from "../core/file-parser.js";
- 
- const ARTICLES_PATH = "articles";
- const META_PATH = "meta/articles";
- 
- /**
-  * Sanitizza un codice per usarlo come chiave Firebase.
-  * Firebase non ammette . # $ [ ] /
-  */
- function sanitizeKey(code) {
-   return String(code)
-     .trim()
-     .replace(/[.#$\[\]\/]/g, "_");
- }
- 
- /**
-  * Importa un array di articoli su Firebase.
-  * Usa update multi-path a blocchi per efficienza.
-  *
-  * @param {Array} articles - Array di oggetti articolo
-  * @param {Function} onProgress - Callback(current, total, label)
-  */
- export async function importArticles(articles, onProgress) {
-   const BATCH_SIZE = 500;
-   const total = articles.length;
-   let processed = 0;
- 
-   const now = Date.now();
- 
-   for (let i = 0; i < total; i += BATCH_SIZE) {
-     const batch = articles.slice(i, i + BATCH_SIZE);
-     const updates = {};
- 
-     for (const art of batch) {
-       const key = sanitizeKey(art.code);
-       if (!key) continue;
- 
-       const tokens = extractSearchTokens(art.description, art.code);
- 
-       updates[`${ARTICLES_PATH}/${key}`] = {
-         code: art.code,
-         codeNorm: art.codeNorm,
-         type: art.type,
-         group: art.group,
-         hasSpecial: art.hasSpecial,
-         description: art.description,
-         descriptionLower: art.descriptionLower,
-         unit: art.unit,
-         stock: art.stock,
-         inventoried: art.inventoried,
-         basePrice: art.basePrice ?? 0,
-         totU: art.totU ?? 0,
-         mtRot: art.mtRot ?? 0,
-         kgPerUm: art.kgPerUm ?? 0,
-         supplier: art.supplier ?? null,
-         supplierCode: art.supplierCode ?? null,
-         category: art.category ?? null,
-         marca: art.marca ?? null,
-         position: art.position ?? null,
-         specs: art.specs ?? null,
-         priceHistory: art.priceHistory ?? {},
-         searchTokens: tokens,
-         updatedAt: now
+   import { db, ref, update, get, set, remove } from "../core/firebase-init.js";
+   import { extractSearchTokens } from "../core/file-parser.js";
+   
+   const ARTICLES_PATH = "articles";
+   const META_PATH = "meta/articles";
+   
+   // 🆕 Configurazione IndexedDB
+   const DB_NAME = "FerAppDB";
+   const DB_VERSION = 1;
+   const STORE_NAME = "articlesStore";
+   const CACHE_KEY = "all_articles_data";
+   
+   // 🆕 Inizializza il database locale
+   function openDB() {
+     return new Promise((resolve, reject) => {
+       const req = indexedDB.open(DB_NAME, DB_VERSION);
+       req.onupgradeneeded = (e) => {
+         const db = e.target.result;
+         if (!db.objectStoreNames.contains(STORE_NAME)) {
+           db.createObjectStore(STORE_NAME);
+         }
        };
-     }
- 
-     // Un solo update per l'intero blocco: atomico ed efficiente
-     await update(ref(db), updates);
- 
-     processed += batch.length;
-     if (onProgress) onProgress(processed, total);
+       req.onsuccess = () => resolve(req.result);
+       req.onerror = () => reject(req.error);
+     });
    }
- 
-   // Salva metadata
-   await update(ref(db, META_PATH), {
-     lastImportAt: now,
-     lastImportCount: total
-   });
- 
-   return { imported: total };
- }
- 
- /**
-  * Carica TUTTI gli articoli (versione leggera per cache locale).
-  * Ritorna un oggetto { key: { ...campi } }.
-  */
- export async function loadAllArticles() {
-   const snapshot = await get(ref(db, ARTICLES_PATH));
-   if (!snapshot.exists()) return {};
-   return snapshot.val();
- }
- 
- /**
-  * Carica un singolo articolo per codice.
-  */
- export async function getArticleByCode(code) {
-   const key = sanitizeKey(code);
-   const snapshot = await get(ref(db, `${ARTICLES_PATH}/${key}`));
-   return snapshot.exists() ? { key, ...snapshot.val() } : null;
- }
- 
- /**
-  * Aggiorna i campi di un articolo.
-  */
- export async function updateArticle(code, fields) {
-   const key = sanitizeKey(code);
-   await update(ref(db, `${ARTICLES_PATH}/${key}`), {
-     ...fields,
-     updatedAt: Date.now()
-   });
- }
- 
- /**
-  * Salva uno storico prezzi (max 5).
-  * Sposta il prezzo corrente nello storico prima di sovrascriverlo.
-  */
- export async function addPriceToHistory(code, oldPrice, source) {
-   const key = sanitizeKey(code);
-   const snap = await get(ref(db, `${ARTICLES_PATH}/${key}/priceHistory`));
-   const history = snap.exists() ? snap.val() : {};
- 
-   // Sposta tutto di 1 (0 → 1, 1 → 2, ecc.)
-   const newHistory = {};
-   const entries = Object.entries(history)
-     .sort((a, b) => (b[1].date || 0) - (a[1].date || 0));
- 
-   // Prendi i primi 4 più recenti e aggiungi il nuovo in testa
-   newHistory[0] = { price: oldPrice, date: Date.now(), source: source || "manual" };
-   entries.slice(0, 4).forEach(([_, v], idx) => {
-     newHistory[idx + 1] = v;
-   });
- 
-   await set(ref(db, `${ARTICLES_PATH}/${key}/priceHistory`), newHistory);
- }
- 
- /**
-  * Cancella tutti gli articoli (per reset completo).
-  */
- export async function deleteAllArticles() {
-   await remove(ref(db, ARTICLES_PATH));
-   await remove(ref(db, META_PATH));
- }
+   
+   // 🆕 Salva gli articoli nel database locale
+   async function saveToCache(data) {
+     try {
+       const db = await openDB();
+       return new Promise((resolve, reject) => {
+         const tx = db.transaction(STORE_NAME, "readwrite");
+         const store = tx.objectStore(STORE_NAME);
+         // Salviamo anche un timestamp per sapere quando è stato aggiornato
+         const req = store.put({ data, timestamp: Date.now() }, CACHE_KEY);
+         req.onsuccess = () => resolve();
+         req.onerror = () => reject(req.error);
+       });
+     } catch (e) {
+       console.warn("Errore salvataggio cache locale:", e);
+     }
+   }
+   
+   // 🆕 Legge gli articoli dal database locale
+   async function loadFromCache() {
+     try {
+       const db = await openDB();
+       return new Promise((resolve, reject) => {
+         const tx = db.transaction(STORE_NAME, "readonly");
+         const store = tx.objectStore(STORE_NAME);
+         const req = store.get(CACHE_KEY);
+         req.onsuccess = () => resolve(req.result);
+         req.onerror = () => reject(req.error);
+       });
+     } catch (e) {
+       console.warn("Errore lettura cache locale:", e);
+       return null;
+     }
+   }
+   
+   // 🆕 Cancella la cache locale
+   export async function clearArticlesCache() {
+     try {
+       const db = await openDB();
+       const tx = db.transaction(STORE_NAME, "readwrite");
+       tx.objectStore(STORE_NAME).delete(CACHE_KEY);
+       console.log("🧹 Cache locale articoli svuotata");
+     } catch (e) {
+       console.warn("Errore svuotamento cache:", e);
+     }
+   }
+   
+   /**
+    * Sanitizza un codice per usarlo come chiave Firebase.
+    */
+   function sanitizeKey(code) {
+     return String(code)
+       .trim()
+       .replace(/[.#$\[\]\/]/g, "_");
+   }
+   
+   /**
+    * Importa un array di articoli su Firebase.
+    */
+   export async function importArticles(articles, onProgress) {
+     const BATCH_SIZE = 500;
+     const total = articles.length;
+     let processed = 0;
+     const now = Date.now();
+   
+     for (let i = 0; i < total; i += BATCH_SIZE) {
+       const batch = articles.slice(i, i + BATCH_SIZE);
+       const updates = {};
+   
+       for (const art of batch) {
+         const key = sanitizeKey(art.code);
+         if (!key) continue;
+   
+         const tokens = extractSearchTokens(art.description, art.code);
+   
+         updates[`${ARTICLES_PATH}/${key}`] = {
+           code: art.code,
+           codeNorm: art.codeNorm,
+           type: art.type,
+           group: art.group,
+           hasSpecial: art.hasSpecial,
+           description: art.description,
+           descriptionLower: art.descriptionLower,
+           unit: art.unit,
+           stock: art.stock,
+           inventoried: art.inventoried,
+           basePrice: art.basePrice ?? 0,
+           totU: art.totU ?? 0,
+           mtRot: art.mtRot ?? 0,
+           kgPerUm: art.kgPerUm ?? 0,
+           supplier: art.supplier ?? null,
+           supplierCode: art.supplierCode ?? null,
+           category: art.category ?? null,
+           marca: art.marca ?? null,
+           position: art.position ?? null,
+           specs: art.specs ?? null,
+           priceHistory: art.priceHistory ?? {},
+           searchTokens: tokens,
+           updatedAt: now
+         };
+       }
+   
+       await update(ref(db), updates);
+   
+       processed += batch.length;
+       if (onProgress) onProgress(processed, total);
+     }
+   
+     await update(ref(db, META_PATH), {
+       lastImportAt: now,
+       lastImportCount: total
+     });
+   
+     // 🆕 Se abbiamo importato nuovi articoli, la cache non è più valida
+     await clearArticlesCache();
+   
+     return { imported: total };
+   }
+   
+   /**
+ * Carica TUTTI gli articoli.
+ * 🆕 Strategia "Stale-While-Revalidate":
+ * 1. Mostra SUBITO i dati dalla cache locale (anche se vecchi).
+ * 2. In sottofondo, scarica i dati freschi da Firebase e aggiorna la cache.
+ */
+export async function loadAllArticles(forceRefresh = false) {
+  // Se forziamo il refresh, saltiamo la cache e andiamo diretti su Firebase
+  if (forceRefresh) {
+    console.log("🔄 Aggiornamento forzato: scarico da Firebase...");
+    return await downloadAndCacheArticles();
+  }
+
+  // 1. Leggi dalla cache
+  const cached = await loadFromCache();
+  
+  if (cached && cached.data) {
+    console.log("⚡ Articoli caricati istantaneamente dalla cache locale!");
+    
+    // 🆕 2. Avvia l'aggiornamento in background (senza aspettare)
+    // Lo facciamo partire dopo 2 secondi per non intasare l'avvio della pagina
+    setTimeout(() => {
+      downloadAndCacheArticles().catch(err => console.warn("Sync background fallita:", err));
+    }, 2000);
+
+    return cached.data;
+  }
+
+  // 3. Se la cache è completamente vuota (prima volta in assoluto), scarica e basta
+  console.log("☁️ Prima apertura: cache vuota, scarico da Firebase (attendere)...");
+  return await downloadAndCacheArticles();
+}
+
+/**
+ * 🆕 Funzione di supporto: scarica da Firebase e salva in cache.
+ */
+async function downloadAndCacheArticles() {
+  try {
+    const t0 = performance.now();
+    const snapshot = await get(ref(db, ARTICLES_PATH));
+    if (!snapshot.exists()) return {};
+    
+    const data = snapshot.val();
+    const t1 = performance.now();
+    console.log(`☁️ Scaricati da Firebase in ${Math.round(t1 - t0)}ms`);
+    
+    await saveToCache(data);
+    console.log("💾 Cache locale aggiornata in background.");
+    
+    return data;
+  } catch (e) {
+    console.error("Errore download articoli:", e);
+    return {};
+  }
+}
+   
+   /**
+    * Carica un singolo articolo per codice.
+    */
+   export async function getArticleByCode(code) {
+     const key = sanitizeKey(code);
+     const snapshot = await get(ref(db, `${ARTICLES_PATH}/${key}`));
+     return snapshot.exists() ? { key, ...snapshot.val() } : null;
+   }
+   
+   /**
+    * Aggiorna i campi di un articolo.
+    */
+   export async function updateArticle(code, fields) {
+     const key = sanitizeKey(code);
+     await update(ref(db, `${ARTICLES_PATH}/${key}`), {
+       ...fields,
+       updatedAt: Date.now()
+     });
+   }
+   
+   /**
+    * Salva uno storico prezzi (max 5).
+    */
+   export async function addPriceToHistory(code, oldPrice, source) {
+     const key = sanitizeKey(code);
+     const snap = await get(ref(db, `${ARTICLES_PATH}/${key}/priceHistory`));
+     const history = snap.exists() ? snap.val() : {};
+   
+     const newHistory = {};
+     const entries = Object.entries(history)
+       .sort((a, b) => (b[1].date || 0) - (a[1].date || 0));
+   
+     newHistory[0] = { price: oldPrice, date: Date.now(), source: source || "manual" };
+     entries.slice(0, 4).forEach(([_, v], idx) => {
+       newHistory[idx + 1] = v;
+     });
+   
+     await set(ref(db, `${ARTICLES_PATH}/${key}/priceHistory`), newHistory);
+   }
+   
+   /**
+    * Cancella tutti gli articoli (per reset completo).
+    */
+   export async function deleteAllArticles() {
+     await remove(ref(db, ARTICLES_PATH));
+     await remove(ref(db, META_PATH));
+     // 🆕 Svuota anche la cache locale
+     await clearArticlesCache();
+   }

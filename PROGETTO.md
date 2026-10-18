@@ -2235,3 +2235,141 @@ Fine documento.
 
 **Ultima sessione**: 13/10/2026  
 **Versione attuale**: v2.10
+
+
+//////////////////////////______________________------------------------///////////////////////----------------//////////////////
+
+
+
+markdown
+---
+
+## 18. Sessione 14-15/10/2026 — Blocco Esauriti (ex Blocco 5)
+
+**Versione**: v2.10 → v2.11  
+**Data**: 14-15 ottobre 2026  
+**Sessione**: notturna + mattutina
+
+### 🆕 Blocco Esauriti (rimpiazza "Ordini Fornitori")
+
+Il Blocco 5 della roadmap si è evoluto in **"Esauriti"**: un sistema per gestire gli articoli da ordinare ai fornitori, separato dal flusso carrello/ordini/cassa.
+
+#### Funzionalità implementate
+
+**1. Tasto 📦 ESAUR. in banco**
+- Aggiunto in alto, grande quanto `+ NUOVO`
+- Tasti `📋 ORDINI` e `🗑 CESTINO` compattati (solo icona + badge sotto)
+- File: `banco.html`, `assets/css/banco.css`
+
+**2. Tendina fornitori dal carrello**
+- Il tasto 🛒 nella riga del carrello ora apre una tendina fornitori **sotto al tasto premuto** (fix posizionamento)
+- 7 fornitori di default: usag, as, vm, EuroBit, Maestri, AirCom, sabart
+- File: `js/ui/components/esauriti-helpers.js`, `js/ui/components/esauriti-fornitori.js`
+
+**3. Popup Qty + Nota (opzionali)**
+- Dopo aver scelto il fornitore, si apre un popup con:
+  - Quantità (default 0, opzionale)
+  - Nota (opzionale)
+- Conferma → l'articolo **resta nel carrello**, mostra scritta "📦 ESAURITO · nomefornitore" + **bordo colorato** del fornitore
+- Il popup ha il tasto 🔄 per cambiare fornitore (in fase di modifica)
+
+**4. Modale Esauriti (95% schermo)**
+- Apre dal tasto 📦 ESAUR.
+- **Switch**: `📦 Cerca negli Esauriti` / `🔍 Cerca nel Catalogo`
+- **Barra ricerca** + **tasti fornitori** con contatori
+- **Lista raggruppata per data** (Oggi, Ieri, dd mese)
+- **Click item** → espande (per leggere note lunghe)
+- **Doppio click (PC) / long-press 500ms (mobile)** → menu Modifica/Elimina
+- File: `js/ui/components/esauriti-modal.js`, `assets/css/esauriti.css`
+
+**5. Ricerca nel Catalogo**
+- Cerca tra i ~19.348 articoli (riuso `searchArticles`)
+- Ogni risultato ha un tasto **🛒 Ordina** → tendina fornitori → popup → conferma
+- **L'articolo NON viene aggiunto al carrello** (importante!)
+- Va nel nodo Firebase `esauriti/{autoId}` (separato dal carrello)
+
+**6. Due fonti di esauriti**
+- **Da carrello** → agganciato alla riga del carrello (campi `esauritoFornitore`, `esauritoQty`, `esauritoNote`)
+- **Da catalogo** → nodo Firebase `esauriti/` (indipendente da qualsiasi carrello)
+- La modale legge da entrambe e le unisce
+
+**7. Nota ordine + Invia & Archivia**
+- Quando selezioni un fornitore specifico (≠ "tutti"), compare in alto:
+  - Campo **nota** con ✏️ (per singolo invio, non persistente)
+  - Tasto **📨 Invia & Archivia · N art.**
+- Click → modale di conferma con tabella articoli
+- **🖨 Stampa** (anteprima A4 prima di confermare)
+- **✓ Sì, archivia** → salva tutto in `esauritiArchivio/` + scollega dal carrello + rimuove dal nodo `esauriti/`
+
+**8. Storico archivi (ultimi 5)**
+- In fondo alla modale, sezione **📚 GIÀ ORDINATI (ultimi 5)**
+- Formato riga: `2026-10-14 — ● usag — 11 art.`
+- Click → modale dettaglio archivio con tabella completa
+
+**9. Stampa A4 + CSV**
+- **Stampa**: anteprima A4 con intestazione "FERRAMENTA RATTAZZI · Ordine Fornitore", tabella articoli, nota ordine, footer "Totale articoli: N"
+- **CSV**: file scaricabile (separatore `;` per Excel italiano) con colonne: Cod.Mag, Cod.Form, Descrizione, Note, Q.tà, UM, Prezzo
+- Nota ordine + nota articolo visibili in entrambi
+
+**10. Gestione fornitori dinamica**
+- I fornitori non sono più hardcoded, ma salvati su Firebase in `config/fornitori/{id}`
+- **Doppio click (PC) / long-press (mobile)** su un tasto fornitore → menu Modifica/Elimina
+- **Modifica**: nome + colore (mini-popup)
+- **Elimina**: bloccato se ci sono esauriti attivi
+- **Tasto `+`**: aggiunge un nuovo fornitore (ID + nome + colore)
+
+**11. Ricerca estesa agli archivi**
+- La barra di ricerca cerca anche negli archivi completi (`esauritiArchivio/`)
+- Cerca in: fornitore, note, codice articolo, descrizione, codice fornitore
+- I risultati appaiono subito sotto gli esauriti attivi, sezione **📚 DALL'ARCHIVIO (N)**
+- Ogni riga mostra quali articoli hanno fatto match (anteprima)
+
+**12. Data/ora + autore**
+- Ogni riga esaurito mostra `🕒 dd/mm HH:MM · autore`
+
+### 🐛 Bug fix inclusi
+- **Tab PRONTO ignora filtro giorno**: i pronti si vedono sempre tutti, indipendentemente dal giorno selezionato (`ufficio-controller.js`)
+- **Stampa ordini invertita**: il primo ordine è in cima, l'ultimo in fondo (`print-orders-modal.js`)
+
+### 🗄️ Nodi Firebase nuovi
+esauriti/{autoId}/
+├─ fornitoreId, fornitoreNome, fornitoreColore
+├─ articleId, code, supplierCode, description, unit, price
+├─ qty, note
+└─ addedAt, addedBy { id, name }
+
+esauritiArchivio/{archiveId}/
+├─ fornitoreId, fornitoreNome, fornitoreColore
+├─ dataArchiviazione, note, archiviatoDa { id, name }
+├─ articoliCount
+└─ articoli/{autoId}/ { code, supplierCode, description, note, qty, unit, price }
+
+config/fornitori/{fornitoreId}/
+├─ nome
+└─ colore
+
+text
+
+### 📁 File creati
+- `js/data/esauriti-repository.js`
+- `js/data/esauriti-archivio-repository.js`
+- `js/data/fornitori-repository.js`
+- `js/ui/components/esauriti-fornitori.js`
+- `js/ui/components/esauriti-helpers.js`
+- `js/ui/components/esauriti-modal.js`
+- `assets/css/esauriti.css`
+
+### 📁 File modificati
+- `banco.html` (+ link esauriti.css)
+- `assets/css/banco.css`
+- `js/ui/controllers/banco-controller.js`
+- `js/ui/controllers/ufficio-controller.js` (fix PRONTO)
+- `js/ui/components/print-orders-modal.js` (fix stampa invertita)
+
+### 🔜 Cosa manca (futuro)
+- **Test mobile iPhone** (verificare modale 95%, popup, tendina su schermo piccolo)
+- Eventuale **indice Firebase** su `esauritiArchivio/dataArchiviazione` (quando ci saranno centinaia di archivi)
+- Possibile integrazione con **Blocco 10 (scaglioni)** per auto-apply degli sconti quantità
+
+**Ultima sessione**: 15/10/2026  
+**Versione attuale**: v2.11

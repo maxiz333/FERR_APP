@@ -115,21 +115,12 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
            console.log("✅ Pulsante FORNITORI collegato (ufficio)");
          }
 
-         // 🆕 Tasto F: modifica numero bolle
+         // 🆕 Tasto F: impostazioni bolla
          const btnF = document.getElementById("btnInvoiceNumber");
          if (btnF && !btnF._hasFListener) {
            btnF._hasFListener = true;
-           btnF.addEventListener("click", async () => {
-             const current = await peekNextInvoiceNumber();
-             const input = prompt("Numero prossima bolla:", current);
-             if (input === null) return;
-             const n = parseInt(input, 10);
-             if (!Number.isFinite(n) || n < 0) {
-               alert("Numero non valido");
-               return;
-             }
-             await setNextInvoiceNumber(n);
-             alert("✅ Prossima bolla: " + n);
+           btnF.addEventListener("click", () => {
+             openInvoiceNumberModal();
            });
          }
 

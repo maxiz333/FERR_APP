@@ -3,6 +3,7 @@
    Stampa DDT con template definitivo
    ============================================ */
 
+   import { getStampaSenzaNumero } from "../../data/impostazioni-repository.js";
    import { getClientByKey } from "../../data/client-repository.js";
 
    const TEMPLATE_PATH = 'templates/ddt-template.html';
@@ -74,7 +75,9 @@
        data.clientAddress || ''
      ].filter(Boolean).join(' ');
    
-     set('doc_numero', data.invoiceNumber ? String(data.invoiceNumber) : '');
+          // 🆕 Se flag "stampa senza numero" attivo → vuoto
+          const numeroDaStampare = data.stampaSenzaNumero ? '' : (data.invoiceNumber ? String(data.invoiceNumber) : '');
+          set('doc_numero', numeroDaStampare);
      set('doc_data', dataStr);
      set('ditta', data.clientName || '');
      set('residenza', resStr);
@@ -110,7 +113,9 @@
        if (line) {
          set(`r${i}_codici`,      line.code || '');
          set(`r${i}_descrizione`, line.description || '');
-         set(`r${i}_extra`,       formatEuro(line.unitPrice ?? line.basePrice ?? 0));
+                  // 🆕 Se il prezzo è 0, non stampare nulla
+                  const prezzo = Number(line.unitPrice ?? line.basePrice ?? 0);
+                  set(`r${i}_extra`, prezzo > 0 ? formatEuro(prezzo) : '');
          set(`r${i}_um`,          (line.unit || '').toUpperCase());
          set(`r${i}_quantita`,    formatQty(line.qty));
          set(`r${i}_prezzo`,      '');
@@ -232,6 +237,7 @@
    
      const meta = cart.meta || {};
      const lines = cart.lines || {};
+     const stampaSenzaNumero = await getStampaSenzaNumero();
    
      // 🆕 Se non mi è stato passato il cliente, lo scarico da Firebase
      let clientData = client;
@@ -249,15 +255,16 @@
      const doc = parser.parseFromString(templateHtml, 'text/html');
    
      const data = {
-       invoiceNumber:  invoiceNumber || meta.invoiceNumber,
-       clientName:     clientData?.name     || meta.clientName || '',
-       clientAddress:  clientData?.address  || '',
-       clientCity:     clientData?.city     || '',
-       clientProvince: clientData?.province || '',
-       note:           meta.note || '',
-       lines,
-       ...extraFields
-     };
+      invoiceNumber:  invoiceNumber || meta.invoiceNumber,
+      stampaSenzaNumero,            // 🆕 Aggiunto qui!
+      clientName:     clientData?.name     || meta.clientName || '',
+      clientAddress:  clientData?.address  || '',
+      clientCity:     clientData?.city     || '',
+      clientProvince: clientData?.province || '',
+      note:           meta.note || '',
+      lines,
+      ...extraFields
+    };
    
      fillTemplate(doc, data);
    

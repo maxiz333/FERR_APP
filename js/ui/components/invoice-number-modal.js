@@ -1,14 +1,18 @@
 /* ============================================================
    INVOICE-NUMBER-MODAL.JS — Blocco 7
-   Popup tasto F: modifica prossimo numero bolla
+   Popup tasto F: modifica numero bolla e flag "senza numero".
    ============================================================ */
 
    import { peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
-
+   import { getStampaSenzaNumero, setStampaSenzaNumero } from "../../data/impostazioni-repository.js";
+   
    export async function openInvoiceNumberModal() {
      let current = 2000;
+     let noNumber = false;
+   
      try {
        current = await peekNextInvoiceNumber();
+       noNumber = await getStampaSenzaNumero();
      } catch (e) {
        console.error(e);
      }
@@ -19,14 +23,19 @@
        overlay.innerHTML = `
          <div class="inv-num-modal">
            <div class="inv-num-header">
-             <span>📄 NUMERO BOLLE</span>
+             <span>📄 IMPOSTAZIONI BOLLA</span>
              <button class="inv-num-close" id="invNumClose" type="button">✕</button>
            </div>
            <div class="inv-num-body">
              <label class="inv-num-label">Prossima bolla sarà:</label>
              <input type="number" class="inv-num-input" id="invNumInput"
-                    value="${current}" min="1" step="1">
+                    value="${current}" min="0" step="1">
              <div class="inv-num-hint">Modifica se hai già stampato bolle a mano</div>
+             
+             <label class="inv-num-check-label">
+               <input type="checkbox" class="inv-num-check" id="invNumNoNumber" ${noNumber ? "checked" : ""}>
+               <span>Stampa senza numero (vale per tutti)</span>
+             </label>
            </div>
            <div class="inv-num-footer">
              <button class="inv-num-btn inv-num-cancel" id="invNumCancel" type="button">Annulla</button>
@@ -39,9 +48,9 @@
        const input = overlay.querySelector("#invNumInput");
    
        function cleanup() {
-         if (overlay.parentNode) overlay.parentNode.remove();
-         document.removeEventListener("keydown", onKeydown);
-       }
+        if (overlay) overlay.remove();
+        document.removeEventListener("keydown", onKeydown);
+      }
        function close(result) {
          cleanup();
          resolve(result);
@@ -55,6 +64,8 @@
    
        overlay.querySelector("#invNumSave").addEventListener("click", async () => {
          const n = parseInt(input.value, 10);
+         const isNoNum = overlay.querySelector("#invNumNoNumber").checked;
+   
          if (!Number.isFinite(n) || n < 0) {
            input.style.borderColor = "#ef4444";
            input.focus();
@@ -62,6 +73,7 @@
          }
          try {
            await setNextInvoiceNumber(n);
+           await setStampaSenzaNumero(isNoNum);
            close({ saved: true, number: n });
          } catch (e) {
            alert("Errore: " + e.message);
