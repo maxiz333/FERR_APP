@@ -15,6 +15,7 @@
     newLineId, formatEuro,
     isEmpty, canConfirm
   } from "../../domain/cart-service.js";
+  import { waitForArticlesDownload } from "../../data/article-repository.js";
     import {
       createCart, loadCart, listenCart, listenAllCarts, getCurrentCartId,
       setCurrentCartId, addLine, updateLine, deleteLine, updateTotals,
@@ -51,8 +52,11 @@ let _midnightTimer = null;
 let _ordersDropdownWired = false;
 let _openActionsLines = new Set();
 let _ordersFullView = false;
+let _bancoWeekOffset = 0;     // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
+let _bancoActiveDay = null;   // 🆕 Giorno selezionato nella barra
 let _orderNoteEditMode = false;   // 🆕 nota ordine: false = div giallo, true = textarea
-   
+let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
+
    export async function initBancoController() {
      _user = getSession();
      if (!_user) return;
@@ -1050,49 +1054,62 @@ async function sendDraftToOffice() {
  * Chiude il carrello e ne crea uno nuovo vuoto.
  */
 async function confirmOrder() {
-  // Nessuna validazione bloccante: il banco può inviare anche senza prezzi.
-// L'ufficio metterà i prezzi. (Vedi PROGETTO.md v2.2)
-// Solo avviso se carrello vuoto:
-if (isEmpty()) {
-  showToast("Carrello vuoto, niente da inviare", "error");
-  return;
-}
+  if (isEmpty()) {
+    showToast("Carrello vuoto, niente da inviare", "error");
+    return;
+  }
+
+  // 🛡️ BLOCCO ANTI-DOPPIO CLICK
+  if (_isSending) return;
+  _isSending = true;
 
   if (!confirm("Confermare l'ordine? Il carrello verrà chiuso e ne inizierà uno nuovo.")) {
+    _isSending = false;
     return;
   }
 
   try {
-    // 1) Stato finale: se era bozza → in_arrivo, altrimenti → nuovo
+    // 🛡️ 1. Aspetta che eventuali download in background finiscano
+    await waitForArticlesDownload();
+
     const cart = getCart();
     const currentStatus = cart?.meta?.status || "modifica";
     const finalStatus = currentStatus === "bozza" ? "in_arrivo" : "nuovo";
 
-    // 2) Aggiorna stato + blocca
+    // 2. Aggiorna stato su Firebase
     await updateStatus(_cartId, finalStatus);
 
-    // 🆕 Genera codice ordine se non esiste (anche senza bozza)
+    // 🛡️ 3. Verifica di sicurezza: aspettiamo che Firebase confermi la scrittura
+    const { db, ref, get } = await import("../../core/firebase-init.js");
+    const snap = await get(ref(db, `activeCarts/${_cartId}/meta/status`));
+    
+    if (!snap.exists() || snap.val() !== finalStatus) {
+      throw new Error("La connessione è instabile. Riprova.");
+    }
+
+    // 4. Genera codice ordine e mostra notifica
     const hasCode = cart?.meta?.orderCode;
     if (!hasCode) {
       try {
         const code = await generateOrderCode(_cartId);
-        console.log(`🎫 Codice ordine: #${code.number} - ${code.letter}`);
         showToast(`✅ Ordine confermato · #${code.number} - ${code.letter}`, "success");
       } catch (codeErr) {
-        console.error("Errore generazione codice:", codeErr);
         showToast(`✅ Ordine confermato (${finalStatus})`, "success");
       }
     } else {
       showToast(`✅ Ordine confermato (${finalStatus})`, "success");
     }
 
-    console.log("✅ Ordine confermato:", _cartId, "→", finalStatus);
+    console.log("✅ Ordine confermato e verificato su Firebase:", _cartId);
 
-    // 3) Passa a un nuovo carrello vuoto
+    // 5. Passa a un nuovo carrello vuoto
     await switchToNewCart();
   } catch (e) {
     console.error("Errore conferma ordine:", e);
-    showToast("Errore durante la conferma", "error");
+    alert("⚠️ Errore di rete: l'ordine NON è stato inviato.\nControlla la connessione e riprova.");
+  } finally {
+    // Sblocca il tasto alla fine
+    _isSending = false;
   }
 }
 
@@ -1521,14 +1538,21 @@ function renderOrdersDropdown() {
     toggleBtn.classList.toggle("is-full-view", _ordersFullView);
   }
 
-  // In base alla modalità filtra
+  // 🆕 Se in vista completa, inizializza il giorno se non c'è
+  if (_ordersFullView && !_bancoActiveDay) {
+    _bancoActiveDay = bancoDayKeyFromTs(Date.now());
+  }
+
   let visibleCarts;
+
   if (_ordersFullView) {
-    // Vista completa: tutti gli ordini, tutti gli stati
-    visibleCarts = _allCarts
-      .filter(c => Object.keys(c.lines || {}).length > 0);
+    // 🆕 Vista completa: TUTTI gli ordini (senza filtri), filtrati per il giorno scelto
+    visibleCarts = _allCarts.filter(c => Object.keys(c.lines || {}).length > 0);
+    if (_bancoActiveDay) {
+      visibleCarts = visibleCarts.filter(c => bancoDayKeyFromTs(c.meta?.createdAt || c.meta?.updatedAt) === _bancoActiveDay);
+    }
   } else {
-    // Vista normale
+    // Vista normale (solo oggi + vecchi aperti)
     visibleCarts = _allCarts.filter(isVisibleInDropdown);
   }
 
@@ -1537,32 +1561,197 @@ function renderOrdersDropdown() {
 
   if (countEl) countEl.textContent = String(visibleCarts.length);
 
-  if (visibleCarts.length === 0) {
-    listEl.innerHTML = `<div class="orders-empty">Nessun ordine</div>`;
-    return;
-  }
+  let html = "";
 
-  // Se vista completa → raggruppa per giorno
+  // 🆕 Se in vista completa, disegna la barra settimanale
   if (_ordersFullView) {
-    const grouped = groupCartsByDay(visibleCarts);
-    listEl.innerHTML = Object.entries(grouped)
-      .map(([dayLabel, carts]) => `
-        <div class="orders-day-group">
-          <div class="orders-day-header">${escapeHtml(dayLabel)}</div>
-          ${carts.map((cart) => renderDropdownItem(cart, true)).join("")}
-        </div>
-      `).join("");
-  } else {
-    // Vista normale → lista piatta
-    listEl.innerHTML = visibleCarts.map((cart) => renderDropdownItem(cart, false)).join("");
+    html += renderBancoWeekBar();
   }
 
-  // Listener click
+  if (visibleCarts.length === 0) {
+    html += `<div class="orders-empty">Nessun ordine per questo giorno</div>`;
+  } else {
+    html += visibleCarts.map((cart) => renderDropdownItem(cart, false)).join("");
+  }
+
+  listEl.innerHTML = html;
+
+  // 🆕 Listener per i bottoni dei giorni
+  if (_ordersFullView) {
+    listEl.querySelectorAll(".banco-week-btn").forEach(btn => {
+      const dayKey = btn.dataset.day;
+      let lastClick = 0;
+      
+      btn.addEventListener("click", (e) => {
+        const now = Date.now();
+        if (now - lastClick < 300) {
+          e.preventDefault();
+          e.stopPropagation();
+          openBancoWeekPicker(btn, dayKey);
+          lastClick = 0;
+        } else {
+          lastClick = now;
+          setTimeout(() => {
+            if (lastClick === now) {
+              _bancoActiveDay = dayKey;
+              renderOrdersDropdown();
+            }
+          }, 300);
+        }
+      });
+    });
+  }
+
+  // Listener click item
   listEl.querySelectorAll(".orders-dropdown-item").forEach((el) => {
     el.addEventListener("click", () => {
       handleOrderFromDropdown(el.dataset.cartId, el.dataset.status);
     });
   });
+}
+
+
+/* 🆕 Genera l'HTML della barra settimanale */
+function renderBancoWeekBar() {
+  const monday = bancoGetMondayOfWeek(_bancoWeekOffset);
+  const labels = ["Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab.", "D."];
+  const todayKey = bancoDayKeyFromTs(Date.now());
+
+  // Prendi tutti gli ordini per contare quanti ce ne sono per giorno
+  const allCarts = _allCarts.filter(c => Object.keys(c.lines || {}).length > 0);
+
+  const html = labels.map((label, i) => {
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+    const dayKey = bancoDayKeyFromTs(dayDate.getTime());
+
+    const isToday = dayKey === todayKey;
+    const isActive = _bancoActiveDay === dayKey;
+
+    let dayLabel = label;
+    if (_bancoWeekOffset === 1) dayLabel = `S. ${label}`;
+    else if (_bancoWeekOffset > 1) dayLabel = `${_bancoWeekOffset}° ${label}`;
+
+    const count = allCarts.filter(c => bancoDayKeyFromTs(c.meta?.createdAt || c.meta?.updatedAt) === dayKey).length;
+    const countHtml = count > 0 ? `<span class="banco-week-count">${count}</span>` : "";
+
+    const classes = [
+      "banco-week-btn",
+      isToday ? "is-today" : "",
+      isActive ? "is-active" : ""
+    ].filter(Boolean).join(" ");
+
+    return `<button class="${classes}" data-day="${dayKey}">${dayLabel}${countHtml}</button>`;
+  }).join("");
+
+  return `<div class="banco-week-bar">${html}</div>`;
+}
+
+/* 🆕 Helper per le date */
+function bancoDayKeyFromTs(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const g = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${g}`;
+}
+
+function bancoGetMondayOfWeek(offsetWeeks) {
+  const now = new Date();
+  const dow = now.getDay();
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMon - (offsetWeeks * 7));
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function bancoDayLabelShort(dayKey) {
+  const d = new Date(dayKey + "T00:00:00");
+  const names = ["Dom.", "Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab."];
+  return names[d.getDay()];
+}
+
+/* 🆕 Apre la tendina settimane scorse nel banco */
+let _bancoPickerEl = null;
+function openBancoWeekPicker(btn, dayKey) {
+  closeBancoWeekPicker();
+
+  const baseDate = new Date(dayKey + "T00:00:00");
+  const items = [];
+
+  for (let w = 0; w <= 4; w++) { // 🆕 Allineato all'Ufficio (4 settimane)
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() - (w * 7));
+    const key = bancoDayKeyFromTs(d.getTime());
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    
+    let weekLabel = "";
+    if (w === 0) weekLabel = "Questa sett. · ";
+    else if (w === 1) weekLabel = "S. ";
+    else weekLabel = `${w}° `;
+
+    items.push({
+      key,
+      label: `${weekLabel}${bancoDayLabelShort(key)} · ${dd}/${mm}`,
+      weekOffset: w
+    });
+  }
+
+  const picker = document.createElement("div");
+  picker.className = "banco-week-picker";
+  picker.innerHTML = items.map(it => `
+    <div class="banco-week-picker-item" data-day="${it.key}" data-offset="${it.weekOffset}">${it.label}</div>
+  `).join("");
+
+  document.body.appendChild(picker);
+  _bancoPickerEl = picker;
+
+  const r = btn.getBoundingClientRect();
+  picker.style.left = (r.left + r.width / 2) + "px";
+  picker.style.top = (r.bottom + 6) + "px";
+
+  picker.querySelectorAll(".banco-week-picker-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 🆕 Lettura sicura dei dati
+      const chosenDay = item.getAttribute("data-day");
+      const chosenOffset = parseInt(item.getAttribute("data-offset"), 10);
+      
+      _bancoActiveDay = chosenDay;
+      _bancoWeekOffset = chosenOffset;
+
+      // 🆕 Chiudi la tendina
+      closeBancoWeekPicker();
+
+      // 🆕 Aspetta un attimo prima di ridisegnare per evitare bug visivi
+      setTimeout(() => {
+        renderOrdersDropdown();
+      }, 50);
+    });
+  });
+
+  setTimeout(() => {
+    document.addEventListener("click", _closeBancoPickerOutside);
+  }, 10);
+}
+
+function closeBancoWeekPicker() {
+  if (_bancoPickerEl) {
+    _bancoPickerEl.remove();
+    _bancoPickerEl = null;
+  }
+  document.removeEventListener("click", _closeBancoPickerOutside);
+}
+
+function _closeBancoPickerOutside(e) {
+  if (_bancoPickerEl && !_bancoPickerEl.contains(e.target)) {
+    closeBancoWeekPicker();
+  }
 }
 
 /**
@@ -1574,7 +1763,7 @@ function renderDropdownItem(cart, showDate) {
   const status = cart.meta?.status || "modifica";
   const icon = getStatusIcon(status);
   const clientName = cart.meta?.clientName || "Cliente 1";
-  const time = formatTimeHHMM(cart.meta?.createdAt);
+  const time = formatTimeHHMM(cart.meta?.createdAt || cart.meta?.updatedAt);
   const total = formatEuro(cart.meta?.totals?.grandTotal || 0);
   const lineCount = Object.keys(cart.lines || {}).length;
 
@@ -1716,34 +1905,38 @@ function openOrderPreview(cartId) {
         const qty = Number(l.qty) || 0;
         const price = Number(l.unitPrice ?? l.basePrice) || 0;
         const total = Number(l.lineTotal) || 0;
+        const isEsaurito = l.esauritoFornitore;
+        const esauritoLabel = isEsaurito ? `<div style="color:${l.esauritoFornitore.colore}; font-size:10px; font-weight:bold; margin-top:2px;">📦 ESAURITO · ${escapeHtml(l.esauritoFornitore.nome)}</div>` : "";
+        const borderStyle = isEsaurito ? `border-left: 3px solid ${l.esauritoFornitore.colore};` : "";
+
         return `
-          <div class="banco-order-line">
+          <div class="banco-order-line" data-line-id="${l.id}" style="${borderStyle}">
             <span class="idx">${i + 1}.</span>
             <div class="desc">
               <div class="name">${escapeHtml(l.description || "")}</div>
               <div class="code">${escapeHtml(l.code || "")}</div>
+              ${esauritoLabel}
             </div>
             <span class="qty">${formatQty(qty)} ${escapeHtml((l.unit || "PZ").toLowerCase())}</span>
             <span class="price">${formatEuro(price)}</span>
             <span class="total">${formatEuro(total)}</span>
+            <button class="bo-btn-esaurito" data-line-id="${l.id}" type="button" title="Segna come esaurito">🛒</button>
           </div>
         `;
       }).join("");
 
-      const total = Number(meta.totals?.grandTotal) || 0;
+  const total = Number(meta.totals?.grandTotal) || 0;
+  const eyeHtml = renderEyeBanner(meta.seenBy);
 
-      // 🆕 Occhio condizionale: appare solo se qualcuno l'ha visto
-      const eyeHtml = renderEyeBanner(meta.seenBy);
-    
-      const overlay = document.createElement("div");
-      overlay.className = "fapp-modal-overlay";
-      overlay.innerHTML = `
-        <div class="fapp-modal-box banco-order-view">
-          <div class="banco-order-banner" data-status="${status}">
-            <span>${bannerInfo.text}</span>
-            ${eyeHtml}
-          </div>
-     
+  const overlay = document.createElement("div");
+  overlay.className = "fapp-modal-overlay";
+  overlay.innerHTML = `
+    <div class="fapp-modal-box banco-order-view">
+      <div class="banco-order-banner" data-status="${status}">
+        <span>${bannerInfo.text}</span>
+        ${eyeHtml}
+      </div>
+
       <div class="banco-order-client">${escapeHtml(
         meta.invoiceNumber
           ? `Fattura ${meta.invoiceNumber}${meta.clientName && meta.clientName !== "Cliente 1" ? " · " + meta.clientName : ""}`
@@ -1783,48 +1976,80 @@ function openOrderPreview(cartId) {
     if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
   });
 
-  // Pulsante ORDINI → chiude e riapre tendina (dopo 1 tick per evitare che il click fuori la richiuda subito)
+  // 🆕 Listener per il tasto CARRELLO (Esaurito)
+  overlay.querySelectorAll(".bo-btn-esaurito").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const lineId = btn.dataset.lineId;
+      const line = lines.find(x => x.id === lineId);
+      if (!line) return;
+
+      openFornitoriTendina(btn, (fornitore) => {
+        openEsauritoPopup({
+          description: line.description,
+          fornitore,
+          initialQty: line.esauritoQty ?? 0,
+          initialNote: line.esauritoNote || "",
+          onConfirm: async (qty, note) => {
+            try {
+              await updateLine(cartId, lineId, {
+                esauritoFornitore: fornitore,
+                esauritoQty: qty,
+                esauritoNote: note
+              });
+              showToast(`📦 Esaurito · ${fornitore.nome}`, "success");
+              close(); // Chiude la modale per aggiornare
+              setTimeout(() => openOrderPreview(cartId), 150); // La riapre aggiornata
+            } catch (err) {
+              console.error("Errore salvataggio esaurito:", err);
+              showToast("Errore salvataggio", "error");
+            }
+          }
+        });
+      });
+    });
+  });
+
+  // Pulsante ORDINI
   overlay.querySelector("#boBtnOrdini").addEventListener("click", (e) => {
     e.stopPropagation();
     close();
     setTimeout(() => openOrdersDropdown(), 10);
   });
 
-    // Pulsante STAMPA → usa il nuovo DDT se fatturato, altrimenti stampa lista
-    overlay.querySelector("#boBtnStampa").addEventListener("click", async () => {
-      // 🆕 Se l'ordine è fatturato → nuovo template DDT definitivo
-      if (meta.invoiceNumber) {
-        let client = null;
-        if (meta.clientId) {
-          try { client = await getClientByKey(meta.clientId); } catch (e) {}
-        }
-        printDDT({
-          cart: { meta, lines: cart.lines || {} },
-          invoiceNumber: meta.invoiceNumber,
-          client: client
-        });
-        showToast("🖨 Apertura DDT…", "info");
-        return;
+  // Pulsante STAMPA
+  overlay.querySelector("#boBtnStampa").addEventListener("click", async () => {
+    if (meta.invoiceNumber) {
+      let client = null;
+      if (meta.clientId) {
+        try { client = await getClientByKey(meta.clientId); } catch (e) {}
       }
+      printDDT({
+        cart: { meta, lines: cart.lines || {} },
+        invoiceNumber: meta.invoiceNumber,
+        client: client
+      });
+      showToast("🖨 Apertura DDT…", "info");
+      return;
+    }
 
-      // Altrimenti (non fatturato) → vecchia stampa lista ordini
-      const { printOrders } = await import("../components/print-orders-modal.js");
-      printOrders([{
-        id: cartId,
-        orderNumber: meta.orderNumber,
-        orderCode: meta.orderCode,
-        clientName: meta.clientName,
-        createdByName: meta.createdByName,
-        createdAt: meta.createdAt,
-        wasModified: meta.wasModified,
-        note: meta.note,
-        lines: cart.lines || {},
-        grandTotal: Number(meta.totals?.grandTotal) || 0
-      }]);
-      showToast("🖨 Apertura stampa…", "info");
-    });
+    const { printOrders } = await import("../components/print-orders-modal.js");
+    printOrders([{
+      id: cartId,
+      orderNumber: meta.orderNumber,
+      orderCode: meta.orderCode,
+      clientName: meta.clientName,
+      createdByName: meta.createdByName,
+      createdAt: meta.createdAt,
+      wasModified: meta.wasModified,
+      note: meta.note,
+      lines: cart.lines || {},
+      grandTotal: Number(meta.totals?.grandTotal) || 0
+    }]);
+    showToast("🖨 Apertura stampa…", "info");
+  });
 
-  // Pulsante TRASH → Blocco 8 (regola A: cestina solo se status = "modifica")
+  // Pulsante TRASH
   overlay.querySelector("#boBtnTrash").addEventListener("click", async () => {
     const st = meta.status || "modifica";
     if (st !== "modifica") {
@@ -1842,20 +2067,14 @@ function openOrderPreview(cartId) {
     }
   });
 
-  // Pulsante SBLOCCA → sblocca + carica nel banco come carrello attivo
+  // Pulsante SBLOCCA
   overlay.querySelector("#boBtnSblocca").addEventListener("click", async () => {
     if (!confirm("Sbloccare l'ordine per modificarlo?")) return;
     try {
-      // 1) Cambia stato + isLocked
       await updateStatus(cartId, "sbloccato");
       await updateLineLock(cartId, false);
-
-      // 2) Chiudi modale
       close();
-
-      // 3) Carica nel banco come carrello attivo
       await switchToCart(cartId);
-
       showToast("🔓 Ordine caricato nel banco", "success");
     } catch (err) {
       console.error("Errore sblocco:", err);
@@ -2213,6 +2432,13 @@ function hashLineId(id) {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       _ordersFullView = !_ordersFullView;
+      
+      // 🆕 Quando passi a "Tutti gli ordini", seleziona OGGI e settimana corrente
+      if (_ordersFullView) {
+        _bancoWeekOffset = 0;
+        _bancoActiveDay = bancoDayKeyFromTs(Date.now());
+      }
+      
       renderOrdersDropdown();
     });
   }

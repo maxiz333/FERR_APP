@@ -49,6 +49,7 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
    let _dayPickerKey = null;   // 🆕 dayKey del bottone con tendina settimane aperta
    let _dayPickerHandlers = null;
 let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
+let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
    
    /* ============================================
       INIT
@@ -144,7 +145,7 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
           status: meta.status || "modifica",
           clientName: meta.clientName || "Cliente 1",
           createdByName: meta.createdByName || "—",
-          createdAt: meta.createdAt || 0,
+          createdAt: meta.createdAt || meta.updatedAt || Date.now(),
           lineCount: meta.lineCount || 0,
           grandTotal: (meta.totals && meta.totals.grandTotal) || 0,
           isLocked: meta.isLocked || false,
@@ -208,124 +209,107 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         wireNoteInputs();
       }
 
-      /* 🆕 Barra giorni */
-      function renderDaysBar() {
-        const nav = document.getElementById("uffDays");
-        if (!nav) return;
-
-        // Ordini del tab attivo (esclusi "modifica")
-        const visibleOrders = _orders.filter((o) => o.status !== "modifica");
-        let tabOrders = visibleOrders;
-        if (_activeFilter === "nuovi") {
-          tabOrders = tabOrders.filter(o => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
-        } else if (_activeFilter === "fatti") {
-          tabOrders = tabOrders.filter(o => o.status === "fatto");
-        } else if (_activeFilter === "pronto") {
-          tabOrders = tabOrders.filter(o => o.status === "pronto");
-        }
-
-        // Lunedì di questa settimana
-        const monday = getMondayOfWeek(0);
-        const labels = ["Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab.", "D."];
-        const todayKey = dayKeyFromTs(Date.now());
-        const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
-
-        const html = labels.map((label, i) => {
-          const dayDate = new Date(monday);
-          dayDate.setDate(monday.getDate() + i);
-          const dayKey = dayKeyFromTs(dayDate.getTime());
-
-          const isToday  = dayKey === todayKey;
-          const isActive = _activeDay === dayKey;
-          const isOpen   = _dayDetailOpen === dayKey;
-
-          // 🆕 Contatore ordini del giorno (nel tab attivo)
-          // Nel tab PRONTO: niente contatore (i pronti si vedono tutti, non per giorno)
-          let countHtml = "";
-          if (_activeFilter !== "pronto") {
-            const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
-            countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
-          }
-
-          const classes = [
-            "uff-day",
-            isToday  ? "is-today"  : "",
-            isActive ? "is-active" : "",
-            isOpen   ? "is-open"   : ""
-          ].filter(Boolean).join(" ");
-
-          return `
-            <div class="uff-day-wrap">
-              <button class="${classes}" data-day="${dayKey}">${label}${countHtml}</button>
-            </div>
-          `;
-        }).join("");
-
-        // 🆕 Riga dettaglio SOTTO la barra giorni (a tutta larghezza)
-        // Nel tab PRONTO: niente riepilogo (non filtra per giorno)
-        let detailBar = "";
-        if (_activeFilter !== "pronto" && _activeDay && _dayDetailOpen && canSeeDetails) {
-          const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === _activeDay);
-          const ordini = dayOrders.filter(o => !o.invoiceNumber);
-          const fatture = dayOrders.filter(o => o.invoiceNumber);
-          const totOrdini = ordini.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
-          const totFatture = fatture.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
-          detailBar = `
-            <div class="uff-day-detail-bar">
-              <span class="udd-ico">📊</span>
-              <span class="udd-txt">${ordini.length} ordini <strong>${formatEuroUff(totOrdini)}</strong> · ${fatture.length} fatture <strong>${formatEuroUff(totFatture)}</strong></span>
-            </div>
-          `;
-        }
-
-        nav.innerHTML = html + detailBar;
-
-        // 🆕 Listener: click singolo + doppio click (PC) + long press (cell)
-        let clickTimer = null;
-        nav.querySelectorAll(".uff-day").forEach((btn) => {
-          const dayKey = btn.dataset.day;
-
-          // Click singolo (con delay per distinguere da doppio click)
-          btn.addEventListener("click", () => {
-            clearTimeout(clickTimer);
-            clickTimer = setTimeout(() => {
-              if (_dayPickerKey === dayKey) return; // tendina aperta su questo → ignora
-              onDayClick(dayKey);
-            }, 220);
-          });
-
-          // Doppio click (PC) → apre tendina settimane scorse
-          btn.addEventListener("dblclick", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            clearTimeout(clickTimer);
-            openWeekPicker(btn, dayKey);
-          });
-
-          // Long press (touch su cell)
-          let pressTimer = null;
-          btn.addEventListener("touchstart", () => {
-            pressTimer = setTimeout(() => {
-              clearTimeout(clickTimer);
-              openWeekPicker(btn, dayKey);
-            }, 500);
-          }, { passive: true });
-          const cancelPress = () => clearTimeout(pressTimer);
-          btn.addEventListener("touchend", cancelPress);
-          btn.addEventListener("touchmove", cancelPress);
-          btn.addEventListener("touchcancel", cancelPress);
-        });
-      }
-
+            /* 🆕 Barra giorni */
+            function renderDaysBar() {
+              const nav = document.getElementById("uffDays");
+              if (!nav) return;
+      
+              const visibleOrders = _orders.filter((o) => o.status !== "modifica");
+              let tabOrders = visibleOrders;
+              if (_activeFilter === "nuovi") {
+                tabOrders = tabOrders.filter(o => ["bozza", "nuovo", "in_arrivo", "sbloccato"].includes(o.status));
+              } else if (_activeFilter === "fatti") {
+                tabOrders = tabOrders.filter(o => o.status === "fatto");
+              } else if (_activeFilter === "pronto") {
+                tabOrders = tabOrders.filter(o => o.status === "pronto");
+              }
+      
+              const monday = getMondayOfWeek(_currentWeekOffset);
+              const labels = ["Lun.", "Mar.", "Mer.", "Gio.", "Ven.", "Sab.", "D."];
+              const todayKey = dayKeyFromTs(Date.now());
+              const canSeeDetails = ["papa", "mati", "massi"].includes(_user?.id);
+      
+              const html = labels.map((label, i) => {
+                const dayDate = new Date(monday);
+                dayDate.setDate(monday.getDate() + i);
+                const dayKey = dayKeyFromTs(dayDate.getTime());
+      
+                const isToday  = dayKey === todayKey;
+                const isActive = _activeDay === dayKey;
+                const isOpen   = _dayDetailOpen === dayKey;
+      
+                let countHtml = "";
+                if (_activeFilter !== "pronto") {
+                  const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
+                  countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
+                }
+      
+                // 🆕 Etichetta con indicazione settimana
+                let dayLabel = label;
+                if (_currentWeekOffset === 1) dayLabel = `S. ${label}`;
+                else if (_currentWeekOffset > 1) dayLabel = `${_currentWeekOffset}° ${label}`;
+      
+                const classes = [
+                  "uff-day",
+                  isToday  ? "is-today"  : "",
+                  isActive ? "is-active" : "",
+                  isOpen   ? "is-open"   : ""
+                ].filter(Boolean).join(" ");
+      
+                return `
+                  <div class="uff-day-wrap">
+                    <button class="${classes}" data-day="${dayKey}">${dayLabel}${countHtml}</button>
+                  </div>
+                `;
+              }).join("");
+      
+              let detailBar = "";
+              if (_activeFilter !== "pronto" && _activeDay && _dayDetailOpen && canSeeDetails) {
+                const dayOrders = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === _activeDay);
+                const ordini = dayOrders.filter(o => !o.invoiceNumber);
+                const fatture = dayOrders.filter(o => o.invoiceNumber);
+                const totOrdini = ordini.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+                const totFatture = fatture.reduce((s, o) => s + Number(o.grandTotal || 0), 0);
+                detailBar = `
+                  <div class="uff-day-detail-bar">
+                    <span class="udd-ico">📊</span>
+                    <span class="udd-txt">${ordini.length} ordini <strong>${formatEuroUff(totOrdini)}</strong> · ${fatture.length} fatture <strong>${formatEuroUff(totFatture)}</strong></span>
+                  </div>
+                `;
+              }
+      
+              nav.innerHTML = html + detailBar;
+      
+              nav.querySelectorAll(".uff-day").forEach((btn) => {
+                const dayKey = btn.dataset.day;
+                let lastClick = 0;
+      
+                btn.addEventListener("click", (e) => {
+                  const now = Date.now();
+                  if (now - lastClick < 300) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openWeekPicker(btn, dayKey);
+                    lastClick = 0;
+                  } else {
+                    lastClick = now;
+                    setTimeout(() => {
+                      if (lastClick === now) {
+                        if (_dayPickerKey === dayKey) return;
+                        onDayClick(dayKey);
+                      }
+                    }, 300);
+                  }
+                });
+              });
+            }
       /* 🆕 Apre la tendina con le 4 settimane scorse */
       function openWeekPicker(btn, dayKey) {
         closeWeekPicker();
 
-        // 🆕 Chiudi il riepilogo vendite se era aperto
         if (_dayDetailOpen) {
           _dayDetailOpen = null;
           refresh();
-          // 🆕 Il btn vecchio è stato distrutto dal refresh → rileggo dal DOM
           btn = document.querySelector(`.uff-day[data-day="${dayKey}"]`);
           if (!btn) return;
         }
@@ -335,55 +319,58 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         const baseDate = new Date(dayKey + "T00:00:00");
         const items = [];
 
-        for (let w = 1; w <= 4; w++) {
+        // 🆕 Ciclo da 0 (questa settimana) fino a 4 settimane fa
+        for (let w = 0; w <= 4; w++) {
           const d = new Date(baseDate);
           d.setDate(d.getDate() - (w * 7));
           const key = dayKeyFromTs(d.getTime());
           const dd = String(d.getDate()).padStart(2, "0");
           const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const weekLabel = w === 1 ? "scorso" : `${w} sett fa`;
+          
+          let weekLabel = "";
+          if (w === 0) weekLabel = "Questa sett. · ";
+          else if (w === 1) weekLabel = "S. ";
+          else weekLabel = `${w}° `;
+
           items.push({
             key,
-            label: `${dayLabelShort(key)} ${weekLabel} · ${dd}/${mm}`
+            label: `${weekLabel}${dayLabelShort(key)} · ${dd}/${mm}`,
+            weekOffset: w
           });
         }
 
         const picker = document.createElement("div");
         picker.className = "uff-week-picker";
         picker.innerHTML = items.map(it => `
-          <div class="uff-week-picker-item" data-day="${it.key}">${it.label}</div>
+          <div class="uff-week-picker-item" data-day="${it.key}" data-offset="${it.weekOffset}">${it.label}</div>
         `).join("");
 
         document.body.appendChild(picker);
 
-        // Posiziona sotto il bottone
         const r = btn.getBoundingClientRect();
         picker.style.left = (r.left + r.width / 2) + "px";
         picker.style.top = (r.bottom + 6) + "px";
 
-        // Click su una voce → salta a quel giorno
         picker.querySelectorAll(".uff-week-picker-item").forEach(item => {
           item.addEventListener("click", (e) => {
             e.stopPropagation();
             _activeDay = item.dataset.day;
+            _currentWeekOffset = parseInt(item.dataset.offset, 10);
             _dayDetailOpen = null;
             closeWeekPicker();
             refresh();
           });
         });
 
-        // Chiudi su click fuori (con delay per non intercettare il dblclick stesso)
         setTimeout(() => {
           _dayPickerHandlers = (e) => {
             const p = document.querySelector(".uff-week-picker");
             if (!p) return;
             if (p.contains(e.target)) return;
-            // 🆕 Chiudi anche se clicchi su un altro giorno
             closeWeekPicker();
           };
           document.addEventListener("click", _dayPickerHandlers);
 
-          // Esc per chiudere
           const escHandler = (e) => {
             if (e.key === "Escape") {
               closeWeekPicker();
@@ -416,13 +403,13 @@ let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
         return names[d.getDay()];
       }
 
-      /** 🆕 Ritorna il lunedì di questa settimana (offset 0 = settimana corrente) */
+      /** 🆕 Ritorna il lunedì della settimana (offset 0 = corrente, 1 = scorsa...) */
       function getMondayOfWeek(offsetWeeks) {
         const now = new Date();
         const dow = now.getDay(); // 0=dom, 1=lun, ..., 6=sab
         const diffToMon = dow === 0 ? -6 : 1 - dow;
         const monday = new Date(now);
-        monday.setDate(now.getDate() + diffToMon + (offsetWeeks * 7));
+        monday.setDate(now.getDate() + diffToMon - (offsetWeeks * 7)); // 🆕 MENO invece di PIÙ
         monday.setHours(0, 0, 0, 0);
         return monday;
       }

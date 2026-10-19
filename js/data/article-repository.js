@@ -17,6 +17,9 @@
    const STORE_NAME = "articlesStore";
    const CACHE_KEY = "all_articles_data";
    
+   // 🆕 Variabile per tenere traccia del download in corso
+   let _downloadPromise = null;
+   
    // 🆕 Inizializza il database locale
    function openDB() {
      return new Promise((resolve, reject) => {
@@ -39,7 +42,6 @@
        return new Promise((resolve, reject) => {
          const tx = db.transaction(STORE_NAME, "readwrite");
          const store = tx.objectStore(STORE_NAME);
-         // Salviamo anche un timestamp per sapere quando è stato aggiornato
          const req = store.put({ data, timestamp: Date.now() }, CACHE_KEY);
          req.onsuccess = () => resolve();
          req.onerror = () => reject(req.error);
@@ -144,67 +146,73 @@
        lastImportCount: total
      });
    
-     // 🆕 Se abbiamo importato nuovi articoli, la cache non è più valida
      await clearArticlesCache();
    
      return { imported: total };
    }
    
    /**
- * Carica TUTTI gli articoli.
- * 🆕 Strategia "Stale-While-Revalidate":
- * 1. Mostra SUBITO i dati dalla cache locale (anche se vecchi).
- * 2. In sottofondo, scarica i dati freschi da Firebase e aggiorna la cache.
- */
-export async function loadAllArticles(forceRefresh = false) {
-  // Se forziamo il refresh, saltiamo la cache e andiamo diretti su Firebase
-  if (forceRefresh) {
-    console.log("🔄 Aggiornamento forzato: scarico da Firebase...");
-    return await downloadAndCacheArticles();
-  }
-
-  // 1. Leggi dalla cache
-  const cached = await loadFromCache();
-  
-  if (cached && cached.data) {
-    console.log("⚡ Articoli caricati istantaneamente dalla cache locale!");
-    
-    // 🆕 2. Avvia l'aggiornamento in background (senza aspettare)
-    // Lo facciamo partire dopo 2 secondi per non intasare l'avvio della pagina
-    setTimeout(() => {
-      downloadAndCacheArticles().catch(err => console.warn("Sync background fallita:", err));
-    }, 2000);
-
-    return cached.data;
-  }
-
-  // 3. Se la cache è completamente vuota (prima volta in assoluto), scarica e basta
-  console.log("☁️ Prima apertura: cache vuota, scarico da Firebase (attendere)...");
-  return await downloadAndCacheArticles();
-}
-
-/**
- * 🆕 Funzione di supporto: scarica da Firebase e salva in cache.
- */
-async function downloadAndCacheArticles() {
-  try {
-    const t0 = performance.now();
-    const snapshot = await get(ref(db, ARTICLES_PATH));
-    if (!snapshot.exists()) return {};
-    
-    const data = snapshot.val();
-    const t1 = performance.now();
-    console.log(`☁️ Scaricati da Firebase in ${Math.round(t1 - t0)}ms`);
-    
-    await saveToCache(data);
-    console.log("💾 Cache locale aggiornata in background.");
-    
-    return data;
-  } catch (e) {
-    console.error("Errore download articoli:", e);
-    return {};
-  }
-}
+    * Carica TUTTI gli articoli.
+    * 1. Mostra SUBITO i dati dalla cache locale.
+    * 2. In sottofondo, scarica i dati freschi e salva la promessa.
+    */
+   export async function loadAllArticles(forceRefresh = false) {
+     if (forceRefresh) {
+       console.log("🔄 Aggiornamento forzato: scarico da Firebase...");
+       _downloadPromise = downloadAndCacheArticles();
+       return await _downloadPromise;
+     }
+   
+     const cached = await loadFromCache();
+     
+     if (cached && cached.data) {
+       console.log("⚡ Articoli caricati istantaneamente dalla cache locale!");
+       
+       // Avvia il download in background e salva la promessa globale
+       _downloadPromise = downloadAndCacheArticles().catch(err => console.warn("Sync background fallita:", err));
+       
+       return cached.data;
+     }
+   
+     console.log("☁️ Prima apertura: cache vuota, scarico da Firebase (attendere)...");
+     _downloadPromise = downloadAndCacheArticles();
+     return await _downloadPromise;
+   }
+   
+   /**
+    * 🆕 Funzione di supporto: scarica da Firebase e salva in cache.
+    */
+   async function downloadAndCacheArticles() {
+     try {
+       const t0 = performance.now();
+       const snapshot = await get(ref(db, ARTICLES_PATH));
+       if (!snapshot.exists()) return {};
+       
+       const data = snapshot.val();
+       const t1 = performance.now();
+       console.log(`☁️ Scaricati da Firebase in ${Math.round(t1 - t0)}ms`);
+       
+       await saveToCache(data);
+       console.log("💾 Cache locale aggiornata in background.");
+       
+       return data;
+     } catch (e) {
+       console.error("Errore download articoli:", e);
+       return {};
+     }
+   }
+   
+   /**
+    * 🆕 Permette ad altre funzioni (es. invio ordine) di aspettare
+    * che il download in background finisca prima di procedere.
+    */
+   export async function waitForArticlesDownload() {
+     if (_downloadPromise) {
+       console.log("⏳ Attendo il completamento del download in corso...");
+       await _downloadPromise;
+       console.log("✅ Download completato, procedo con l'invio.");
+     }
+   }
    
    /**
     * Carica un singolo articolo per codice.
@@ -252,6 +260,5 @@ async function downloadAndCacheArticles() {
    export async function deleteAllArticles() {
      await remove(ref(db, ARTICLES_PATH));
      await remove(ref(db, META_PATH));
-     // 🆕 Svuota anche la cache locale
      await clearArticlesCache();
    }
