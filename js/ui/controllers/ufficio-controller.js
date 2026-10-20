@@ -145,7 +145,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
           status: meta.status || "modifica",
           clientName: meta.clientName || "Cliente 1",
           createdByName: meta.createdByName || "—",
-          createdAt: meta.createdAt || meta.updatedAt || Date.now(),
+          createdAt: safeTs(meta.createdAt || meta.updatedAt),
           lineCount: meta.lineCount || 0,
           grandTotal: (meta.totals && meta.totals.grandTotal) || 0,
           isLocked: meta.isLocked || false,
@@ -240,7 +240,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
       
                 let countHtml = "";
                 if (_activeFilter !== "pronto") {
-                  const count = tabOrders.filter(o => dayKeyFromTs(o.createdAt) === dayKey).length;
+                  const count = tabOrders.filter(o => dayKeyFromTs(safeTs(o.createdAt)) === dayKey).length;
                   countHtml = count > 0 ? `<span class="uff-day-count">${count}</span>` : "";
                 }
       
@@ -535,7 +535,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
         // 🆕 Filtro per giorno — NON applicato al tab PRONTO
         // (i pronti si vedono sempre tutti, indipendentemente dal giorno)
         if (_activeDay && _activeFilter !== "pronto") {
-          result = result.filter((o) => dayKeyFromTs(o.createdAt) === _activeDay);
+          result = result.filter((o) => dayKeyFromTs(safeTs(o.createdAt)) === _activeDay);
         }
       
         if (_searchQuery) {
@@ -1243,4 +1243,9 @@ function showToastUff(msg) {
 function formatQtyNotif(q) {
   const n = Number(q) || 0;
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
+}
+
+function safeTs(ts) {
+  if (typeof ts === "number" && !isNaN(ts)) return ts;
+  return Date.now();
 }

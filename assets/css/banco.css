@@ -2694,3 +2694,49 @@ body:has(.banco-search.is-code-mode) .cart-area {
     background: #2a2a2a;
     color: var(--primary);
   }
+  /* ============================================================
+   🆕 LOADER GLOBALE
+   ============================================================ */
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.app-loader[hidden] { display: none !important; }
+
+.app-loader-box {
+  background: #1a1a1a;
+  padding: 24px 32px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid #333;
+}
+
+.app-loader-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(250, 204, 21, 0.2);
+  border-top-color: #facc15;
+  border-radius: 50%;
+  animation: appSpin 0.8s linear infinite;
+}
+
+@keyframes appSpin {
+  to { transform: rotate(360deg); }
+}
+
+.app-loader-text {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+}

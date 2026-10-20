@@ -61,6 +61,8 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
      _user = getSession();
      if (!_user) return;
    
+     showLoader("Caricamento articoli...");
+
      // Inizializza search bar
      initSearchBar(onArticleSelected);
 
@@ -102,6 +104,7 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
      await ensureActiveCart();
    
      console.log("🎛 Banco controller attivo");
+     hideLoader(); 
    }
    
    /* ============================================
@@ -1017,35 +1020,52 @@ function wireActionButtons() {
  * 📤 Invia la bozza all'ufficio.
  * Il carrello resta aperto per aggiungere altri articoli.
  */
+
 async function sendDraftToOffice() {
   if (isEmpty()) {
     showToast("Carrello vuoto, niente da inviare", "error");
     return;
   }
 
-  try {
-    await updateStatus(_cartId, "bozza");
+  if (_isSending) return; // 🛡️ Blocco anti-doppio click
+  _isSending = true;
+  showLoader("Invio bozza in corso...");
 
-    // 🎫 Genera codice ordine (Blocco 3.7)
+  try {
+    // 🛡️ 1. Aspetta il download
+    await waitForArticlesDownload();
+
+    // 🛡️ 2. Transazione bloccante per la bozza
+    const { db, ref, runTransaction } = await import("../../core/firebase-init.js");
+    const result = await runTransaction(ref(db, `activeCarts/${_cartId}/meta/status`), () => {
+      return "bozza";
+    });
+    
+    if (!result.committed) {
+      throw new Error("Il server non ha confermato la bozza. Riprova.");
+    }
+
+    // 3. Genera codice ordine (se non c'è)
     const cart = getCart();
     const hasCode = cart?.meta?.orderCode;
     if (!hasCode) {
       try {
         const code = await generateOrderCode(_cartId);
-        console.log(`🎫 Codice ordine: #${code.number} - ${code.letter}`);
         showToast(`📤 Bozza inviata · #${code.number} - ${code.letter}`, "success");
       } catch (codeErr) {
-        console.error("Errore generazione codice:", codeErr);
         showToast("📤 Bozza inviata all'ufficio", "success");
       }
     } else {
       showToast("📤 Bozza inviata all'ufficio", "success");
     }
 
-    console.log("📤 Bozza inviata, cartId:", _cartId);
+    console.log("📤 Bozza inviata e verificata:", _cartId);
   } catch (e) {
     console.error("Errore invio bozza:", e);
-    showToast("Errore invio bozza", "error");
+    alert("⚠️ Errore di rete: la bozza NON è stata inviata.\nControlla la connessione e riprova.");
+  } finally {
+    _isSending = false;
+    hideLoader();
   }
 }
 
@@ -1063,6 +1083,8 @@ async function confirmOrder() {
   if (_isSending) return;
   _isSending = true;
 
+  showLoader("Invio ordine in corso...");
+
   if (!confirm("Confermare l'ordine? Il carrello verrà chiuso e ne inizierà uno nuovo.")) {
     _isSending = false;
     return;
@@ -1079,12 +1101,14 @@ async function confirmOrder() {
     // 2. Aggiorna stato su Firebase
     await updateStatus(_cartId, finalStatus);
 
-    // 🛡️ 3. Verifica di sicurezza: aspettiamo che Firebase confermi la scrittura
-    const { db, ref, get } = await import("../../core/firebase-init.js");
-    const snap = await get(ref(db, `activeCarts/${_cartId}/meta/status`));
+    // 🛡️ 3. Transazione bloccante: il server DEVE confermare
+    const { db, ref, runTransaction } = await import("../../core/firebase-init.js");
+    const result = await runTransaction(ref(db, `activeCarts/${_cartId}/meta/status`), () => {
+      return finalStatus;
+    });
     
-    if (!snap.exists() || snap.val() !== finalStatus) {
-      throw new Error("La connessione è instabile. Riprova.");
+    if (!result.committed) {
+      throw new Error("Il server non ha confermato l'ordine. Riprova.");
     }
 
     // 4. Genera codice ordine e mostra notifica
@@ -1110,6 +1134,7 @@ async function confirmOrder() {
   } finally {
     // Sblocca il tasto alla fine
     _isSending = false;
+    hideLoader();
   }
 }
 
@@ -1454,7 +1479,7 @@ async function switchToCart(cartId) {
     // Ordini di OGGI → sempre visibili
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    if ((meta.createdAt || 0) >= startOfToday.getTime()) return true;
+    if (safeTs(meta.createdAt || meta.updatedAt) >= startOfToday.getTime()) return true;
 
     // Ordini VECCHI → solo se modifica o bozza
     const st = meta.status || "modifica";
@@ -1632,7 +1657,7 @@ function renderBancoWeekBar() {
     if (_bancoWeekOffset === 1) dayLabel = `S. ${label}`;
     else if (_bancoWeekOffset > 1) dayLabel = `${_bancoWeekOffset}° ${label}`;
 
-    const count = allCarts.filter(c => bancoDayKeyFromTs(c.meta?.createdAt || c.meta?.updatedAt) === dayKey).length;
+    const count = allCarts.filter(c => bancoDayKeyFromTs(safeTs(c.meta?.createdAt || c.meta?.updatedAt)) === dayKey).length;
     const countHtml = count > 0 ? `<span class="banco-week-count">${count}</span>` : "";
 
     const classes = [
@@ -1763,7 +1788,7 @@ function renderDropdownItem(cart, showDate) {
   const status = cart.meta?.status || "modifica";
   const icon = getStatusIcon(status);
   const clientName = cart.meta?.clientName || "Cliente 1";
-  const time = formatTimeHHMM(cart.meta?.createdAt || cart.meta?.updatedAt);
+  const time = formatTimeHHMM(safeTs(cart.meta?.createdAt || cart.meta?.updatedAt));
   const total = formatEuro(cart.meta?.totals?.grandTotal || 0);
   const lineCount = Object.keys(cart.lines || {}).length;
 
@@ -1819,7 +1844,7 @@ function groupCartsByDay(carts) {
   const yesterday = today - 24 * 60 * 60 * 1000;
 
   for (const c of carts) {
-    const ts = c.meta?.createdAt || 0;
+    const ts = safeTs(c.meta?.createdAt || c.meta?.updatedAt);
     const d = new Date(ts);
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
@@ -1857,8 +1882,7 @@ function getClientIcon(status, wasModified) {
 }
 
 function formatTimeHHMM(ms) {
-  if (!ms) return "--:--";
-  const d = new Date(ms);
+  const d = new Date(safeTs(ms));
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${hh}:${mm}`;
@@ -2560,4 +2584,23 @@ function updateOrdersTabStyle() {
     await removeEsauritiByFornitore(fornitore.id);
   
     console.log(`📦 Archiviati ${articoli.length} articoli per ${fornitore.nome}`);
+  }
+
+  function safeTs(ts) {
+    if (typeof ts === "number" && !isNaN(ts)) return ts;
+    return Date.now();
+  }
+
+  export function showLoader(msg = "Caricamento...") {
+    const loader = document.getElementById("appLoader");
+    const text = document.getElementById("appLoaderText");
+    if (loader && text) {
+      text.textContent = msg;
+      loader.removeAttribute("hidden");
+    }
+  }
+  
+  export function hideLoader() {
+    const loader = document.getElementById("appLoader");
+    if (loader) loader.setAttribute("hidden", "");
   }
