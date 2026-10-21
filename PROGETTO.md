@@ -1793,7 +1793,7 @@ Firebase Console	https://console.firebase.google.com/project/ferr-app-5e277
 GitHub Repo	https://github.com/maxiz333/FERR_APP
 GitHub Pages	https://maxiz333.github.io/FERR_APP/
 Live Server	porta 5500
-16. Blocchi in Dettaglio
+
 16.1 🔤 BLOCCO 3.7 — Codice Ordine + Anti-Truffa
 ✅ PARTE 1 — COMPLETATA (30/09/2026)
 
@@ -2076,6 +2076,8 @@ Loader: Overlay #appLoader in banco.html. showLoader(msg) / hideLoader().
 Navigazione Settimane: Barra Lun-Dom in banco e ufficio con tendina per settimane passate.
 
 Tasto 🛒 in Anteprima Ordine: aggiunge esaurito senza sbloccare l'ordine.
+
+
 
 17. Cronologia Modifiche
 Data	Modifica

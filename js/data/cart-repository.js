@@ -5,7 +5,7 @@
    tra Banco e Ufficio.
    ============================================ */
 
-   import { db, ref, set, update, get, onValue, off, remove, serverTimestamp }
+   import { db, ref, set, update, get, onValue, off, remove }
    from "../core/firebase-init.js";
    
    const CARTS_PATH = "activeCarts";
@@ -41,6 +41,7 @@
     */
    export async function createCart(user, clientId, clientName) {
      const cartId = newCartId(user);
+     const now = Date.now();
    
      const meta = {
        clientId: clientId || null,
@@ -49,8 +50,8 @@
        note: "",
        createdBy: user.id,
        createdByName: user.name,
-       createdAt: serverTimestamp(), // 🆕 Ora del server
-       updatedAt: serverTimestamp(), // 🆕 Ora del server
+       createdAt: now, // 🆕 Ora locale istantanea
+       updatedAt: now, // 🆕 Ora locale istantanea
        lineCount: 0,
        totals: { subtotal: 0, discount: 0, grandTotal: 0 }
      };
@@ -113,7 +114,7 @@
    export async function updateLine(cartId, lineId, fields) {
      await update(ref(db, `${CARTS_PATH}/${cartId}/lines/${lineId}`), {
        ...fields,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -136,7 +137,7 @@
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta/totals`), totals);
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        lineCount: totals.lineCount,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -146,7 +147,7 @@
    export async function updateNote(cartId, note) {
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        note: note,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -157,7 +158,7 @@
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        clientId: clientId || null,
        clientName: clientName || "Cliente 1",
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -172,7 +173,7 @@
    export async function updateStatus(cartId, status) {
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        status: status,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -182,7 +183,7 @@
    export async function lockCart(cartId) {
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        isLocked: true,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -192,7 +193,7 @@
    export async function updateLineLock(cartId, isLocked) {
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        isLocked: isLocked,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -214,7 +215,7 @@
      // 4) Ok, scrivi il flag
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        wasModified: true,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    }
    
@@ -232,7 +233,7 @@
      // Copia nel cestino
      await set(ref(db, `trash/carts/${cartId}`), {
        ...cartData,
-       trashedAt: serverTimestamp() // 🆕 Ora del server
+       trashedAt: Date.now() // 🆕 Ora locale
      });
    
      // Elimina dall'attivo
@@ -292,7 +293,7 @@
      await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
        orderNumber: newNumber,
        orderCode: letter,
-       updatedAt: serverTimestamp() // 🆕 Ora del server
+       updatedAt: Date.now() // 🆕 Ora locale
      });
    
      return { number: newNumber, letter };
@@ -415,7 +416,7 @@
      try {
        const path = `${CARTS_PATH}/${cartId}/meta/seenBy/${userId}`;
        const snap = await get(ref(db, path));
-       const now = Date.now(); // Qui va bene Date.now() per il confronto locale dei 60s
+       const now = Date.now();
        if (snap.exists()) {
          const prev = Number(snap.val()) || 0;
          if (now - prev < 60000) return;
