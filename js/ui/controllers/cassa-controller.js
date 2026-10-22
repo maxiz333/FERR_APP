@@ -4,7 +4,7 @@
    ============================================ */
 
    import { renderOrders, isEditMode, setEditMode, getCurrentDetailId, closeDetail } from "../views/cassa-view.js";
-   import { listenAllCarts, updateStatus, updateLine } from "../../data/cart-repository.js";
+   import { listenAllCarts, updateStatus, updateLine, getOrderTimestamp } from "../../data/cart-repository.js";
    import { openKeypad } from "../components/keypad.js";
    import { computeLine, computeTotals } from "../../domain/cart-service.js";
    import { ensureArticlesLoaded, getArticleFromCache, updateArticleInCache } from "../../domain/article-service.js";
@@ -61,7 +61,7 @@
              status: meta.status || "modifica",
              clientName: meta.clientName || "Cliente 1",
              createdByName: meta.createdByName || "—",
-             createdAt: meta.createdAt || 0,
+             createdAt: getOrderTimestamp(meta),
              orderNumber: meta.orderNumber || null,
              orderCode: meta.orderCode || null,
              lines: c.lines || {},

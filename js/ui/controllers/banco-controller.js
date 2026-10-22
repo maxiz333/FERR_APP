@@ -16,13 +16,13 @@
     isEmpty, canConfirm
   } from "../../domain/cart-service.js";
   import { waitForArticlesDownload } from "../../data/article-repository.js";
-    import {
-      createCart, loadCart, listenCart, listenAllCarts, getCurrentCartId,
-      setCurrentCartId, addLine, updateLine, deleteLine, updateTotals,
-      updateNote, updateClient,
-      updateStatus, lockCart, updateLineLock,
-      generateOrderCode
-    } from "../../data/cart-repository.js";
+  import {
+    createCart, loadCart, listenCart, listenAllCarts, getCurrentCartId,
+    setCurrentCartId, addLine, updateLine, deleteLine, updateTotals,
+    updateNote, updateClient,
+    updateStatus, lockCart, updateLineLock,
+    generateOrderCode, getOrderTimestamp
+  } from "../../data/cart-repository.js";
   import {
     trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
     runScheduledCleanup
@@ -1027,27 +1027,18 @@ async function sendDraftToOffice() {
     return;
   }
 
-  if (_isSending) return; // 🛡️ Blocco anti-doppio click
+  if (_isSending) return;
   _isSending = true;
   showLoader("Invio bozza in corso...");
 
   try {
-    // 🛡️ 1. Aspetta il download
     await waitForArticlesDownload();
 
-    // 🛡️ 2. Transazione bloccante per la bozza
-    const { db, ref, runTransaction } = await import("../../core/firebase-init.js");
-    const result = await runTransaction(ref(db, `activeCarts/${_cartId}/meta/status`), () => {
-      return "bozza";
-    });
-    
-    if (!result.committed) {
-      throw new Error("Il server non ha confermato la bozza. Riprova.");
-    }
+    // 🆕 Usa il nuovo updateStatus con il meta locale
+    const currentCart = getCart();
+    await updateStatus(_cartId, "bozza", currentCart ? currentCart.meta : null);
 
-    // 3. Genera codice ordine (se non c'è)
-    const cart = getCart();
-    const hasCode = cart?.meta?.orderCode;
+    const hasCode = currentCart?.meta?.orderCode;
     if (!hasCode) {
       try {
         const code = await generateOrderCode(_cartId);
@@ -1079,39 +1070,26 @@ async function confirmOrder() {
     return;
   }
 
-  // 🛡️ BLOCCO ANTI-DOPPIO CLICK
   if (_isSending) return;
   _isSending = true;
-
   showLoader("Invio ordine in corso...");
 
   if (!confirm("Confermare l'ordine? Il carrello verrà chiuso e ne inizierà uno nuovo.")) {
     _isSending = false;
+    hideLoader();
     return;
   }
 
   try {
-    // 🛡️ 1. Aspetta che eventuali download in background finiscano
     await waitForArticlesDownload();
 
     const cart = getCart();
     const currentStatus = cart?.meta?.status || "modifica";
     const finalStatus = currentStatus === "bozza" ? "in_arrivo" : "nuovo";
 
-    // 2. Aggiorna stato su Firebase
-    await updateStatus(_cartId, finalStatus);
+    // 🆕 Usa il nuovo updateStatus con il meta locale
+    await updateStatus(_cartId, finalStatus, cart ? cart.meta : null);
 
-    // 🛡️ 3. Transazione bloccante: il server DEVE confermare
-    const { db, ref, runTransaction } = await import("../../core/firebase-init.js");
-    const result = await runTransaction(ref(db, `activeCarts/${_cartId}/meta/status`), () => {
-      return finalStatus;
-    });
-    
-    if (!result.committed) {
-      throw new Error("Il server non ha confermato l'ordine. Riprova.");
-    }
-
-    // 4. Genera codice ordine e mostra notifica
     const hasCode = cart?.meta?.orderCode;
     if (!hasCode) {
       try {
@@ -1126,13 +1104,11 @@ async function confirmOrder() {
 
     console.log("✅ Ordine confermato e verificato su Firebase:", _cartId);
 
-    // 5. Passa a un nuovo carrello vuoto
     await switchToNewCart();
   } catch (e) {
     console.error("Errore conferma ordine:", e);
     alert("⚠️ Errore di rete: l'ordine NON è stato inviato.\nControlla la connessione e riprova.");
   } finally {
-    // Sblocca il tasto alla fine
     _isSending = false;
     hideLoader();
   }
@@ -1479,7 +1455,8 @@ async function switchToCart(cartId) {
     // Ordini di OGGI → sempre visibili
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    if (safeTs(meta.createdAt || meta.updatedAt) >= startOfToday.getTime()) return true;
+    if (getOrderTimestamp(meta) >= startOfToday.getTime()) return true;
+
 
     // Ordini VECCHI → solo se modifica o bozza
     const st = meta.status || "modifica";
@@ -1574,7 +1551,7 @@ function renderOrdersDropdown() {
     // 🆕 Vista completa: TUTTI gli ordini (senza filtri), filtrati per il giorno scelto
     visibleCarts = _allCarts.filter(c => Object.keys(c.lines || {}).length > 0);
     if (_bancoActiveDay) {
-      visibleCarts = visibleCarts.filter(c => bancoDayKeyFromTs(c.meta?.createdAt || c.meta?.updatedAt) === _bancoActiveDay);
+      visibleCarts = visibleCarts.filter(c => bancoDayKeyFromTs(getOrderTimestamp(c.meta)) === _bancoActiveDay);
     }
   } else {
     // Vista normale (solo oggi + vecchi aperti)
@@ -1582,7 +1559,7 @@ function renderOrdersDropdown() {
   }
 
   // Ordina per data DESC
-  visibleCarts.sort((a, b) => (b.meta?.createdAt || 0) - (a.meta?.createdAt || 0));
+  visibleCarts.sort((a, b) => getOrderTimestamp(b.meta) - getOrderTimestamp(a.meta));
 
   if (countEl) countEl.textContent = String(visibleCarts.length);
 
@@ -1657,7 +1634,7 @@ function renderBancoWeekBar() {
     if (_bancoWeekOffset === 1) dayLabel = `S. ${label}`;
     else if (_bancoWeekOffset > 1) dayLabel = `${_bancoWeekOffset}° ${label}`;
 
-    const count = allCarts.filter(c => bancoDayKeyFromTs(safeTs(c.meta?.createdAt || c.meta?.updatedAt)) === dayKey).length;
+    const count = allCarts.filter(c => bancoDayKeyFromTs(getOrderTimestamp(c.meta)) === dayKey).length;
     const countHtml = count > 0 ? `<span class="banco-week-count">${count}</span>` : "";
 
     const classes = [
@@ -1788,7 +1765,7 @@ function renderDropdownItem(cart, showDate) {
   const status = cart.meta?.status || "modifica";
   const icon = getStatusIcon(status);
   const clientName = cart.meta?.clientName || "Cliente 1";
-  const time = formatTimeHHMM(safeTs(cart.meta?.createdAt || cart.meta?.updatedAt));
+  const time = formatTimeHHMM(getOrderTimestamp(cart.meta));
   const total = formatEuro(cart.meta?.totals?.grandTotal || 0);
   const lineCount = Object.keys(cart.lines || {}).length;
 
@@ -1844,7 +1821,7 @@ function groupCartsByDay(carts) {
   const yesterday = today - 24 * 60 * 60 * 1000;
 
   for (const c of carts) {
-    const ts = safeTs(c.meta?.createdAt || c.meta?.updatedAt);
+    const ts = getOrderTimestamp(c.meta);
     const d = new Date(ts);
     const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 

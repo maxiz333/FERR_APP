@@ -5,9 +5,18 @@
    tra Banco e Ufficio.
    ============================================ */
 
-   import { db, ref, set, update, get, onValue, off, remove }
-   from "../core/firebase-init.js";
-   
+   import { db, ref, set, update, get, onValue, off, remove, serverTimestamp } from "../core/firebase-init.js";
+
+   const isValidTs = (t) => typeof t === 'number' && Number.isFinite(t) && t > 1e12;
+
+export function getOrderTimestamp(meta) {
+  if (!meta) return Date.now();
+  for (const t of [meta.sentAt, meta.createdAt, meta.updatedAt]) {
+    if (isValidTs(t)) return t;
+  }
+  return Date.now();
+}
+
    const CARTS_PATH = "activeCarts";
    const LOCAL_CART_KEY = "ferapp_current_cart_id";
    
@@ -170,12 +179,20 @@
     * Cambia lo stato del carrello.
     * Valori: modifica | bozza | nuovo | in_arrivo | fatto | pronto | sbloccato
     */
-   export async function updateStatus(cartId, status) {
-     await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), {
-       status: status,
-       updatedAt: Date.now() // 🆕 Ora locale
-     });
-   }
+   export async function updateStatus(cartId, status, currentMeta = null) {
+    const updates = { status: status, updatedAt: serverTimestamp() };
+    const prevStatus = currentMeta?.status;
+    
+    // Se stiamo inviando l'ordine, salviamo l'ora di invio (sentAt)
+    const isSending = ['bozza', 'nuovo', 'in_arrivo'].includes(status);
+    const isFirstSend = !prevStatus || prevStatus === 'modifica' || prevStatus === 'sbloccato';
+  
+    if (isSending && (isFirstSend || !currentMeta?.sentAt)) {
+      updates.sentAt = serverTimestamp();
+    }
+    
+    await update(ref(db, `${CARTS_PATH}/${cartId}/meta`), updates);
+  }
    
    /**
     * Blocca l'ordine (non più modificabile).

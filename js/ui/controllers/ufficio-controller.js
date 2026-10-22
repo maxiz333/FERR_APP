@@ -11,7 +11,8 @@
     updateLine,
     updateTotals,
     markCartAsModified,
-    writeSeenBy
+    writeSeenBy,
+    getOrderTimestamp
   } from "../../data/cart-repository.js";
   import {
     trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
@@ -145,7 +146,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
           status: meta.status || "modifica",
           clientName: meta.clientName || "Cliente 1",
           createdByName: meta.createdByName || "—",
-          createdAt: safeTs(meta.createdAt || meta.updatedAt),
+          createdAt: getOrderTimestamp(meta),
           lineCount: meta.lineCount || 0,
           grandTotal: (meta.totals && meta.totals.grandTotal) || 0,
           isLocked: meta.isLocked || false,
