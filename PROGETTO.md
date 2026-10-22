@@ -1352,6 +1352,18 @@ Prossimo passo immediato: Pulizia debito tecnico / Blocco 2B.8 / Regole Firebase
 
 14. Note Tecniche Importanti
 🛡️ Fix "Ordine Perso" (Sessione 19-20/10)
+
+**Causa vera del bug (risolta il 23/10/2026):** filtri, contatori e ordinamenti usavano `createdAt` (quando il carrello è stato creato). Un carrello creato il giorno prima e inviato oggi finiva nel giorno sbagliato, con ora sbagliata o in mezzo alla lista. Non era un problema di DNS o WebSocket.
+
+**Soluzione:**
+- `sentAt` = orario di invio dell'ordine. Lo scrive `updateStatus(cartId, status, currentMeta)` in `cart-repository.js` solo al primo invio (bozza / nuovo / in_arrivo) o dopo uno sblocco, e non lo sovrascrive alla conferma successiva.
+- `getOrderTimestamp(meta)` in `cart-repository.js` restituisce la data giusta dell'ordine (sentAt, con ripiego su createdAt/updatedAt se non valido).
+- REGOLA: per filtrare, raggruppare, ordinare o mostrare l'ora di un ordine usare SEMPRE `getOrderTimestamp(meta)`, mai `createdAt`.
+- Applicata in: banco-controller.js (tendina, vista completa, barra settimanale, ora), ufficio-controller.js (mapping ordini), cassa-controller.js (mapping ordini).
+- Test fatto: carrello creato prima di mezzanotte e confermato dopo, compare in Ufficio nel giorno e all'ora giusti, in cima.
+
+Le misure sotto (safeTs, runTransaction, Coda di Download) restano nel codice come protezioni, ma NON erano la causa del bug.
+
 ServerTimestamp + safeTs: Usiamo serverTimestamp(). Se l'app legge un oggetto non-numerico (in transito), safeTs(ts) usa Date.now(). Impedisce all'ordine di sparire dai filtri.
 
 RunTransaction: confirmOrder e sendDraftToOffice usano runTransaction. Se la connessione cade, l'ordine non parte e il carrello resta intatto.
@@ -2100,5 +2112,6 @@ Data	Modifica
 14-15/10/2026	v2.11 — Blocco Esauriti (Tasto 📦 ESAUR., Tendina fornitori, Popup Qty+Nota, Modale 95%, Catalogo, Archivio, Stampa A4, CSV, Gestione fornitori dinamica, Ricerca estesa)
 19/10/2026	v2.12 — Tasto F (popup numero bolla + "Stampa senza numero"), Stampa DDT con prezzi 0,00 nascosti, BOL apre client picker in banco, fix pagina bianca tasto F
 19-20/10/2026	v2.13-2.15 — Cache IndexedDB (Stale-While-Revalidate), runTransaction per invio ordini, safeTs per timestamp, Coda Download, Loader di caricamento, Navigazione Settimane in banco, Tasto Esaurito in Anteprima Ordine
+| 23/10/2026 | v2.16 — Fix definitivo "ordine perso": sentAt + getOrderTimestamp in cart-repository, banco, ufficio, cassa |
 Ultima sessione: 21/10/2026
 Versione attuale: v2.15
