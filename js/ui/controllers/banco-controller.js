@@ -1977,6 +1977,11 @@ function openOrderPreview(cartId) {
     if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
   });
 
+  // Tocco sul nome articolo: mostra o nasconde il nome completo
+  overlay.querySelectorAll(".banco-order-line .desc .name").forEach((el) => {
+    el.addEventListener("click", () => el.classList.toggle("expanded"));
+  });
+
   // 🆕 Listener per il tasto CARRELLO (Esaurito)
   overlay.querySelectorAll(".bo-btn-esaurito").forEach(btn => {
     btn.addEventListener("click", (e) => {

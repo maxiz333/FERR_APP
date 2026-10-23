@@ -1109,9 +1109,17 @@
   text-overflow: ellipsis;
   color: var(--text-primary);
 }
+.banco-order-line .desc .name { cursor: pointer; }
+.banco-order-line .desc .name.expanded {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
 .banco-order-line .desc .code {
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
   margin-top: 2px;
 }
 
