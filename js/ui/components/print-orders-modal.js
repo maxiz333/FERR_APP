@@ -212,12 +212,18 @@ export function openPrintOrdersModal({ orders, currentOrderId, filterLabel = "" 
       const unitPrice = Math.abs(Number(line.unitPrice ?? line.basePrice) || 0);
       const lineTotal = Math.abs(Number(line.lineTotal) || 0);
 
+      // 🆕 Questa è la riga che ti mancava per la nota dell'articolo
+      const lineNoteHtml = line.note 
+        ? `<div class="print-line-note">📝 ${escapeHtml(line.note)}</div>` 
+        : "";
+
       return `
         <div class="print-line ${redClass}">
           <span class="print-idx">${idx + 1}</span>
           <span class="print-desc">
             <span class="print-name">${escapeHtml(line.description || "")} ${isReturn ? '<b>(RESO)</b>' : ''}</span>
             <span class="print-code">${escapeHtml(line.code || "")}</span>
+            ${lineNoteHtml} <!-- 🆕 Inserita la nota qui -->
           </span>
           <span class="print-qty">${qty} ${unit}</span>
           <span class="print-price">${sign}${formatEuro(unitPrice)}</span>

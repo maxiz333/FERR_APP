@@ -126,3 +126,12 @@
   }
   .print-order-tot .val { font-size: 11pt; }
 }
+/* 🆕 Nota articolo in stampa */
+.print-line-note {
+  font-size: 10px;
+  color: #ea580c; /* Arancione scuro */
+  font-weight: bold;
+  font-style: italic;
+  margin-top: 3px;
+  line-height: 1.2;
+}
