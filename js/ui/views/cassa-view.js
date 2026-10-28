@@ -106,28 +106,32 @@ export function setEditMode(val) {
      const linesHtml = lines.length === 0
        ? `<div style="padding:30px;text-align:center;opacity:0.4;">Nessun articolo</div>`
        : lines.map((l, i) => {
+        const isReturn = !!l.isReturn;
+        const redClass = isReturn ? "is-return" : "";
+        const sign = isReturn ? "-" : "";
+
         const qty = formatQty(l.qty);
         const unit = (l.unit || "PZ").toLowerCase();
-        const price = Number(l.unitPrice ?? l.basePrice) || 0;
-        const total = Number(l.lineTotal) || 0;
+        const price = Math.abs(Number(l.unitPrice ?? l.basePrice) || 0);
+        const total = Math.abs(Number(l.lineTotal) || 0);
+        
         const editableClass = _editMode ? "is-editable" : "";
         const dataQty = _editMode ? `data-action="edit-qty" data-line-id="${escapeHtml(l.id)}"` : "";
         const dataPrice = _editMode ? `data-action="edit-price" data-line-id="${escapeHtml(l.id)}"` : "";
-                // 🆕 Pallino stato prezzo (Blocco 2B.7)
-                const priceDot = renderPriceDot(l._article, { size: "sm" });
+        const priceDot = renderPriceDot(l._article, { size: "sm" });
 
-                return `
-                  <div class="cas-det-line">
-                    <div class="cas-det-idx">${i + 1}.</div>
-                    <div class="cas-det-desc">
-                      <div class="cas-det-name">${escapeHtml(l.description || "")}</div>
-                      <div class="cas-det-code">${escapeHtml(l.code || "")}</div>
-                    </div>
-                    <div class="cas-det-qty-badge ${editableClass}" ${dataQty}>${qty} ${unit}</div>
-                    <div class="cas-det-price ${editableClass}" ${dataPrice}>× ${formatEuro(price)}${priceDot}</div>
-                    <div class="cas-det-linetotal">${formatEuro(total)}</div>
-                  </div>
-                `;
+        return `
+          <div class="cas-det-line">
+            <div class="cas-det-idx">${i + 1}.</div>
+            <div class="cas-det-desc">
+              <div class="cas-det-name ${redClass}">${escapeHtml(l.description || "")}</div>
+              <div class="cas-det-code">${escapeHtml(l.code || "")} ${isReturn ? '<span class="reso-badge">RESO</span>' : ''}</div>
+            </div>
+            <div class="cas-det-qty-badge ${editableClass}" ${dataQty}>${qty} ${unit}</div>
+            <div class="cas-det-price ${editableClass} ${redClass}" ${dataPrice}>× ${sign}${formatEuro(price)}${priceDot}</div>
+            <div class="cas-det-linetotal ${redClass}">${sign}${formatEuro(total)}</div>
+          </div>
+        `;
       }).join("");
    
      container.innerHTML = `

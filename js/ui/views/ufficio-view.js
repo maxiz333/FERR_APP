@@ -160,60 +160,59 @@ function renderEye(seenBy) {
       const desc = line.description || "";
       const disc = Number(line.discountPct) || 0;
       const editable = isLocked ? "" : "uff-editable";
-    
-      // 💰 PREZZO UNITARIO (pieno, scontato, sconto unitario)
-      const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
+  
+      // 🆕 Gestione Reso
+      const isReturn = !!line.isReturn;
+      const redClass = isReturn ? "is-return" : "";
+      const sign = isReturn ? "-" : "";
+  
+      // Usiamo Math.abs per evitare il doppio meno visivo, il segno lo mettiamo noi con "sign"
+      const unitPrice = Math.abs(Number(line.unitPrice ?? line.basePrice) || 0);
       const unitDiscAmount = disc > 0 ? (unitPrice * disc / 100) : 0;
       const unitPriceDisc = unitPrice - unitDiscAmount;
-    
-      // 📦 TOTALE RIGA (pieno, scontato, sconto riga)
+  
       const subTotal = unitPrice * qtyNum;
-      const discountAmount = Number(line.discountAmount) || (subTotal * disc / 100);
-      const finalTotal = Number(line.lineTotal) || (subTotal - discountAmount);
-    
+      const discountAmount = Math.abs(Number(line.discountAmount) || (subTotal * disc / 100));
+      const finalTotal = Math.abs(Number(line.lineTotal) || (subTotal - discountAmount));
+  
       const hasDiscount = disc > 0 && discountAmount > 0.001;
-    
-      // Badge sconto % (cliccabile)
+  
       const discBadge = disc > 0
         ? `<button class="uff-line-disc ${editable}" data-action="edit-discount" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica sconto"}" ${isLocked ? "disabled" : ""}>-${disc}%</button>`
         : (isLocked ? "" : `<button class="uff-line-disc-add uff-editable" data-action="edit-discount" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="Aggiungi sconto">%</button>`);
-    
-            // 🆕 Pallino stato prezzo (Blocco 2B.7)
-            const priceDot = renderPriceDot(line._article, { size: "sm" });
-
-            // 🆕 Info extra per articoli a misura (KG/MT/MQ)
-            const unitUp = (line.unit || "PZ").toUpperCase();
-            const isMeasuredLine = ["KG", "MT", "MQ"].includes(unitUp) && line.basePrice > 0 && line.mtTotal;
-            let priceSubHtml = "";
-            if (isMeasuredLine) {
-              const mtTotal = Number(line.mtTotal) || 0;
-              const kgTotal = Number(line.kgTotal) || 0;
-              const pricePerMt = mtTotal > 0 ? (Number(line.lineTotal) / mtTotal) : 0;
-              priceSubHtml = `
-                <span class="uff-p-sub-perunit">${mtTotal.toFixed(2).replace(".", ",")} mt · € ${pricePerMt.toFixed(3).replace(".", ",")}/mt</span>
-                <span class="uff-p-sub-base">base € ${Number(line.basePrice).toFixed(2).replace(".", ",")}/kg · ${kgTotal.toFixed(3).replace(".", ",")} kg</span>
-              `;
-            }
-      
-            // 💰 HTML colonna PREZZO (3 numeri se sconto, 1 se no)
-            const priceHtml = hasDiscount
-              ? `
-                <span class="uff-p-old">${formatEuro(unitPrice)}</span>
-                <span class="uff-p-new">${formatEuro(unitPriceDisc)}${priceDot}</span>
-                <span class="uff-p-disc">-${formatEuro(unitDiscAmount)}</span>
-                ${priceSubHtml}
-              `
-              : `<span class="uff-p-single">${formatEuro(unitPrice)}${priceDot}</span>${priceSubHtml}`;
-    
-      // 📦 HTML colonna TOT riga (3 numeri se sconto, 1 se no)
+  
+      const priceDot = renderPriceDot(line._article, { size: "sm" });
+  
+      const unitUp = (line.unit || "PZ").toUpperCase();
+      const isMeasuredLine = ["KG", "MT", "MQ"].includes(unitUp) && line.basePrice > 0 && line.mtTotal;
+      let priceSubHtml = "";
+      if (isMeasuredLine) {
+        const mtTotal = Number(line.mtTotal) || 0;
+        const kgTotal = Number(line.kgTotal) || 0;
+        const pricePerMt = mtTotal > 0 ? (finalTotal / mtTotal) : 0;
+        priceSubHtml = `
+          <span class="uff-p-sub-perunit">${mtTotal.toFixed(2).replace(".", ",")} mt · € ${pricePerMt.toFixed(3).replace(".", ",")}/mt</span>
+          <span class="uff-p-sub-base">base € ${Number(line.basePrice).toFixed(2).replace(".", ",")}/kg · ${kgTotal.toFixed(3).replace(".", ",")} kg</span>
+        `;
+      }
+  
+      const priceHtml = hasDiscount
+        ? `
+          <span class="uff-p-old ${redClass}">${sign}${formatEuro(unitPrice)}</span>
+          <span class="uff-p-new ${redClass}">${sign}${formatEuro(unitPriceDisc)}${priceDot}</span>
+          <span class="uff-p-disc ${redClass}">${sign}-${formatEuro(unitDiscAmount)}</span>
+          ${priceSubHtml}
+        `
+        : `<span class="uff-p-single ${redClass}">${sign}${formatEuro(unitPrice)}${priceDot}</span>${priceSubHtml}`;
+  
       const totHtml = hasDiscount
         ? `
-          <span class="uff-t-old">${formatEuro(subTotal)}</span>
-          <span class="uff-t-new">${formatEuro(finalTotal)}</span>
-          <span class="uff-t-disc">-${formatEuro(discountAmount)}</span>
+          <span class="uff-t-old ${redClass}">${sign}${formatEuro(subTotal)}</span>
+          <span class="uff-t-new ${redClass}">${sign}${formatEuro(finalTotal)}</span>
+          <span class="uff-t-disc ${redClass}">${sign}-${formatEuro(discountAmount)}</span>
         `
-        : `<span class="uff-t-new">${formatEuro(finalTotal)}</span>`;
-    
+        : `<span class="uff-t-new ${redClass}">${sign}${formatEuro(finalTotal)}</span>`;
+  
       return `
         <div class="uff-order-line">
           <div class="uff-line-prod">
@@ -227,13 +226,18 @@ function renderEye(seenBy) {
               <span class="uff-line-code uff-code-copy" data-action="copy-code" data-code="${escapeHtml(code)}" title="Clicca per copiare il codice">${escapeHtml(code)}</span>
               ${discBadge}
             </div>
-            ${line.note ? `<div class="uff-line-note" title="Nota articolo">✏️ ${escapeHtml(line.note)}</div>` : ""}
+            ${(line.isReturn || line.note) ? `
+              <div class="uff-line-note-row">
+                ${line.isReturn ? `<span class="uff-reso-badge">RESO</span>` : ""}
+                ${line.note ? `<span class="uff-line-note">✏️ ${escapeHtml(line.note)}</span>` : ""}
+              </div>
+            ` : ""}
           </div>
           <button class="uff-line-qty ${editable}" data-action="edit-qty" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica quantità"}" ${isLocked ? "disabled" : ""}>
             <span class="uff-line-qty-val">${qty}</span>
             <span class="uff-line-qty-unit">${unit}</span>
           </button>
-          <button class="uff-line-prez ${editable}" data-action="edit-price" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica prezzo"}" ${isLocked ? "disabled" : ""}>
+          <button class="uff-line-prez ${editable} ${redClass}" data-action="edit-price" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica prezzo"}" ${isLocked ? "disabled" : ""}>
             ${priceHtml}
           </button>
           <div class="uff-line-tot">${totHtml}</div>

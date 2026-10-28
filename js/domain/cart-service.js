@@ -105,8 +105,12 @@ export function computeLine(line) {
   const qty = Number(line.qty) || 0;
   const unitPrice = Number(line.unitPrice) || 0;
   const discountPct = Number(line.discountPct) || 0;
+  
+  // 🆕 Gestione Reso
+  const isReturn = line.isReturn || false;
+  const sign = isReturn ? -1 : 1;
 
-  let subtotal = qty * unitPrice;
+  let subtotal = (qty * unitPrice) * sign;
   let discountAmount = 0;
 
   if (discountPct > 0) {
@@ -118,6 +122,7 @@ export function computeLine(line) {
     ...line,
     qty,
     unitPrice,
+    isReturn,
     discountPct,
     discountAmount: round2(discountAmount),
     lineTotal: round2(lineTotal)
@@ -135,12 +140,18 @@ export function computeTotals(lines) {
   for (const line of lines) {
     const qty = Number(line.qty) || 0;
     const unitPrice = Number(line.unitPrice) || 0;
-    const lineSubtotal = qty * unitPrice;
+    
+    // 🆕 Gestione Reso
+    const isReturn = line.isReturn || false;
+    const sign = isReturn ? -1 : 1;
+    
+    const lineSubtotal = (qty * unitPrice) * sign;
     const lineDiscount = Number(line.discountAmount) || 0;
+    const lineTot = line.lineTotal ?? (lineSubtotal - lineDiscount);
 
     subtotal += lineSubtotal;
     discount += lineDiscount;
-    grandTotal += (lineSubtotal - lineDiscount);
+    grandTotal += lineTot;
   }
 
   return {

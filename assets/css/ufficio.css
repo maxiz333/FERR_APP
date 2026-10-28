@@ -1373,3 +1373,34 @@ body {
     padding: 9px 12px;
   }
 }
+/* Colore Rosso per i Resi */
+.is-return {
+  color: #ef4444 !important; /* Rosso acceso */
+}
+
+/* Badge RESO (Banco e Ufficio) */
+.reso-badge,
+.uff-reso-badge {
+  color: #ef4444 !important;
+  font-weight: 900;
+  font-size: 0.85em;
+  text-transform: uppercase;
+}
+
+/* Layout Note + Reso */
+.cart-line-note-row, .uff-line-note-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.cart-line-note, .uff-line-note {
+  color: var(--primary, #facc15); /* Giallo */
+}
+
+/* Stampa */
+.print-return {
+  color: #ef4444 !important;
+}

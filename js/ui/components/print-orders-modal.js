@@ -203,21 +203,25 @@ export function openPrintOrdersModal({ orders, currentOrderId, filterLabel = "" 
     const lines = Object.entries(order.lines || {}).map(([id, l]) => ({ id, ...l }));
   
     const linesHtml = lines.map((line, idx) => {
+      const isReturn = !!line.isReturn;
+      const redClass = isReturn ? "print-return" : "";
+      const sign = isReturn ? "-" : "";
+
       const qty = formatQty(line.qty);
       const unit = (line.unit || "PZ").toLowerCase();
-      const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
-      const lineTotal = Number(line.lineTotal) || 0;
-  
+      const unitPrice = Math.abs(Number(line.unitPrice ?? line.basePrice) || 0);
+      const lineTotal = Math.abs(Number(line.lineTotal) || 0);
+
       return `
-        <div class="print-line">
+        <div class="print-line ${redClass}">
           <span class="print-idx">${idx + 1}</span>
           <span class="print-desc">
-            <span class="print-name">${escapeHtml(line.description || "")}</span>
+            <span class="print-name">${escapeHtml(line.description || "")} ${isReturn ? '<b>(RESO)</b>' : ''}</span>
             <span class="print-code">${escapeHtml(line.code || "")}</span>
           </span>
           <span class="print-qty">${qty} ${unit}</span>
-          <span class="print-price">${formatEuro(unitPrice)}</span>
-          <span class="print-tot">${formatEuro(lineTotal)}</span>
+          <span class="print-price">${sign}${formatEuro(unitPrice)}</span>
+          <span class="print-tot">${sign}${formatEuro(lineTotal)}</span>
         </div>
       `;
     }).join("");

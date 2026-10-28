@@ -285,6 +285,17 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
           if (!confirm(`Eliminare "${line.description}" dal carrello?`)) return;
           await deleteLine(_cartId, lineId);
         }
+        else if (action === "return") {
+          const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
+          if (!confirm(confirmMsg)) return;
+
+          const updated = computeLine({ ...line, isReturn: !line.isReturn });
+          await updateLine(_cartId, lineId, {
+            isReturn: updated.isReturn,
+            lineTotal: updated.lineTotal,
+            discountAmount: updated.discountAmount
+          });
+        }
         else if (action === "note") {
           const note = prompt("Nota per questa riga:", line.note || "");
           if (note === null) return;
@@ -476,7 +487,12 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
 
               </div>
 
-              ${line.note ? `<div class="cart-line-note">📝 ${escapeHtml(line.note)}</div>` : ""}
+              ${(line.isReturn || line.note) ? `
+                <div class="cart-line-note-row">
+                  ${line.isReturn ? `<span class="reso-badge">RESO</span>` : ""}
+                  ${line.note ? `<span class="cart-line-note">📝 ${escapeHtml(line.note)}</span>` : ""}
+                </div>
+              ` : ""}
 
               <div class="cart-line-actions"${_openActionsLines.has(line.id) ? "" : " hidden"}>
                 <div class="actions-left">
@@ -498,6 +514,7 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
                 </div>
 
                 <div class="actions-right">
+                  <button class="line-action" data-action="return" title="Reso">R</button>
                   <button class="line-action" data-action="note" title="Nota">📄</button>
                   <button class="line-action" data-action="order" title="Ordina">🛒</button>
                   <button class="line-action danger" data-action="delete" title="Elimina">🗑</button>
@@ -2336,18 +2353,21 @@ function renderPriceInline(line, isMeasured, priceDot) {
   const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
   const discPct = Number(line.discountPct) || 0;
   const hasDisc = discPct > 0;
+  const isReturn = line.isReturn || false;
+  const sign = isReturn ? "-" : "";
+  const redClass = isReturn ? "is-return" : "";
 
   if (!hasDisc) {
-    return `<span class="cart-line-price-new">${formatEuro(unitPrice)}${priceDot || ""}</span>`;
+    return `<span class="cart-line-price-new ${redClass}">${sign}${formatEuro(unitPrice)}${priceDot || ""}</span>`;
   }
 
   const unitPriceNew = unitPrice * (1 - discPct / 100);
   const unitDiscAmount = unitPrice - unitPriceNew;
 
   return `
-    <span class="cart-line-price-old">${formatEuro(unitPrice)}</span>
-    <span class="cart-line-price-new">${formatEuro(unitPriceNew)}</span>
-    <span class="cart-line-price-disc">-${formatEuro(unitDiscAmount)}</span>
+    <span class="cart-line-price-old ${redClass}">${sign}${formatEuro(unitPrice)}</span>
+    <span class="cart-line-price-new ${redClass}">${sign}${formatEuro(unitPriceNew)}</span>
+    <span class="cart-line-price-disc ${redClass}">${sign}-${formatEuro(unitDiscAmount)}</span>
   `;
 }
 
@@ -2361,19 +2381,22 @@ function renderTotalInline(line) {
   const unitPrice = Number(line.unitPrice ?? line.basePrice) || 0;
   const discPct = Number(line.discountPct) || 0;
   const hasDisc = discPct > 0;
+  const isReturn = line.isReturn || false;
+  const sign = isReturn ? "-" : "";
+  const redClass = isReturn ? "is-return" : "";
 
   const subtotal = qty * unitPrice;
-  const lineTotal = Number(line.lineTotal) || 0;
+  const lineTotal = Math.abs(Number(line.lineTotal) || 0);
   const discAmount = subtotal - lineTotal;
 
   if (!hasDisc || Math.abs(discAmount) < 0.005) {
-    return `<span class="cart-line-total-new">${formatEuro(lineTotal)}</span>`;
+    return `<span class="cart-line-total-new ${redClass}">${sign}${formatEuro(lineTotal)}</span>`;
   }
 
   return `
-    <span class="cart-line-total-old">${formatEuro(subtotal)}</span>
-    <span class="cart-line-total-new">${formatEuro(lineTotal)}</span>
-    <span class="cart-line-total-disc">-${formatEuro(discAmount)}</span>
+    <span class="cart-line-total-old ${redClass}">${sign}${formatEuro(subtotal)}</span>
+    <span class="cart-line-total-new ${redClass}">${sign}${formatEuro(lineTotal)}</span>
+    <span class="cart-line-total-disc ${redClass}">${sign}-${formatEuro(discAmount)}</span>
   `;
 }
 /**
