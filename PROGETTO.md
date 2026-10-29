@@ -1,9 +1,9 @@
 📘 FerApp — Documento di Progetto Ufficiale
 
-**Versione**: 2.15  
+**Versione**: 2.17  
 **Data creazione**: 22 settembre 2026  
-**Ultima modifica**: 21 ottobre 2026  
-**Stato progetto**: In sviluppo attivo — Blocchi 1-9 completati + Esauriti + DDT definitivo + Cache Locale + Fix Invio Ordini. Prossimo: Pulizia debito tecnico / Blocco 2B.8 (Ricerca Generica) / Regole Firebase + Deploy.
+**Ultima modifica**: 28 ottobre 2026  
+**Stato progetto**: In sviluppo attivo — Fix definitivo Ordine Sparito (sentAt), Tasto Reso, Note in Stampa, Migliorie UI Anteprima. Prossimo: Ricerca Vocale (Microfono).
 
 > **Documento vivo.** Fonte unica di verità del progetto.
 > Ogni volta che si riprende il lavoro, **leggere prima questo file**.
@@ -69,7 +69,8 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - Crea **bozze** per far iniziare l'ufficio a mettere i prezzi
 - **Conferma** ordine quando finito (anche senza prezzi!)
 - **Genera codice ordine** sia su bozza (`UFF.`) sia su conferma diretta (`CONFERMA`)
-- **Sicurezza Invio**: usiamo `waitForArticlesDownload` e `runTransaction` per non perdere ordini.
+-- **Sicurezza Invio**: usiamo waitForArticlesDownload e il timestamp sentAt per non perdere ordini e assegnare l'ora corretta. **Sicurezza Invio**: usiamo `waitForArticlesDownload` e `runTransaction` per non perdere ordini.
+- **Tasto "R" (Reso)**: Trasforma l'articolo in reso (prezzo negativo, colore rosso, badge "RESO").
 - **Tendina ordini** nell'header:
   - Vista normale: ordini di oggi + vecchi aperti (`modifica`/`bozza`)
   - Vista completa (pulsante toggle): **tutti** gli ordini raggruppati per giorno con navigazione settimanale
@@ -392,17 +393,12 @@ Cestinamento	trash/carts/{id} + remove	set() + remove()
 Ripristino	activeCarts/{id} + remove	set() + remove()
 Occhio 👁️	meta/seenBy/{userId}	update() via writeSeenBy
 Totali	meta/totals	update() con delta
-🛡️ Sicurezza Invio Ordini (Fondamentale)
-Coda di Download (waitForArticlesDownload): Se stai scaricando i 19k articoli, l'invio aspetta.
 
-Anti-Doppio Click: _isSending blocca click multipli.
-
-Transazione Bloccante: runTransaction su meta/status. Non si fida della cache locale. Se il server non risponde, l'ordine non parte e il carrello resta intatto.
-
-🕒 ServerTimestamp e safeTs
-createdAt, updatedAt, addedAt usano serverTimestamp() (risolve orologi sballati).
-
-Poiché Firebase impiega 1-2s, è stata creata safeTs(ts) in banco/ufficio. Se createdAt non è un numero, usa Date.now(). Impedisce al primissimo ordine di sparire.
+🛡️ Sicurezza Invio Ordini (Aggiornato 28/10/2026)
+- **Causa del Bug "Ordine Sparito":** L'app usava `createdAt` (creazione carrello) per filtrare gli ordini. I carrelli aperti da giorni facevano sparire gli ordini nuovi.
+- **Soluzione Definitiva:** Introdotto `sentAt` (ora di invio) e la funzione `getOrderTimestamp(meta)` per filtrare e ordinare ovunque. Il fix è attivo su Banco, Ufficio e Cassa.
+- **Falsi allarmi scartati:** I problemi di DNS/WebSocket (ERR_NAME_NOT_RESOLVED) erano errori innocui degli iframe. Non c'è bisogno di forzare long-polling.
+- **Timestamp:** Usiamo `serverTimestamp()` per `updatedAt` e `sentAt`. `safeTs` rimane come rete di sicurezza per i dati vecchi.
 
 🎫 Numerazione fatture atomica
 generateInvoiceNumber() usa runTransaction → zero duplicati.
@@ -870,6 +866,22 @@ Banco: tab 💰 nella tab bar
 Ufficio: pulsante 💰 Fornitori nell'header
 
 ⚠️ Attenzione: L'app USAG contiene prezzi di vendita ivati e codici fornitore → NON pubblicare su GitHub Pages pubblico. Uso interno (Live Server / rete locale).
+
+### 8.11 Gestione Resi (Sessione 28/10/2026)
+- **Tasto "R" (Toggle):** In banco, accanto al ciclo forbici.
+- **Comportamento:** Se attivato, il prezzo diventa negativo, il colore diventa rosso e appare il badge "RESO".
+- **Note:** Le note dell'articolo appaiono affiancate al badge RESO.
+- **Logica matematica:** Gestita in `computeLine` (cart-service.js) con `Math.abs` per evitare doppi meno visivi.
+- **Stampa:** La stampa ordini mostra il reso (segno meno e testo rosso). Il DDT ignora il reso.
+- **File toccati:** `cart-service.js`, `banco-controller.js`, `banco.css`, `ufficio-view.js`, `cassa-view.js`, `print-orders-modal.js`.
+
+### 8.12 Note Articoli in Stampa Ordini (Sessione 28/10/2026)
+- Le note delle righe articolo (es. "Reso - Rotto") ora appaiono nella stampa multi-ordine sotto il codice articolo, in arancione corsivo.
+- File toccato: `print-orders-modal.js` e `print.css`.
+
+### 8.13 Migliorie UI Anteprima Ordine (Sessione 28/10/2026)
+- **Nomi articoli lunghi:** Ora cliccando sul nome nell'anteprima ordine (Banco) il testo va a capo invece di essere tagliato.
+- **Codice articolo:** Reso più grande (13px), in grassetto e giallo per una lettura più rapida.
 
 9. UI/UX
 Temi
@@ -1363,12 +1375,6 @@ Prossimo passo immediato: Pulizia debito tecnico / Blocco 2B.8 / Regole Firebase
 - Test fatto: carrello creato prima di mezzanotte e confermato dopo, compare in Ufficio nel giorno e all'ora giusti, in cima.
 
 Le misure sotto (safeTs, runTransaction, Coda di Download) restano nel codice come protezioni, ma NON erano la causa del bug.
-
-ServerTimestamp + safeTs: Usiamo serverTimestamp(). Se l'app legge un oggetto non-numerico (in transito), safeTs(ts) usa Date.now(). Impedisce all'ordine di sparire dai filtri.
-
-RunTransaction: confirmOrder e sendDraftToOffice usano runTransaction. Se la connessione cade, l'ordine non parte e il carrello resta intatto.
-
-Coda di Download: waitForArticlesDownload mette in pausa l'invio se i 19k articoli stanno scaricando.
 
 📥 Cache Locale (IndexedDB)
 article-repository.js usa openDB(). All'avvio legge da IndexedDB e avvia downloadAndCacheArticles() in background.
@@ -2113,5 +2119,6 @@ Data	Modifica
 19/10/2026	v2.12 — Tasto F (popup numero bolla + "Stampa senza numero"), Stampa DDT con prezzi 0,00 nascosti, BOL apre client picker in banco, fix pagina bianca tasto F
 19-20/10/2026	v2.13-2.15 — Cache IndexedDB (Stale-While-Revalidate), runTransaction per invio ordini, safeTs per timestamp, Coda Download, Loader di caricamento, Navigazione Settimane in banco, Tasto Esaurito in Anteprima Ordine
 | 23/10/2026 | v2.16 — Fix definitivo "ordine perso": sentAt + getOrderTimestamp in cart-repository, banco, ufficio, cassa |
+| 28/10/2026 | v2.17 — Tasto Reso (prezzi negativi/rossi), Note articoli in stampa ordini, Migliorie UI Anteprima, pulizia .gitignore |
 Ultima sessione: 21/10/2026
 Versione attuale: v2.15

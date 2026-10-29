@@ -93,63 +93,86 @@
     * Importa un array di articoli su Firebase.
     */
    export async function importArticles(articles, onProgress) {
-     const BATCH_SIZE = 500;
-     const total = articles.length;
-     let processed = 0;
-     const now = Date.now();
-   
-     for (let i = 0; i < total; i += BATCH_SIZE) {
-       const batch = articles.slice(i, i + BATCH_SIZE);
-       const updates = {};
-   
-       for (const art of batch) {
-         const key = sanitizeKey(art.code);
-         if (!key) continue;
-   
-         const tokens = extractSearchTokens(art.description, art.code);
-   
-         updates[`${ARTICLES_PATH}/${key}`] = {
-           code: art.code,
-           codeNorm: art.codeNorm,
-           type: art.type,
-           group: art.group,
-           hasSpecial: art.hasSpecial,
-           description: art.description,
-           descriptionLower: art.descriptionLower,
-           unit: art.unit,
-           stock: art.stock,
-           inventoried: art.inventoried,
-           basePrice: art.basePrice ?? 0,
-           totU: art.totU ?? 0,
-           mtRot: art.mtRot ?? 0,
-           kgPerUm: art.kgPerUm ?? 0,
-           supplier: art.supplier ?? null,
-           supplierCode: art.supplierCode ?? null,
-           category: art.category ?? null,
-           marca: art.marca ?? null,
-           position: art.position ?? null,
-           specs: art.specs ?? null,
-           priceHistory: art.priceHistory ?? {},
-           searchTokens: tokens,
-           updatedAt: now
-         };
-       }
-   
-       await update(ref(db), updates);
-   
-       processed += batch.length;
-       if (onProgress) onProgress(processed, total);
-     }
-   
-     await update(ref(db, META_PATH), {
-       lastImportAt: now,
-       lastImportCount: total
-     });
-   
-     await clearArticlesCache();
-   
-     return { imported: total };
-   }
+    const BATCH_SIZE = 500;
+    const total = articles.length;
+    let processed = 0;
+    const now = Date.now();
+  
+    // 1. Scarica l'elenco degli articoli attualmente esistenti su Firebase
+    console.log("🔍 Controllo articoli esistenti...");
+    const snapshot = await get(ref(db, ARTICLES_PATH));
+    const existingData = snapshot.val() || {};
+    const existingKeys = new Set(Object.keys(existingData));
+    console.log(`✅ Trovati ${existingKeys.size} articoli esistenti.`);
+  
+    // 2. Processa a blocchi da 500
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const batch = articles.slice(i, i + BATCH_SIZE);
+      const updates = {};
+  
+      for (const art of batch) {
+        const key = sanitizeKey(art.code);
+        if (!key) continue;
+  
+        const tokens = extractSearchTokens(art.description, art.code);
+        const basePath = `${ARTICLES_PATH}/${key}`;
+  
+        if (existingKeys.has(key)) {
+          // 🛡️ ARTICOLO ESISTENTE: Aggiorna SOLO descrizione, codice e ricerca
+          // (Stock, unità di misura, prezzi, ecc. rimangono intatti)
+          updates[`${basePath}/code`] = art.code;
+          updates[`${basePath}/codeNorm`] = art.codeNorm;
+          updates[`${basePath}/description`] = art.description;
+          updates[`${basePath}/descriptionLower`] = art.descriptionLower;
+          updates[`${basePath}/searchTokens`] = tokens;
+          updates[`${basePath}/updatedAt`] = now;
+        } else {
+          // 🆕 NUOVO ARTICOLO: Inserisci tutto quello che c'è nel file
+          updates[basePath] = {
+            code: art.code,
+            codeNorm: art.codeNorm,
+            type: art.type,
+            group: art.group,
+            hasSpecial: art.hasSpecial,
+            description: art.description,
+            descriptionLower: art.descriptionLower,
+            unit: art.unit,
+            stock: art.stock,
+            inventoried: art.inventoried,
+            basePrice: art.basePrice ?? 0, // Nuovo articolo, parte da 0
+            totU: art.totU ?? 0,
+            mtRot: art.mtRot ?? 0,
+            kgPerUm: art.kgPerUm ?? 0,
+            supplier: art.supplier ?? null,
+            supplierCode: art.supplierCode ?? null,
+            category: art.category ?? null,
+            marca: art.marca ?? null,
+            position: art.position ?? null,
+            specs: art.specs ?? null,
+            priceHistory: art.priceHistory ?? {},
+            searchTokens: tokens,
+            updatedAt: now
+          };
+        }
+      }
+  
+      // Salva il blocco su Firebase
+      await update(ref(db), updates);
+  
+      processed += batch.length;
+      if (onProgress) onProgress(processed, total);
+    }
+  
+    // Aggiorna i metadati globali
+    await update(ref(db, META_PATH), {
+      lastImportAt: now,
+      lastImportCount: total
+    });
+  
+    await clearArticlesCache();
+  
+    return { imported: total };
+  }
    
    /**
     * Carica TUTTI gli articoli.
