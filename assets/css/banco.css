@@ -2779,3 +2779,95 @@ body:has(.banco-search.is-code-mode) .cart-area {
 .print-return {
   color: #ef4444 !important;
 }
+/* ============================================
+   NUOVA ANTEPRIMA ORDINE (Banco)
+   ============================================ */
+
+/* ============================================
+   NUOVA ANTEPRIMA ORDINE (Banco) - Versione Compatta
+   ============================================ */
+
+/* Modale grande al 90% */
+.banco-order-view {
+  width: 90vw !important;
+  max-width: 90vw !important;
+  height: 90vh !important;
+  max-height: 90vh !important;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Layout del banner in alto */
+.banco-order-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px; /* Leggermente più compatto */
+}
+
+.bo-badge-status {
+  background: #eab308;
+  color: #000;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-left: 10px;
+  text-transform: uppercase;
+}
+.bo-badge-status.status-fatto { background: #22c55e; }
+.bo-badge-status.status-pronto { background: #a855f7; color: #fff; }
+
+.bo-creator {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+/* Area bottoni più stretta per dare spazio agli articoli */
+.banco-order-actions {
+  padding: 10px 15px; /* Era 15px, ora 10px */
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+}
+
+.banco-order-actions-row {
+  display: flex;
+  gap: 6px; /* Spazio tra i tasti ridotto */
+  width: 100%;
+}
+
+/* Bottoni più piccoli e compatti */
+.bo-action-btn {
+  padding: 8px 0; /* Era 12px, ora 8px */
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 13px; /* Era 15px */
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.2s;
+}
+.bo-action-btn:hover { filter: brightness(1.2); }
+
+/* Riga 1: Sblocca e Ordini */
+.bo-btn-half {
+  flex: 1;
+  background: var(--bg-secondary);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+/* Riga 2: Tasti emoji e stato */
+.bo-btn-nav { flex: 0 0 40px; background: var(--bg-secondary); color: white; font-size: 16px; }
+.bo-btn-stampa { flex: 1; background: var(--bg-secondary); color: white; font-size: 16px; }
+.bo-btn-trash { flex: 0 0 40px; background: #ef4444; color: white; font-size: 16px; }
+
+/* Tasto Dinamico (Fatto/Riapri) */
+.bo-btn-status { flex: 1; color: #000; }
+.bo-btn-status.is-nuovo { background: #22c55e; }
+.bo-btn-status.is-fatto { background: #eab308; }
+.bo-btn-status.is-pronto { background: #a855f7; color: #fff; }

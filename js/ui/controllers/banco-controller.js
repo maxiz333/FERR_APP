@@ -48,6 +48,7 @@ let _cartId = null;
 let _unsubCart = null;
 let _unsubAllCarts = null;
 let _allCarts = [];
+let _lastVisibleCarts = []; // 🆕 Salva la lista per far funzionare le frecce
 let _midnightTimer = null;
 let _ordersDropdownWired = false;
 let _openActionsLines = new Set();
@@ -641,9 +642,11 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
         const nameEl = document.getElementById("clientName");
         const countEl = document.getElementById("clientCount");
         const changeBtn = document.getElementById("btnClientPicker");
+        
+        // 🆕 Spostato qui in alto così è visibile in tutta la funzione
+        const meta = cart?.meta || {};
       
         if (nameEl) {
-          const meta = cart?.meta || {};
           let name;
           if (meta.invoiceNumber) {
             const clientPart = (meta.clientName && meta.clientName !== "Cliente 1")
@@ -666,9 +669,9 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
             if (oldEye) oldEye.remove();
             const eyeHtml = renderEyeBanco(meta.seenBy);
             if (eyeHtml) {
-              const changeBtn = bar.querySelector("#btnClientPicker");
-              if (changeBtn) {
-                changeBtn.insertAdjacentHTML("beforebegin", eyeHtml);
+              const changeBtnInBar = bar.querySelector("#btnClientPicker");
+              if (changeBtnInBar) {
+                changeBtnInBar.insertAdjacentHTML("beforebegin", eyeHtml);
               }
             }
           }
@@ -678,9 +681,20 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
           const lines = getLines();
           countEl.textContent = `${lines.length} art.`;
         }
-        if (changeBtn && !changeBtn._hasListener) {
-          changeBtn._hasListener = true;
-          changeBtn.addEventListener("click", openClientPickerForCart);
+        
+        if (changeBtn) {
+          if (!changeBtn._hasListener) {
+            changeBtn._hasListener = true;
+            changeBtn.addEventListener("click", openClientPickerForCart);
+          }
+          
+          // 🆕 Nasconde il tasto CAMBIA se la fattura non è ancora stata creata
+          // Appare solo quando meta.invoiceNumber esiste (cioè dopo aver premuto BOL)
+          if (meta.invoiceNumber) {
+            changeBtn.style.display = ""; // Mostra
+          } else {
+            changeBtn.style.display = "none"; // Nascondi
+          }
         }
       }
 
@@ -1542,7 +1556,7 @@ function closeOrdersDropdown() {
   const dropdown = document.getElementById("ordersDropdown");
   if (dropdown) dropdown.setAttribute("hidden", "");
 }
-
+  
 function renderOrdersDropdown() {
   const listEl = document.getElementById("ordersDropdownList");
   const countEl = document.getElementById("ordersDropdownCount");
@@ -1577,6 +1591,9 @@ function renderOrdersDropdown() {
 
   // Ordina per data DESC
   visibleCarts.sort((a, b) => getOrderTimestamp(b.meta) - getOrderTimestamp(a.meta));
+
+  // 🆕 Salva la lista attuale per far funzionare le frecce nell'anteprima
+  _lastVisibleCarts = visibleCarts; 
 
   if (countEl) countEl.textContent = String(visibleCarts.length);
 
@@ -1908,14 +1925,30 @@ function openOrderPreview(cartId) {
 
   // Banner info per stato
   const bannerInfo = {
-    modifica:   { text: "✏️ In modifica",                },
-    bozza:      { text: "🔵 In lavorazione"              },
-    nuovo:      { text: "🟡 Nuovo"                       },
-    in_arrivo:  { text: "🔴 In arrivo"                   },
-    fatto:      { text: "✅ Ordine inviato alla cassa"    },
-    pronto:     { text: "🟣 Pronto"                      },
-    sbloccato:  { text: "🟢 Sbloccato"                   },
+    modifica:   { text: "✏️ In modifica" },
+    bozza:      { text: "🔵 In lavorazione" },
+    nuovo:      { text: "🟡 Nuovo" },
+    in_arrivo:  { text: "🔴 In arrivo" },
+    fatto:      { text: "✅ Ordine inviato alla cassa" },
+    pronto:     { text: "🟣 Pronto" },
+    sbloccato:  { text: "🟢 Sbloccato" },
   }[status] || { text: status.toUpperCase() };
+
+  // Logica per il badge di stato (solo pallino)
+  let badgeText = "🟡";
+  let badgeClass = "status-nuovi";
+  if (status === "fatto") { badgeText = "🟢"; badgeClass = "status-fatto"; }
+  else if (status === "pronto") { badgeText = "🟣"; badgeClass = "status-pronto"; }
+
+  // Logica per il tasto Dinamico
+  const isFatto = (status === "fatto");
+  const btnStatusText = isFatto ? "🟡 Riapri" : "🟢 Fatto";
+  const btnStatusClass = isFatto ? "is-fatto" : "is-nuovo";
+
+  // Logica Frecce Navigazione
+  const currentIndex = _lastVisibleCarts.findIndex(c => c.id === cartId);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < _lastVisibleCarts.length - 1;
 
   const linesHtml = lines.length === 0
     ? `<div class="banco-order-line-empty">Nessun articolo</div>`
@@ -1950,12 +1983,16 @@ function openOrderPreview(cartId) {
   overlay.className = "fapp-modal-overlay";
   overlay.innerHTML = `
     <div class="fapp-modal-box banco-order-view">
-      <div class="banco-order-banner" data-status="${status}">
-        <span>${bannerInfo.text}</span>
-        ${eyeHtml}
+            <div class="banco-order-banner" data-status="${status}" style="display:flex; justify-content:space-between; align-items:center; padding: 10px 15px;">
+        <div style="display:flex; align-items:center; gap: 8px;">
+          <span>${bannerInfo.text}</span>
+          <span class="bo-badge-status ${badgeClass}" style="font-size: 16px; padding: 0; background: transparent;" title="Stato Ufficio">${badgeText}</span>
+          ${eyeHtml}
+        </div>
+        <div class="bo-creator" style="font-size: 14px; font-weight: 800;">${escapeHtml(meta.createdByName || '---')}</div>
       </div>
 
-      <div class="banco-order-client">${escapeHtml(
+      <div class="banco-order-client" style="padding: 15px 15px 0 15px;">${escapeHtml(
         meta.invoiceNumber
           ? `Fattura ${meta.invoiceNumber}${meta.clientName && meta.clientName !== "Cliente 1" ? " · " + meta.clientName : ""}`
           : (meta.orderNumber && meta.orderCode)
@@ -1963,23 +2000,27 @@ function openOrderPreview(cartId) {
             : (meta.clientName || "Cliente 1")
       )}</div>
 
-      <div class="banco-order-lines">
+            <div class="banco-order-lines" style="flex:1; overflow-y:auto; padding: 5px 15px;">
         ${linesHtml}
       </div>
 
-      <div class="banco-order-totalbox">
+      <div class="banco-order-totalbox" style="padding: 0 15px 15px 15px;">
         <span>TOTALE</span>
         <strong>${formatEuro(total)}</strong>
       </div>
 
       <div class="banco-order-actions">
-        <div class="banco-order-actions-row">
-          <button class="btn btn-primary" id="boBtnSblocca" type="button">🔓 Sblocca e modifica</button>
-          <button class="btn btn-outline" id="boBtnOrdini" type="button">📋 Ordini</button>
+        <div class="banco-order-actions-row" style="margin-bottom: 8px;">
+          <button class="bo-action-btn bo-btn-half" id="boBtnSblocca" type="button">🔓 Sblocca e modifica</button>
+          <button class="bo-action-btn bo-btn-half" id="boBtnOrdini" type="button">📋 Ordini</button>
         </div>
         <div class="banco-order-actions-row">
-          <button class="btn btn-danger btn-icon" id="boBtnTrash" type="button">🗑</button>
-          <button class="btn btn-outline" id="boBtnStampa" type="button">🖨 Stampa DDT</button>
+          <button class="bo-action-btn bo-btn-nav" id="boBtnPrev" type="button" ${hasPrev ? "" : "disabled style='opacity:0.3'"}>⬅️</button>
+          <button class="bo-action-btn bo-btn-nav" id="boBtnNext" type="button" ${hasNext ? "" : "disabled style='opacity:0.3'"}>➡️</button>
+          <button class="bo-action-btn bo-btn-stampa" id="boBtnStampa" type="button">🖨</button>
+          <button class="bo-action-btn bo-btn-status ${btnStatusClass}" id="boBtnStatus" type="button">${btnStatusText}</button>
+          <button class="bo-action-btn bo-btn-status is-pronto" id="boBtnPronto" type="button">🟣</button>
+          <button class="bo-action-btn bo-btn-trash" id="boBtnTrash" type="button">🗑</button>
         </div>
       </div>
     </div>
@@ -1988,18 +2029,12 @@ function openOrderPreview(cartId) {
   document.body.appendChild(overlay);
 
   const close = () => overlay.remove();
-
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", function esc(e) {
     if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); }
   });
 
-  // Tocco sul nome articolo: mostra o nasconde il nome completo
-  overlay.querySelectorAll(".banco-order-line .desc .name").forEach((el) => {
-    el.addEventListener("click", () => el.classList.toggle("expanded"));
-  });
-
-  // 🆕 Listener per il tasto CARRELLO (Esaurito)
+  // Listener per il tasto CARRELLO (Esaurito)
   overlay.querySelectorAll(".bo-btn-esaurito").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -2015,82 +2050,87 @@ function openOrderPreview(cartId) {
           initialNote: line.esauritoNote || "",
           onConfirm: async (qty, note) => {
             try {
-              await updateLine(cartId, lineId, {
-                esauritoFornitore: fornitore,
-                esauritoQty: qty,
-                esauritoNote: note
-              });
+              await updateLine(cartId, lineId, { esauritoFornitore: fornitore, esauritoQty: qty, esauritoNote: note });
               showToast(`📦 Esaurito · ${fornitore.nome}`, "success");
-              close(); // Chiude la modale per aggiornare
-              setTimeout(() => openOrderPreview(cartId), 150); // La riapre aggiornata
-            } catch (err) {
-              console.error("Errore salvataggio esaurito:", err);
-              showToast("Errore salvataggio", "error");
-            }
+              close(); setTimeout(() => openOrderPreview(cartId), 150);
+            } catch (err) { console.error("Errore salvataggio esaurito:", err); }
           }
         });
       });
     });
   });
 
-  // Pulsante ORDINI
-  overlay.querySelector("#boBtnOrdini").addEventListener("click", (e) => {
-    e.stopPropagation();
-    close();
-    setTimeout(() => openOrdersDropdown(), 10);
+  // Frecce di Navigazione
+  overlay.querySelector("#boBtnPrev").addEventListener("click", () => {
+    if (hasPrev) { close(); openOrderPreview(_lastVisibleCarts[currentIndex - 1].id); }
+  });
+  overlay.querySelector("#boBtnNext").addEventListener("click", () => {
+    if (hasNext) { close(); openOrderPreview(_lastVisibleCarts[currentIndex + 1].id); }
   });
 
-  // Pulsante STAMPA
+  // Tasto Ordini
+  overlay.querySelector("#boBtnOrdini").addEventListener("click", () => { close(); setTimeout(() => openOrdersDropdown(), 10); });
+
+  // Tasto Stampa
   overlay.querySelector("#boBtnStampa").addEventListener("click", async () => {
     if (meta.invoiceNumber) {
       let client = null;
-      if (meta.clientId) {
-        try { client = await getClientByKey(meta.clientId); } catch (e) {}
+      if (meta.clientId) { try { client = await getClientByKey(meta.clientId); } catch (e) {} }
+      printDDT({ cart: { meta, lines: cart.lines || {} }, invoiceNumber: meta.invoiceNumber, client });
+    } else {
+      const { printOrders } = await import("../components/print-orders-modal.js");
+      printOrders([{ id: cartId, orderNumber: meta.orderNumber, orderCode: meta.orderCode, clientName: meta.clientName, createdByName: meta.createdByName, createdAt: meta.createdAt, wasModified: meta.wasModified, note: meta.note, lines: cart.lines || {}, grandTotal: Number(meta.totals?.grandTotal) || 0 }]);
+    }
+  });
+
+    // Tasto Dinamico (Fatto / Riapri)
+    overlay.querySelector("#boBtnStatus").addEventListener("click", async () => {
+      // 🆕 Controllo se l'ordine è ancora in modifica
+      if (status === "modifica") {
+        alert("⚠️ Prima invia l'ordine all'ufficio premendo UFF. o CONFERMA!");
+        return;
       }
-      printDDT({
-        cart: { meta, lines: cart.lines || {} },
-        invoiceNumber: meta.invoiceNumber,
-        client: client
-      });
-      showToast("🖨 Apertura DDT…", "info");
-      return;
-    }
 
-    const { printOrders } = await import("../components/print-orders-modal.js");
-    printOrders([{
-      id: cartId,
-      orderNumber: meta.orderNumber,
-      orderCode: meta.orderCode,
-      clientName: meta.clientName,
-      createdByName: meta.createdByName,
-      createdAt: meta.createdAt,
-      wasModified: meta.wasModified,
-      note: meta.note,
-      lines: cart.lines || {},
-      grandTotal: Number(meta.totals?.grandTotal) || 0
-    }]);
-    showToast("🖨 Apertura stampa…", "info");
-  });
-
-  // Pulsante TRASH
-  overlay.querySelector("#boBtnTrash").addEventListener("click", async () => {
-    const st = meta.status || "modifica";
-    if (st !== "modifica") {
-      showToast(`🗑 Non cestinabile: ordine in stato "${st}"`, "info");
-      return;
-    }
-    if (!confirm("Spostare questo ordine nel cestino?")) return;
-    try {
-      await trashCart(cartId, "banco", _user);
+    const newStatus = isFatto ? "sbloccato" : "fatto";
+    
+    // Popup di conferma
+      const confirmMsg = isFatto ? "Riaprire questo ordine? Tornerà nei NUOVI." : "Segnare questo ordine come FATTO?";
+      if (!confirm(confirmMsg)) return;
+  
+      try {
+        await updateStatus(cartId, newStatus);
+      // Aggiorna la vista locale e ricarica la modale
       close();
-      showToast("🗑 Ordine cestinato", "success");
-    } catch (e) {
-      console.error("Errore cestinamento da preview:", e);
-      showToast("Errore cestinamento", "error");
-    }
+      setTimeout(() => openOrderPreview(cartId), 150); 
+    } catch (err) { console.error(err); showToast("Errore cambio stato", "error"); }
   });
 
-  // Pulsante SBLOCCA
+  // Tasto Pronto (Viola)
+  overlay.querySelector("#boBtnPronto").addEventListener("click", async () => {
+    // 🆕 Controllo se l'ordine è ancora in modifica
+    if (status === "modifica") {
+      alert("⚠️ Prima invia l'ordine all'ufficio premendo UFF. o CONFERMA!");
+      return;
+    }
+
+    // Popup di conferma
+    if (!confirm("Segnare questo ordine come PRONTO?")) return;
+
+    try {
+      await updateStatus(cartId, "pronto");
+      close();
+      setTimeout(() => openOrderPreview(cartId), 150);
+    } catch (err) { console.error(err); showToast("Errore cambio stato", "error"); }
+  });
+
+  // Tasto Trash (Elimina)
+  overlay.querySelector("#boBtnTrash").addEventListener("click", async () => {
+    if (status !== "modifica") { showToast(`🗑 Non cestinabile: ordine in stato "${status}"`, "info"); return; }
+    if (!confirm("Spostare questo ordine nel cestino?")) return;
+    try { await trashCart(cartId, "banco", _user); close(); } catch (e) { console.error(e); }
+  });
+
+  // Tasto Sblocca (Originale)
   overlay.querySelector("#boBtnSblocca").addEventListener("click", async () => {
     if (!confirm("Sbloccare l'ordine per modificarlo?")) return;
     try {
@@ -2099,10 +2139,7 @@ function openOrderPreview(cartId) {
       close();
       await switchToCart(cartId);
       showToast("🔓 Ordine caricato nel banco", "success");
-    } catch (err) {
-      console.error("Errore sblocco:", err);
-      showToast("Errore sblocco", "error");
-    }
+    } catch (err) { console.error("Errore sblocco:", err); }
   });
 }
 /* ============================================

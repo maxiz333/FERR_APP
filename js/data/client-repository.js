@@ -94,40 +94,47 @@
   * Usa update multi-path a blocchi.
   */
  export async function importClients(clients, onProgress) {
-   const BATCH_SIZE = 500;
-   const total = clients.length;
-   let processed = 0;
-   const now = Date.now();
- 
-   for (let i = 0; i < total; i += BATCH_SIZE) {
-     const batch = clients.slice(i, i + BATCH_SIZE);
-     const updates = {};
- 
-     for (const c of batch) {
-       const key = sanitizeClientKey(c.name);
-       if (!key) continue;
- 
-       updates[`${CLIENTS_PATH}/${key}`] = {
-         name: c.name,
-         address: c.address || "",
-         city: c.city || "",
-         province: c.province || "",
-         legacyId: c.legacyId || "",
-         discountPct: c.discountPct || 0,
-         createdAt: now,
-         updatedAt: now
-       };
-     }
- 
-     await update(ref(db), updates);
-     processed += batch.length;
-     if (onProgress) onProgress(processed, total);
-   }
- 
-   await update(ref(db, META_PATH), {
-     lastImportAt: now,
-     lastImportCount: total
-   });
- 
-   return { imported: total };
- }
+  const BATCH_SIZE = 500;
+  const total = clients.length;
+  let processed = 0;
+  const now = Date.now();
+
+  console.log("🗑 Svuotamento totale del database clienti...");
+  // 1. Elimina TUTTI i clienti attualmente esistenti su Firebase
+  // Questo cancella anche i vecchi clienti con il punto o i doppioni.
+  await remove(ref(db, CLIENTS_PATH));
+  console.log("✅ Database clienti svuotato. Inizio importazione...");
+
+  // 2. Inserisci i nuovi clienti a blocchi da 500
+  for (let i = 0; i < total; i += BATCH_SIZE) {
+    const batch = clients.slice(i, i + BATCH_SIZE);
+    const updates = {};
+
+    for (const c of batch) {
+      const key = sanitizeClientKey(c.name);
+      if (!key) continue;
+
+      updates[`${CLIENTS_PATH}/${key}`] = {
+        name: c.name,
+        address: c.address || "",
+        city: c.city || "",
+        province: c.province || "",
+        legacyId: c.legacyId || "",
+        discountPct: c.discountPct || 0,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+
+    await update(ref(db), updates);
+    processed += batch.length;
+    if (onProgress) onProgress(processed, total);
+  }
+
+  await update(ref(db, META_PATH), {
+    lastImportAt: now,
+    lastImportCount: total
+  });
+
+  return { imported: total };
+}

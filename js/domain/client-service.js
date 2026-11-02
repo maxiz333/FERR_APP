@@ -57,22 +57,55 @@
    }
    
    /**
-    * Ricerca clienti per nome (match parziale).
+    * Funzione di supporto per "pulire" il testo.
+    */
+   function normalizeStr(s) {
+     return String(s || "")
+       .toLowerCase()
+       .normalize("NFD")
+       .replace(/[\u0300-\u036f]/g, "")
+       .trim();
+   }
+   
+   /**
+    * Ricerca clienti SUPER INTELLIGENTE.
     */
    export function searchClients(term, limit = 30) {
      if (!_clients) return [];
      if (!term || term.trim().length < 1) return [];
    
-     const q = term.trim().toLowerCase();
+     const q = normalizeStr(term);
+     const tokens = q.split(/\s+/).filter(t => t.length > 0);
      const results = [];
    
      for (const [key, c] of Object.entries(_clients)) {
-       const name = (c.name || "").toLowerCase();
+       const name = normalizeStr(c.name);
+       const city = normalizeStr(c.city);
+       const address = normalizeStr(c.address);
+       const legacy = normalizeStr(c.legacyId);
+   
        let score = 0;
    
-       if (name === q) score = 1000;
-       else if (name.startsWith(q)) score = 500;
-       else if (name.includes(q)) score = 100;
+       if (name === q) {
+         score = 1000;
+       } 
+       else if (name.startsWith(q)) {
+         score = 500;
+       } 
+       else if (name.includes(q)) {
+         score = 200;
+       } 
+       else {
+         const combinedText = `${name} ${city} ${address} ${legacy}`;
+         const allTokensMatch = tokens.every(t => combinedText.includes(t));
+         
+         if (allTokensMatch) {
+           score = 100; 
+           if (name.startsWith(tokens[0])) {
+             score += 50; 
+           }
+         }
+       }
    
        if (score > 0) {
          results.push({ key, ...c, _score: score });
