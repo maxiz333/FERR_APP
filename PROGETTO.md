@@ -2122,3 +2122,60 @@ Data	Modifica
 | 28/10/2026 | v2.17 — Tasto Reso (prezzi negativi/rossi), Note articoli in stampa ordini, Migliorie UI Anteprima, pulizia .gitignore |
 Ultima sessione: 21/10/2026
 Versione attuale: v2.15
+
+
+---
+
+## 📌 APPENDICE: Aggiornamenti Recenti (Sessione Ottobre/Novembre 2026)
+
+Questa sezione raccoglie tutte le modifiche, i fix e le nuove funzionalità implementate dopo la v2.15. Rappresenta lo stato attuale del codice (v2.18).
+
+### 🛡️ 1. Fix Definitivo "Ordine Sparito" (sentAt)
+- **Problema risolto:** L'app usava `createdAt` (creazione carrello) per filtrare. Se un carrello veniva creato ieri e inviato oggi, spariva.
+- **Soluzione:** Introdotto `sentAt` (ora di invio) e la funzione `getOrderTimestamp(meta)` in `cart-repository.js`. 
+- **Regola d'oro:** Filtri, raggruppamenti e ordinamenti devono usare SEMPRE `getOrderTimestamp(meta)`, mai `createdAt`. I problemi di DNS/WebSocket erano falsi allarmi (errori innocui degli iframe).
+- **File modificati:** `cart-repository.js`, `banco-controller.js`, `ufficio-controller.js`, `cassa-controller.js`.
+
+### 🔄 2. Tasto Reso (Gestione Resi)
+- **Funzionamento:** Tasto "R" in banco (accanto al ciclo forbici). Se attivato, il prezzo e il totale diventano negativi e rossi, con badge "RESO".
+- **Matematica:** Gestita in `computeLine` e `computeTotals` (`cart-service.js`) usando `Math.abs` per evitare doppi meno visivi.
+- **Stampa:** La stampa ordini mostra il reso (segno meno e testo rosso). Il DDT ignora il reso.
+- **File modificati:** `cart-service.js`, `banco-controller.js`, `banco.css`, `ufficio-view.js`, `cassa-view.js`, `print-orders-modal.js`.
+
+### 📥 3. Importazioni Intelligenti e Sicure
+- **Importazione Articoli (`article-repository.js`):** 
+  - Se un articolo **esiste già**, aggiorna SOLO `code`, `codeNorm`, `description`, `descriptionLower`, `searchTokens` e `updatedAt`. (I prezzi e le giacenze non vengono toccati).
+  - Se è **nuovo**, inserisce tutti i dati dal file.
+- **Importazione Clienti (`client-repository.js`):** 
+  - Prima di importare, **svuota completamente il nodo `clients`** su Firebase (elimina i doppioni e i vecchi clienti con il punto). Poi inserisce i nuovi.
+
+### 🔍 4. Ricerca Clienti Super Intelligente (`client-service.js`)
+- La ricerca ora ignora maiuscole, minuscole e accenti (es. "citta" trova "Città").
+- Cerca contemporaneamente in: Nome, Città, Indirizzo e Codice Cliente (legacyId).
+- Ricerca per "token" (parole separate): scrivendo "mario milano" troverà "Mario Rossi" di Milano.
+- Sistema a punteggio: match esatti sul nome (1000), inizio nome (500), parola contenuta (200).
+
+### 🎨 5. Modifiche UI - Banco e Clienti
+- **Tasto CAMBIA cliente:** In `banco-controller.js` (`updateClientBar`), il tasto "CAMBIA" è stato nascosto. Appare solo dopo che viene creata una fattura (quando `meta.invoiceNumber` esiste). Per cambiare cliente prima, si deve passare per il tasto BOL.
+- **Nomi espandibili e Codice Giallo:** Nell'anteprima ordine, cliccando sul nome dell'articolo, il testo va a capo. Il codice articolo è stato ingrandito, reso in grassetto e giallo.
+- **Note in Stampa:** Le note degli articoli ora appaiono anche nella stampa multi-ordine (in `print-orders-modal.js` e `print.css`).
+
+### 🖥️ 6. Nuova Anteprima Ordini (Tendina Banco)
+La modale che si apre cliccando su un ordine nella tendina del Banco è stata completamente ridisegnata:
+- **Dimensioni:** Occupa il 90% dello schermo per dare più spazio agli articoli.
+- **Banner in alto:** Mostra lo stato dell'ordine (con pallino colorato 🟡 NUOVI / 🟢 FATTI / 🟣 PRONTI) e il nome di chi lo ha creato.
+- **Frecce di Navigazione (⬅️ ➡️):** Permettono di passare all'ordine precedente o successivo direttamente, senza chiudere la modale. (Scorrono la lista esattamente come la stai vedendo nella tendina).
+- **Tasti Rapidi in basso:** 
+  - `🟢 Fatto / 🟡 Riapri`: Tasto dinamico. Se l'ordine è nei nuovi diventa "Fatto" (verde). Se è nei fatti diventa "Riapri" (giallo) per riportarlo nei nuovi.
+  - `🟣 Pronto`: Sposta l'ordine nei pronti.
+  - `🖨 Stampa`, `🗑 Elimina`, `🔓 Sblocca` e `📋 Ordini`.
+- **Sicurezza:** I tasti di cambio stato chiedono un popup di conferma. Se l'ordine è in stato `modifica` (non ancora inviato all'ufficio), i tasti Fatto/Pronto mostrano un alert: "Prima invia l'ordine all'ufficio (UFF. o CONFERMA)".
+
+
+- **Pulizia Git:** Aggiunto file .gitignore per escludere la cartella .tmp.driveupload e non caricare file temporanei su GitHub.
+### 📅 Cronologia Aggiornamenti
+| Data | Versione | Modifica |
+|---|---|---|
+| 23/10/2026 | v2.16 | Fix definitivo "Ordine perso" con `sentAt` e `getOrderTimestamp`. |
+| 28/10/2026 | v2.17 | Tasto Reso (prezzi negativi/rossi), Note articoli in stampa, Migliorie UI anteprima. |
+| 02/11/2026 | v2.18 | Ricerca Clienti intelligente, Importazioni sicure (no sovrascrittura prezzi/giacenze), Nuova Anteprima Ordine (tasti rapidi, frecce, layout 90%), Tasto Cambia nascosto. |

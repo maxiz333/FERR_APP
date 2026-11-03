@@ -95,7 +95,12 @@
        cbVendita.checked = true;
        cbVendita.setAttribute('checked', 'checked');
      }
-   
+     // ☒ Cedente
+  const cbCedente = root.querySelector('input[name="cb_cedente"]');
+  if (cbCedente) {
+    cbCedente.checked = true;
+    cbCedente.setAttribute('checked', 'checked');
+  }
      set('vettore_nome', '');
      set('n_colli', '');
      set('kg', '');
