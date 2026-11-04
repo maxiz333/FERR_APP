@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archivio Ordini — FerApp</title>
+  <!-- ⚠️ CONTROLLA QUI: Copia i tag <link> esatti dal <head> di ufficio.html -->
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/theme-dark.css">
+  
+  <style>
+    .archive-page { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    .archive-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .archive-header h1 { color: var(--primary); font-size: 24px; margin: 0; }
+    .archive-search { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: 2px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); margin-bottom: 20px; }
+    
+    .archive-list { display: flex; flex-direction: column; gap: 10px; }
+    .archive-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .archive-item-info { flex: 1; }
+    .archive-item-title { font-weight: 800; color: var(--primary); font-size: 16px; margin-bottom: 4px; }
+    .archive-item-meta { font-size: 13px; color: var(--text-secondary); }
+    .archive-item-total { font-size: 18px; font-weight: 900; color: var(--success); margin: 0 20px; }
+    
+    .btn-print { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--primary); padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+    .btn-print:hover { background: var(--primary); color: #000; }
+    .archive-empty { text-align: center; color: var(--text-secondary); padding: 40px; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+  <div class="archive-page">
+    <header class="archive-header">
+      <h1>🗄 Archivio Ordini</h1>
+      <a href="ufficio.html" class="btn btn-outline" style="text-decoration:none; padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color); color: var(--text-primary);">⬅ Torna all'Ufficio</a>
+    </header>
+
+    <input type="text" class="archive-search" id="archiveSearch" placeholder="Cerca per cliente, codice ordine o data (es. 'Mario', '#15', '04/11')...">
+
+    <div class="archive-list" id="archiveList">
+      <div class="archive-empty">Caricamento archivio in corso...</div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

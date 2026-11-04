@@ -2171,6 +2171,10 @@ La modale che si apre cliccando su un ordine nella tendina del Banco è stata co
   - `🖨 Stampa`, `🗑 Elimina`, `🔓 Sblocca` e `📋 Ordini`.
 - **Sicurezza:** I tasti di cambio stato chiedono un popup di conferma. Se l'ordine è in stato `modifica` (non ancora inviato all'ufficio), i tasti Fatto/Pronto mostrano un alert: "Prima invia l'ordine all'ufficio (UFF. o CONFERMA)".
 
+### 8.16 Auto-compilazione Casella "Cedente" su DDT (Sessione 04/11/2026)
+- **Modifica:** Nel template di stampa del DDT, la casella "Cedente" (nella sezione Tipologia) ora viene spuntata in automatico, esattamente come già accadeva per la casella "Vendita".
+- **File modificato:** `js/ui/components/print-ddt.js`
+- **Logica:** Aggiunto il controllo sul checkbox `cb_cedente` (imposta `checked = true` e l'attributo `checked`).
 
 - **Pulizia Git:** Aggiunto file .gitignore per escludere la cartella .tmp.driveupload e non caricare file temporanei su GitHub.
 ### 📅 Cronologia Aggiornamenti

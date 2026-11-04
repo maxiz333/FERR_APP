@@ -3,6 +3,7 @@
    Logica del Banco (Magazzino).
    ============================================ */
 
+   import { runAutoArchive } from "../../data/archive-repository.js";
    import { initSearchBar } from "../components/search-bar.js";
    import { openKeypad } from "../components/keypad.js";
    import { openCutCalculator } from "../components/cut-calculator.js";
@@ -63,6 +64,7 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
      if (!_user) return;
    
      showLoader("Caricamento articoli...");
+     runAutoArchive();
 
      // Inizializza search bar
      initSearchBar(onArticleSelected);

@@ -4,6 +4,7 @@
    Blocco 3.4/3.5 — Modifica ordini
    ============================================ */
 
+   import { runAutoArchive } from "../../data/archive-repository.js";
    import { renderOrders } from "../views/ufficio-view.js";
    import {
     listenAllCarts,
@@ -58,6 +59,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
    
    export async function initUfficioController(user) {
     _user = user;
+    runAutoArchive();
 
     // 🆕 Imposta di default il giorno attivo = OGGI
     _activeDay = dayKeyFromTs(Date.now());

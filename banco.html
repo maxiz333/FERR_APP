@@ -40,7 +40,12 @@
       </div>
       <div class="banco-actions">
         <button class="inv-f-btn" id="btnInvoiceNumber" title="Modifica numero bolle">📄 F</button>
-        <a class="banco-nav-btn" href="ufficio.html" title="Vai all'Ufficio">🏢 Ufficio</a>
+        <div style="position: relative; display: inline-block;">
+          <a class="banco-nav-btn" href="ufficio.html" id="btnNavUfficio" title="Vai all'Ufficio (Tieni premuto per l'Archivio)">🏢 Ufficio</a>
+          <div class="nav-dropdown-menu" id="ufficioDropdown" hidden>
+            <a href="archivio.html" class="nav-dropdown-item">🗄 Archivio Ordini</a>
+          </div>
+        </div>
         <button class="btn btn-ghost btn-icon" id="btnLogout" title="Esci">🚪</button>
       </div>
     </header>
@@ -169,5 +174,27 @@
   </div>
 
   <script type="module" src="js/app.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      setupLongPress("btnNavUfficio", "ufficioDropdown");
+    });
+    function setupLongPress(btnId, menuId) {
+      const btn = document.getElementById(btnId);
+      const menu = document.getElementById(menuId);
+      if (!btn || !menu) return;
+      let timer = null; let isLong = false;
+      const start = (e) => { isLong = false; timer = setTimeout(() => { isLong = true; menu.hidden = false; }, 500); };
+      const end = () => { if (timer) clearTimeout(timer); };
+      btn.addEventListener("mousedown", start);
+      btn.addEventListener("mouseup", end);
+      btn.addEventListener("mouseleave", end);
+      btn.addEventListener("touchstart", start, {passive: true});
+      btn.addEventListener("touchend", end);
+      btn.addEventListener("touchcancel", end);
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+      btn.addEventListener("click", (e) => { if (isLong) { e.preventDefault(); isLong = false; } });
+      document.addEventListener("click", (e) => { if (!menu.hidden && !btn.contains(e.target) && !menu.contains(e.target)) { menu.hidden = true; } });
+    }
+  </script>
 </body>
 </html>

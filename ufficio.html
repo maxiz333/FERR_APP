@@ -167,7 +167,7 @@
   <!-- HEADER -->
   <header class="uff-header">
     <div class="uff-header-left">
-      <button class="uff-logo" id="uffLogoBtn" title="Cerca articoli, clienti, ordini">
+      <button class="uff-logo" id="uffLogoBtn" title="Vai al Banco (Tieni premuto per l'Archivio)">
         <span class="uff-logo-icon">⚙</span>
         <div class="uff-logo-text">
           <span class="uff-logo-brand">RATTAZZI</span>
@@ -178,7 +178,12 @@
     <div class="uff-header-right">
       <button class="inv-f-btn" id="btnInvoiceNumber" title="Modifica numero bolle">📄 F</button>
       <button class="uff-nav-btn" id="btnFornitori" title="Listino fornitori">💰 Fornitori</button>
-      <a class="uff-nav-btn" href="banco.html" title="Vai al Banco">🏭 Banco</a>
+      <div style="position: relative; display: inline-block;">
+        <a class="uff-nav-btn" href="banco.html" id="btnNavBanco" title="Vai al Banco">🏭 Banco</a>
+        <div class="nav-dropdown-menu" id="bancoDropdown" hidden>
+          <a href="archivio.html" class="nav-dropdown-item">🗄 Archivio Ordini</a>
+        </div>
+      </div>
       <button class="uff-logout" id="uffLogout" title="Esci">🚪</button>
     </div>
   </header>
@@ -268,6 +273,27 @@
       initUfficioController(user);
     }
   </script>
-
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      setupLongPress("btnNavBanco", "bancoDropdown");
+    });
+    function setupLongPress(btnId, menuId) {
+      const btn = document.getElementById(btnId);
+      const menu = document.getElementById(menuId);
+      if (!btn || !menu) return;
+      let timer = null; let isLong = false;
+      const start = (e) => { isLong = false; timer = setTimeout(() => { isLong = true; menu.hidden = false; }, 500); };
+      const end = () => { if (timer) clearTimeout(timer); };
+      btn.addEventListener("mousedown", start);
+      btn.addEventListener("mouseup", end);
+      btn.addEventListener("mouseleave", end);
+      btn.addEventListener("touchstart", start, {passive: true});
+      btn.addEventListener("touchend", end);
+      btn.addEventListener("touchcancel", end);
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+      btn.addEventListener("click", (e) => { if (isLong) { e.preventDefault(); isLong = false; } });
+      document.addEventListener("click", (e) => { if (!menu.hidden && !btn.contains(e.target) && !menu.contains(e.target)) { menu.hidden = true; } });
+    }
+  </script>
 </body>
 </html>
