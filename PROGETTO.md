@@ -2176,6 +2176,16 @@ La modale che si apre cliccando su un ordine nella tendina del Banco è stata co
 - **File modificato:** `js/ui/components/print-ddt.js`
 - **Logica:** Aggiunto il controllo sul checkbox `cb_cedente` (imposta `checked = true` e l'attributo `checked`).
 
+### 8.17 Archivio Ordini e Menu Long Press (Sessione 04/11/2026)
+
+- **Auto-archiviazione (`js/data/archive-repository.js`):** All'avvio dell'app (Banco o Ufficio), il sistema controlla se ci sono ordini con stato `"fatto"` più vecchi di 35 giorni. Se ci sono, li sposta nel nodo `archivedCarts` a blocchi da 500 (per non sovraccaricare Firebase) e li elimina da `activeCarts`. Salva la data dell'ultima esecuzione in `meta/lastArchiveDate` per non ripetere l'operazione più di una volta al giorno.
+- **Nuova Pagina Archivio (`archivio.html` e `archivio-controller.js`):** Pagina in sola lettura raggiungibile tramite routing (`app.js`). Mostra gli ordini archiviati con una barra di ricerca intelligente (per cliente, numero ordine o data). Include un tasto "Stampa" che genera il foglio esattamente come il Banco.
+- **Menu Long Press:** Per non affollare l'header, il link all'Archivio è nascosto in un menu a tendina. Tenendo premuto per mezzo secondo sul tasto "Ufficio" (nel Banco) o "Banco" (nell'Ufficio), appare un menu con la voce "🗄 Archivio Ordini". Aggiunto fix CSS (`-webkit-touch-callout`) e JS (`contextmenu`) per evitare che il menu nativo del browser su mobile copra la tendina.
+- **Fix DDT:** Aggiunta la spunta automatica sulla casella "Cedente" nel template di stampa DDT (`print-ddt.js`), esattamente come già avveniva per "Vendita".
+**Cronologia:**| Data | Versione | Modifica |
+|---|---|---|
+| 04/11/2026 | v2.20 | Implementato Archivio automatico ordini vecchi, nuova pagina archivio con ricerca/stampa, menu long press per l'accesso e fix spunta DDT Cedente. |
+
 - **Pulizia Git:** Aggiunto file .gitignore per escludere la cartella .tmp.driveupload e non caricare file temporanei su GitHub.
 ### 📅 Cronologia Aggiornamenti
 | Data | Versione | Modifica |
@@ -2183,3 +2193,45 @@ La modale che si apre cliccando su un ordine nella tendina del Banco è stata co
 | 23/10/2026 | v2.16 | Fix definitivo "Ordine perso" con `sentAt` e `getOrderTimestamp`. |
 | 28/10/2026 | v2.17 | Tasto Reso (prezzi negativi/rossi), Note articoli in stampa, Migliorie UI anteprima. |
 | 02/11/2026 | v2.18 | Ricerca Clienti intelligente, Importazioni sicure (no sovrascrittura prezzi/giacenze), Nuova Anteprima Ordine (tasti rapidi, frecce, layout 90%), Tasto Cambia nascosto. |
+
+
+
+---
+
+## 📊 PROGETTO FUTURO: Cruscotto Finanziario e Previsione di Cassa
+
+**Obiettivo:** Integrare un modulo di Business Intelligence per visualizzare guadagni, gestire le spese manuali (passate e future) e ricevere consigli finanziari basati sui dati storici e sulle regole di cassa, con l'ausilio di un'IA.
+
+### Fasi di Sviluppo
+
+**Fase 1: La Raccolta Dati (Il Quaderno)**
+- Creazione di una nuova pagina `finanze.html`.
+- Modulo per inserire manualmente le spese (es. "Pago 1000€ tra 30 giorni per stufe"). I dati verranno salvati su Firebase (es. `gestione_finanziaria/spese`).
+- Modulo per caricare i dati storici dei 3 anni precedenti (tramite file CSV/JSON o inserimento manuale) per stabilire una baseline.
+
+**Fase 2: La Visualizzazione (I Grafici)**
+- Integrazione della libreria gratuita **Chart.js** (nessun bundler richiesto).
+- Grafico a barre/linee che mostra:
+  - Incassi reali (letti in automatico dalle fatture/scontrini dell'app).
+  - Spese manuali (passate e future).
+  - Saldo di cassa previsto.
+
+**Fase 3: Le Regole (Il Poliziotto)**
+- Implementazione di un algoritmo di previsione di cassa (Cash Flow Forecast) basato su regole matematiche.
+- Incrocio dati: `Saldo attuale + Incassi previsti (storico) - Spese inserite - Spese fisse`.
+- Soglie di allarme (es. alert rosso se il saldo previsto va in negativo).
+
+**Fase 4: L'Intelligenza Artificiale (Il Consulente)**
+- Integrazione di un LLM (es. ChatGPT/Claude) tramite Firebase Cloud Functions (per nascondere le API Key e non esporle nel codice frontend).
+- L'IA analizzerà i dati storici, l'andamento attuale e le spese future. Darà consigli "di testa sua" (es. valutare l'acquisto di stufe a 6000€ considerando i picchi di vendita di Dicembre).
+- L'IA terrà conto di variabili complesse come soglie per trasporto gratuito o sconti volume.
+
+
+ FIX RICERCA FATTO
+### 8.18 Fix Importazione Clienti e Ricerca (Sessione 06/11/2026)
+- **Problema 1 (Apostrofi):** I nomi con l'apostrofo (es. `SOCIETA' CONSORT`) sparivano durante l'importazione. Il file originale usa `&#x27;` per l'apostrofo, ma quel codice contiene un `#`, che spezzava la riga e faceva scartare il cliente.
+- **Problema 2 (Doppioni):** Clienti con nomi troncati a 20 caratteri si sovrascrivevano a vicenda.
+- **Soluzione (Parser):** In `file-parser.js`, la funzione `decodeHtmlEntities` viene ora chiamata **PRIMA** di dividere la riga per `#`. Questo salva i nomi con apostrofi.
+- **Soluzione (Doppioni):** In `client-repository.js` (`importClients`), la chiave del cliente ora usa `nome + "_" + legacyId` (IdAnagrafica), garantendo che nessun cliente venga sovrascritto.
+- **Soluzione (Pulizia):** La funzione `importClients` ora svuota completamente il database vecchio (`remove`) prima di inserire i nuovi clienti, eliminando i "fantasmi" e i doppioni storici.
+- **Ricerca:** Aggiornata `normalizeStr` in `client-service.js` per decodificare i codici HTML e ignorare punteggiatura varia.

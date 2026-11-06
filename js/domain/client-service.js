@@ -56,16 +56,28 @@
      return _clients ? Object.keys(_clients).length : 0;
    }
    
-   /**
-    * Funzione di supporto per "pulire" il testo.
-    */
-   function normalizeStr(s) {
-     return String(s || "")
-       .toLowerCase()
-       .normalize("NFD")
-       .replace(/[\u0300-\u036f]/g, "")
-       .trim();
-   }
+/**
+ * Funzione di supporto per "pulire" il testo: 
+ * toglie maiuscole, accenti, punteggiatura e CODICI HTML.
+ */
+function normalizeStr(s) {
+  if (!s) return "";
+  
+  return String(s)
+    .toLowerCase()
+    // 🆕 Decodifica i codici HTML comuni del vecchio file
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    // Ora pulisce accenti e punteggiatura
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
    
    /**
     * Ricerca clienti SUPER INTELLIGENTE.

@@ -175,10 +175,15 @@ export function parseClientsFile(text) {
   return { clients, errors };
 }
 
-function parseClientLine(raw) {
+function parseClientLine(rawLine) {
+  // 1. Decodifica i codici HTML (&#x27; = apostrofo) PRIMA di dividere per #
+  const raw = decodeHtmlEntities(rawLine);
   const parts = raw.split("#");
+  
+  // 2. Dichiara l'oggetto fields (la riga che mancava!)
   const fields = {};
 
+  // 3. Estrai i campi
   for (const part of parts) {
     const m = part.match(/^([^=]+)='([\s\S]*)'$/);
     if (!m) continue;

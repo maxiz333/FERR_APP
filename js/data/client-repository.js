@@ -15,12 +15,15 @@
   * Usa il nome come chiave (uppercase, no caratteri speciali).
   */
  export function sanitizeClientKey(name) {
-   return String(name)
-     .trim()
-     .toUpperCase()
-     .replace(/[.#$\[\]\/]/g, "_")
-     .slice(0, 100);
- }
+  return String(name)
+    .trim()
+    .toUpperCase()
+    // 🆕 Rimuove TUTTO tranne lettere, numeri e spazi (via apostrofi, punti, virgole, ecc.)
+    .replace(/[^A-Z0-9 ]/g, "") 
+    // 🆕 Sostituisce gli spazi con underscore per una chiave pulita
+    .replace(/\s+/g, "_")       
+    .slice(0, 100);
+}
  
  /**
   * Crea o aggiorna un cliente.
@@ -111,8 +114,8 @@
     const updates = {};
 
     for (const c of batch) {
-      const key = sanitizeClientKey(c.name);
-      if (!key) continue;
+      const rawName = c.legacyId ? `${c.name}_${c.legacyId}` : c.name;
+      const key = sanitizeClientKey(rawName);
 
       updates[`${CLIENTS_PATH}/${key}`] = {
         name: c.name,
@@ -128,6 +131,7 @@
 
     await update(ref(db), updates);
     processed += batch.length;
+    console.log(`✅ Importati ${processed} clienti su ${total}...`); // 🆕 Log di avanzamento
     if (onProgress) onProgress(processed, total);
   }
 
