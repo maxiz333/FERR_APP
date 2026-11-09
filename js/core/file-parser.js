@@ -180,7 +180,7 @@ function parseClientLine(rawLine) {
   const raw = decodeHtmlEntities(rawLine);
   const parts = raw.split("#");
   
-  // 2. Dichiara l'oggetto fields (la riga che mancava!)
+  // 2. Dichiara l'oggetto fields
   const fields = {};
 
   // 3. Estrai i campi
@@ -192,7 +192,12 @@ function parseClientLine(rawLine) {
     fields[key] = value;
   }
 
-  const name = fields["VecchioCodice"] || "";
+  // 🆕 MODIFICA: Usa RagioneSociale come prima scelta, poi VecchioCodice
+  let name = fields["RagioneSociale"] || fields["VecchioCodice"] || "";
+  
+  // 🆕 Pulisce i doppi spazi (es. "AVOGADRO  ARL" -> "AVOGADRO ARL")
+  name = name.replace(/\s+/g, " ").trim();
+
   if (!name) return null;
 
   return {

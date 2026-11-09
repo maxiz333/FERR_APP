@@ -1,9 +1,9 @@
 📘 FerApp — Documento di Progetto Ufficiale
 
-**Versione**: 2.17  
+**Versione**: 2.21  
 **Data creazione**: 22 settembre 2026  
-**Ultima modifica**: 28 ottobre 2026  
-**Stato progetto**: In sviluppo attivo — Fix definitivo Ordine Sparito (sentAt), Tasto Reso, Note in Stampa, Migliorie UI Anteprima. Prossimo: Ricerca Vocale (Microfono).
+**Ultima modifica**: 9 novembre 2026  
+**Stato progetto**: In sviluppo attivo — Archivio Ordini (auto-archiviazione + pagina dedicata), Nuova Anteprima Ordine, Importazioni sicure, Ricerca Clienti intelligente, DDT con spunta Cessionario e doppia copia. Prossimo: Ricerca Vocale (Microfono).
 
 > **Documento vivo.** Fonte unica di verità del progetto.
 > Ogni volta che si riprende il lavoro, **leggere prima questo file**.
@@ -69,17 +69,18 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - Crea **bozze** per far iniziare l'ufficio a mettere i prezzi
 - **Conferma** ordine quando finito (anche senza prezzi!)
 - **Genera codice ordine** sia su bozza (`UFF.`) sia su conferma diretta (`CONFERMA`)
--- **Sicurezza Invio**: usiamo waitForArticlesDownload e il timestamp sentAt per non perdere ordini e assegnare l'ora corretta. **Sicurezza Invio**: usiamo `waitForArticlesDownload` e `runTransaction` per non perdere ordini.
+- **Sicurezza Invio**: usiamo `waitForArticlesDownload`, `runTransaction` e il timestamp `sentAt` per non perdere ordini e assegnare l'ora corretta.
 - **Tasto "R" (Reso)**: Trasforma l'articolo in reso (prezzo negativo, colore rosso, badge "RESO").
 - **Tendina ordini** nell'header:
   - Vista normale: ordini di oggi + vecchi aperti (`modifica`/`bozza`)
   - Vista completa (pulsante toggle): **tutti** gli ordini raggruppati per giorno con navigazione settimanale
   - Anteprima articoli in ogni riga + occhio 👁️ se visto
-- **Anteprima Ordine**: ora ha il tasto 🛒 per aggiungere un articolo agli esauriti senza sbloccare l'ordine.
+- **Anteprima Ordine** (ridisegnata il 02/11/2026, vedi 8.13): modale al 90% dello schermo con banner di stato, frecce ⬅️ ➡️ per scorrere gli ordini, tasti rapidi (Fatto/Riapri, Pronto, Stampa, Elimina, Sblocca, Ordini). Mantiene il tasto 🛒 per aggiungere un articolo agli esauriti senza sbloccare l'ordine.
 - **Sblocca e modifica** un ordine fatto direttamente dal banco (carica il carrello)
 - **Scheda prodotto** cliccando sul nome articolo
 - **Pallini stato prezzo** accanto ai prezzi
 - **📄 BOL.** nella bottom bar → crea fattura (ora apre sempre il **selettore clienti** prima di procedere)
+- **👤 CAMBIA cliente**: nascosto finché non esiste una fattura (`meta.invoiceNumber`); prima di allora il cliente si cambia passando dal tasto BOL
 - **📄 F** in header → apre popup per modificare il prossimo numero bolla e attivare "Stampa senza numero"
 - **🖨 Stampa DDT** (nuovo template definitivo dal 12/10/2026)
 - **Tasto + NUOVO** → mette in sospeso il carrello attuale e ne apre uno nuovo
@@ -87,6 +88,8 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - **Tab 💰** → apre modale fornitori (USAG)
 - **Barra in basso** ridisegnata: `BOL · RIEP · UFF · CONFERMA · 🗑` con icona sopra + label sotto
 - **Pulizia automatica** carrelli vuoti in `modifica` all'avvio
+- **Archiviazione automatica** all'avvio: gli ordini `fatto` più vecchi di 35 giorni vengono spostati in `archivedCarts` (vedi 8.17)
+- **Menu long press** sul tasto 🏢 Ufficio (tenere premuto ~0,5 s) → voce 🗄 Archivio Ordini
 - **Niente pulsante CASSA nel login**: l'accesso alla cassa è nascosto nel logo
 
 ### 🏢 Ufficio (Gestione Ordini)
@@ -106,6 +109,7 @@ L'app ha **3 interfacce principali** che condividono gli stessi dati su Firebase
 - **Codice articolo** cliccabile per copiarlo negli appunti
 - **Nota riga articolo** visibile in arancione con contorno nero sottile
 - **Nota ordine** con editor placeholder/textarea/div giallo (stessa logica del banco)
+- **Menu long press** sul tasto 🏭 Banco (tenere premuto ~0,5 s) → voce 🗄 Archivio Ordini (vedi 8.17)
   - **Allineata a destra** (12/10/2026)
   - **Anti-falso-blur**: `_pendingRefresh` blocca refresh durante edit mode
 - Blocca/sblocca ordini
@@ -325,9 +329,9 @@ ferr-app-5e277-default-rtdb/
 │
 ├── users/{userId}/ (name, role, color, postazione)
 │
-├── clients/{clientId}/ (name, address, city, province, legacyId, discountPct)
+├── clients/{nome_legacyId}/ (name, address, city, province, legacyId, discountPct)
 │
-├── meta/clients/, meta/articles/
+├── meta/clients/, meta/articles/, meta/lastArchiveDate (data ultima auto-archiviazione)
 │
 ├── articles/{articleKey}/
 │   ├── code, codeNorm, type, group, hasSpecial
@@ -341,6 +345,7 @@ ferr-app-5e277-default-rtdb/
 │   ├── meta/
 │   │   ├── clientId, clientName, status
 │   │   ├── createdBy, createdByName, createdAt (serverTimestamp), updatedAt
+│   │   ├── sentAt (serverTimestamp — ora di invio, vedi sezione 14)
 │   │   ├── lineCount, totals { subtotal, discount, grandTotal }, note
 │   │   ├── seenBy { userId: timestamp }
 │   │   ├── isLocked, wasModified
@@ -356,6 +361,8 @@ ferr-app-5e277-default-rtdb/
 │       ├── esauritoFornitore { id, nome, colore }, esauritoQty, esauritoNote
 │
 ├── trash/carts/{cartId}/ (meta, lines, trashedAt, trashedBy, source)
+│
+├── archivedCarts/{cartId}/ (meta, lines — ordini `fatto` > 35 giorni spostati da activeCarts, vedi 8.17)
 │
 ├── esauriti/{autoId}/ (Da catalogo)
 │   ├── fornitoreId, fornitoreNome, fornitoreColore
@@ -391,6 +398,8 @@ Numero fattura	meta/invoiceNumber	update() via saveInvoiceToCart
 Contatore fatture	counters/invoiceNumber	runTransaction()
 Cestinamento	trash/carts/{id} + remove	set() + remove()
 Ripristino	activeCarts/{id} + remove	set() + remove()
+Archiviazione automatica	archivedCarts/{id} + remove activeCarts/{id}	set() a blocchi da 500 + remove()
+Data ultima archiviazione	meta/lastArchiveDate	set() (max 1 volta al giorno)
 Occhio 👁️	meta/seenBy/{userId}	update() via writeSeenBy
 Totali	meta/totals	update() con delta
 
@@ -487,10 +496,11 @@ Modale centrale, colori per stato, beep, notifica nativa.
 
 #### Cliente
 - **Cliente picker** con ~3.651 clienti reali importati
-- Ricerca per nome/città con debounce
+- Ricerca intelligente con debounce (vedi 8.15): ignora maiuscole/accenti, cerca in nome, città, indirizzo e codice cliente, per parole separate
 - Creazione al volo
 - "Cliente 1" generico
 - Salva su `meta.clientId` + `meta.clientName`
+- Tasto 👤 CAMBIA nell'header ordine: visibile solo dopo la creazione della fattura (vedi 8.13)
 
 #### Riepilogo ordine v2 (08-09/10/2026)
 - Modale stile vecchia app
@@ -686,11 +696,13 @@ Modale centrale, colori per stato, beep, notifica nativa.
 - File `.txt` pipe-delimited
 - Formato: `|indice|tipo|codice|gruppo|spec|descrizione|UM|giacenza|inv|`
 - Blocchi da 500, progress bar
+- Se l'articolo esiste già aggiorna SOLO codice/descrizione/token di ricerca: prezzi e giacenze non vengono toccati (vedi 8.14)
 
 #### Tab CLIENTI (Blocco 5A)
 - File `.txt` `chiave='valore'#chiave='valore'`
 - Parser: `parseClientsFile(text)` in `file-parser.js`
 - Importati: **~3.651 clienti**
+- L'import svuota prima il nodo `clients`; chiave cliente = `nome_legacyId`; nome = `RagioneSociale` (vedi 8.14)
 
 ---
 
@@ -732,7 +744,7 @@ printDDT({
   client: { name, address, city, province }  // opzionale (se manca, scarica da Firebase via meta.clientId)
 });
 Come riempie il template
-Header: doc_numero (= numero DDT), doc_data (data oggi), ditta (nome cliente), residenza (= "CITTÀ (PV) VIA CIVICO"), data_inizio (data), ora_inizio (ora), cb_vendita (spuntato)
+Header: doc_numero (= numero DDT), doc_data (data oggi), ditta (nome cliente), residenza (= "CITTÀ (PV) VIA CIVICO"), data_inizio (data), ora_inizio (ora), cb_vendita (spuntato), cb_cessionario (spuntato, dal 09/11/2026)
 
 Stampa senza numero: Se il flag in config/impostazioni/stampaSenzaNumero è true, il campo doc_numero viene lasciato vuoto.
 
@@ -765,6 +777,8 @@ Esprime il font risultante in cqw
 
 Stampa
 Iframe isolato con srcdoc — mai pagina bianca
+
+Doppia copia (09/11/2026): il documento HTML viene duplicato con page-break-before: always → con Copie: 1 escono due fogli (cedente + cessionario)
 
 iframe.contentWindow.print() dopo 400ms
 
@@ -871,7 +885,7 @@ Ufficio: pulsante 💰 Fornitori nell'header
 - **Tasto "R" (Toggle):** In banco, accanto al ciclo forbici.
 - **Comportamento:** Se attivato, il prezzo diventa negativo, il colore diventa rosso e appare il badge "RESO".
 - **Note:** Le note dell'articolo appaiono affiancate al badge RESO.
-- **Logica matematica:** Gestita in `computeLine` (cart-service.js) con `Math.abs` per evitare doppi meno visivi.
+- **Logica matematica:** Gestita in `computeLine` e `computeTotals` (cart-service.js) con `Math.abs` per evitare doppi meno visivi.
 - **Stampa:** La stampa ordini mostra il reso (segno meno e testo rosso). Il DDT ignora il reso.
 - **File toccati:** `cart-service.js`, `banco-controller.js`, `banco.css`, `ufficio-view.js`, `cassa-view.js`, `print-orders-modal.js`.
 
@@ -879,9 +893,55 @@ Ufficio: pulsante 💰 Fornitori nell'header
 - Le note delle righe articolo (es. "Reso - Rotto") ora appaiono nella stampa multi-ordine sotto il codice articolo, in arancione corsivo.
 - File toccato: `print-orders-modal.js` e `print.css`.
 
-### 8.13 Migliorie UI Anteprima Ordine (Sessione 28/10/2026)
-- **Nomi articoli lunghi:** Ora cliccando sul nome nell'anteprima ordine (Banco) il testo va a capo invece di essere tagliato.
-- **Codice articolo:** Reso più grande (13px), in grassetto e giallo per una lettura più rapida.
+### 8.13 Anteprima Ordine ridisegnata e Migliorie UI Banco (Sessioni 28/10 e 02/11/2026)
+
+#### Migliorie 28/10/2026
+- **Nomi articoli lunghi:** cliccando sul nome nell'anteprima ordine (Banco) il testo va a capo invece di essere tagliato.
+- **Codice articolo:** reso più grande (13px), in grassetto e giallo per una lettura più rapida.
+
+#### Nuova Anteprima Ordini (tendina Banco) — 02/11/2026
+La modale che si apre cliccando su un ordine nella tendina del Banco è stata completamente ridisegnata:
+- **Dimensioni:** occupa il 90% dello schermo per dare più spazio agli articoli.
+- **Banner in alto:** mostra lo stato dell'ordine (pallino colorato 🟡 NUOVI / 🟢 FATTI / 🟣 PRONTI) e il nome di chi lo ha creato.
+- **Frecce di navigazione (⬅️ ➡️):** passano all'ordine precedente o successivo senza chiudere la modale. Scorrono la lista esattamente come la si vede nella tendina.
+- **Tasti rapidi in basso:**
+  - `🟢 Fatto / 🟡 Riapri`: tasto dinamico. Se l'ordine è nei nuovi diventa "Fatto" (verde); se è nei fatti diventa "Riapri" (giallo) per riportarlo nei nuovi.
+  - `🟣 Pronto`: sposta l'ordine nei pronti.
+  - `🖨 Stampa`, `🗑 Elimina`, `🔓 Sblocca` e `📋 Ordini`.
+- **Sicurezza:** i tasti di cambio stato chiedono un popup di conferma. Se l'ordine è in stato `modifica` (non ancora inviato all'ufficio), i tasti Fatto/Pronto mostrano un alert: "Prima invia l'ordine all'ufficio (UFF. o CONFERMA)".
+
+#### Tasto 👤 CAMBIA cliente — 02/11/2026
+- In `banco-controller.js` (`updateClientBar`) il tasto "CAMBIA" è nascosto: appare solo dopo che viene creata una fattura (quando `meta.invoiceNumber` esiste).
+- Per cambiare cliente prima della fattura si passa dal tasto BOL (selettore clienti).
+
+### 8.14 Importazioni Intelligenti e Sicure (Sessioni 02/11, 06/11 e 09/11/2026)
+
+#### Importazione Articoli (`article-repository.js`)
+- Se un articolo **esiste già**, aggiorna SOLO `code`, `codeNorm`, `description`, `descriptionLower`, `searchTokens` e `updatedAt`. I prezzi e le giacenze non vengono toccati.
+- Se è **nuovo**, inserisce tutti i dati dal file.
+
+#### Importazione Clienti (`client-repository.js`, `file-parser.js`)
+- **Pulizia:** `importClients` svuota completamente il nodo `clients` su Firebase (`remove`) prima di inserire i nuovi. Elimina doppioni, "fantasmi" e vecchi clienti con il punto.
+- **Chiave cliente:** `nome + "_" + legacyId` (IdAnagrafica). Nessun cliente ne sovrascrive un altro, nemmeno con nomi troncati a 20 caratteri (problema risolto il 06/11).
+- **Apostrofi (06/11):** il file originale usa `&#x27;` per l'apostrofo (es. `SOCIETA' CONSORT`). Il `#` dell'entità spezzava la riga e il cliente veniva scartato. Ora `decodeHtmlEntities` viene chiamata **PRIMA** di dividere la riga per `#` in `file-parser.js`.
+- **Nome cliente (09/11):** `parseClientLine` usa come nome principale il campo `RagioneSociale` (es. "SOCIETÀ AGRICOLA SAN MARTINO"); se manca, ripiega su `VecchioCodice` (file più vecchi). I doppi spazi nei nomi vengono puliti (es. "AVOGADRO  ARL" → "AVOGADRO ARL").
+
+### 8.15 Ricerca Clienti Super Intelligente (`client-service.js`) — 02/11/2026, aggiornata 06/11
+- Ignora maiuscole, minuscole e accenti (es. "citta" trova "Città").
+- Cerca contemporaneamente in: Nome, Città, Indirizzo e Codice Cliente (`legacyId`).
+- Ricerca per "token" (parole separate): scrivendo "mario milano" trova "Mario Rossi" di Milano.
+- Sistema a punteggio: match esatto sul nome (1000), inizio nome (500), parola contenuta (200).
+- **06/11:** `normalizeStr` decodifica anche i codici HTML e ignora la punteggiatura varia (es. "san martino", "consort").
+
+### 8.16 DDT: spunta automatica e doppia copia (Sessioni 04/11 e 09/11/2026)
+- **Spunta automatica:** nella sezione "Tipologia" del template DDT la casella **Vendita** è spuntata in automatico. Il 04/11 era stata aggiunta anche **Cedente** (`cb_cedente`); il 09/11 è stata corretta: ora viene spuntata la casella **Cessionario** al posto di "Cedente".
+- **Stampa doppia copia:** `printDDT` duplica il documento HTML con un salto pagina (`page-break-before: always`). Cliccando "Stampa" (con Copie: 1) la stampante emette **due fogli**: una copia per il cedente e una per il cessionario.
+- **File modificato:** `js/ui/components/print-ddt.js`.
+
+### 8.17 Archivio Ordini e Menu Long Press (Sessione 04/11/2026)
+- **Auto-archiviazione (`js/data/archive-repository.js`):** all'avvio dell'app (Banco o Ufficio) controlla se ci sono ordini con stato `"fatto"` più vecchi di 35 giorni. Se ci sono, li sposta nel nodo `archivedCarts` a blocchi da 500 (per non sovraccaricare Firebase) e li elimina da `activeCarts`. Salva la data dell'ultima esecuzione in `meta/lastArchiveDate` per non ripetere l'operazione più di una volta al giorno.
+- **Pagina Archivio (`archivio.html` e `archivio-controller.js`):** pagina in sola lettura raggiungibile tramite routing (`app.js`). Mostra gli ordini archiviati con una barra di ricerca intelligente (per cliente, numero ordine o data). Include un tasto "Stampa" che genera il foglio esattamente come il Banco.
+- **Menu Long Press:** per non affollare l'header, il link all'Archivio è nascosto in un menu a tendina. Tenendo premuto per mezzo secondo sul tasto "Ufficio" (nel Banco) o "Banco" (nell'Ufficio) appare un menu con la voce "🗄 Archivio Ordini". Fix CSS (`-webkit-touch-callout`) e JS (`contextmenu`) per evitare che il menu nativo del browser su mobile copra la tendina.
 
 9. UI/UX
 Temi
@@ -914,6 +974,8 @@ text
 │ TOTALE € 0,00                                  │
 │ [BOL.] [RIEP.] [UFF.] [CONFERMA] [🗑]          │
 └────────────────────────────────────────────────┘
+Nota: il tasto 👤 CAMBIA compare solo dopo la creazione della fattura (`meta.invoiceNumber`).
+
 Loader: Overlay a schermo intero con cerchio animato ("Caricamento...", "Invio...").
 
 Tab bar: Compatta, senza scroll.
@@ -985,6 +1047,8 @@ Placeholder nota compatto quando vuota, div giallo quando piena
 
 Loader di caricamento (overlay)
 
+Menu long press (tenere premuto ~0,5 s su 🏢 Ufficio / 🏭 Banco) → 🗄 Archivio Ordini
+
 Modale Esauriti
 
 Rimosso dall'app attuale
@@ -1019,7 +1083,9 @@ ferr_app definitiva/
 ├── ufficio.html ✅
 ├── cassa.html ✅
 ├── import.html ✅
-├── PROGETTO.md ✅ (v2.15)
+├── archivio.html ← 🆕 (04/11/2026, sola lettura)
+├── .gitignore ← 🆕 (esclude .tmp.driveupload)
+├── PROGETTO.md ✅ (v2.21)
 ├── templates/                      ← 🆕 (12/10/2026)
 │   └── ddt-template.html           ← 🆕
 ├── fornitori/                      ← 🆕 (12/10/2026)
@@ -1039,24 +1105,25 @@ ferr_app definitiva/
 │       ├── invoice.css ✅
 │       └── esauriti.css            ← 🆕 (14/10/2026)
 └── js/
-    ├── app.js ✅
+    ├── app.js ✅ (+ routing archivio)
     ├── core/
     │   ├── firebase-config.js ✅
     │   ├── firebase-init.js ✅ (esporta runTransaction, serverTimestamp)
     │   ├── auth.js ✅ (poli → paul)
-    │   ├── file-parser.js ✅
+    │   ├── file-parser.js ✅ (parseClientLine: RagioneSociale; decodeHtmlEntities prima dello split)
     │   ├── notify.js ✅ (Blocco 4)
     │   └── utils.js ❌ (mai creato)
     ├── data/
     │   ├── article-repository.js ✅ (+ IndexedDB cache, download queue)
     │   ├── cart-repository.js ✅ (+ writeSeenBy, syncOrderPricesToArticles, generateOrderCode, updateLineLock, markCartAsModified, serverTimestamp)
-    │   ├── client-repository.js ✅
+    │   ├── client-repository.js ✅ (import: svuota nodo clients, chiave nome_legacyId)
     │   ├── invoice-repository.js ✅ (Blocco 7)
     │   ├── trash-repository.js ✅ (Blocco 8)
     │   ├── esauriti-repository.js             ← 🆕 (14/10/2026)
     │   ├── esauriti-archivio-repository.js    ← 🆕 (14/10/2026)
     │   ├── fornitori-repository.js            ← 🆕 (15/10/2026)
     │   ├── impostazioni-repository.js         ← 🆕 (19/10/2026)
+    │   ├── archive-repository.js              ← 🆕 (04/11/2026)
     │   ├── order-repository.js ❌
     │   └── supplier-repository.js ❌
     ├── domain/
@@ -1080,7 +1147,7 @@ ferr_app definitiva/
         │   ├── invoice-modal.js ✅ (creato, non usato)
         │   ├── invoice-number-modal.js ✅ (popup Tasto F con "stampa senza numero")
         │   ├── print-invoice.js ✅ (fallback vecchio DDT)
-        │   ├── print-ddt.js              ← 🆕 (12/10/2026)
+        │   ├── print-ddt.js              ← 🆕 (12/10/2026; + Cessionario e doppia copia 09/11)
         │   ├── fornitori-modal.js         ← 🆕 (12/10/2026)
         │   ├── esauriti-fornitori.js      ← 🆕 (14/10/2026)
         │   ├── esauriti-helpers.js        ← 🆕 (14/10/2026)
@@ -1089,6 +1156,7 @@ ferr_app definitiva/
         ├── controllers/
         │   ├── banco-controller.js ✅ (~2000 righe, da rifattorizzare)
         │   ├── ufficio-controller.js ✅
+        │   ├── archivio-controller.js ← 🆕 (04/11/2026)
         │   └── cassa-controller.js ✅
         └── views/
             ├── login-view.js ✅
@@ -1140,6 +1208,8 @@ Repo: https://github.com/maxiz333/FERR_APP
 Sito online: https://maxiz333.github.io/FERR_APP/
 
 Deploy: automatico al push su main
+
+.gitignore: esclude la cartella .tmp.driveupload per non caricare su GitHub i file temporanei di Drive
 
 ⚠️ Attenzione: l'app USAG contiene prezzi di vendita ivati — NON pubblicare su GitHub Pages pubblico
 
@@ -1291,8 +1361,23 @@ Sessione 19-20/10/2026 (v2.12-2.15):
 
 ✅ Tasto 🛒 in Anteprima Ordine
 
+Sessioni 23/10 → 09/11/2026 (v2.16 → v2.21):
+
+✅ Fix definitivo "Ordine perso" (sentAt + getOrderTimestamp) — 23/10
+
+✅ Tasto Reso (R), Note articoli in stampa ordini, Migliorie UI Anteprima — 28/10
+
+✅ Ricerca Clienti intelligente, Importazioni sicure (articoli senza sovrascrittura prezzi/giacenze), Nuova Anteprima Ordine, Tasto CAMBIA nascosto — 02/11
+
+✅ Archivio Ordini (auto-archiviazione 35 giorni, archivio.html, menu long press) + spunta DDT — 04/11
+
+✅ Fix import clienti (apostrofi, doppioni, pulizia nodo) + fix ricerca clienti — 06/11
+
+✅ Import clienti da RagioneSociale, DDT spunta Cessionario + stampa doppia copia — 09/11
+
 📋 DA FARE (in ordine di priorità)
 #	Blocco	Cosa	Complessità
+Prossimo	Ricerca Vocale (Microfono)	Pulsante microfono nella tab Banco per cercare a voce codici e nomi articolo	—
 1	Pulizia debito tecnico	banco-controller.js (2000+ righe) → spezzare; banco.css regole duplicate; utils.js mai creato	🟠 Alta
 2	2B.8 — Barra Ricerca Generica (nel logo)	3 tab: articoli/clienti/ordini	🟡 Media
 3	12 — Regole Firebase + Deploy produzione	Sicurezza in produzione	🟠 Alta
@@ -1312,9 +1397,37 @@ FUTURO — Integrazione registratore di cassa fiscale
 
 FUTURO — Fattura fiscale (la fa il commercialista)
 
+FUTURO — Cruscotto Finanziario e Previsione di Cassa (vedi 12.1)
+
 Codice fornitore f. XXX — Serve import (Blocco 5)
 
 Cartellini — Funzione vecchia app, non si farà
+
+### 12.1 📊 Progetto Futuro: Cruscotto Finanziario e Previsione di Cassa
+
+**Obiettivo:** integrare un modulo di Business Intelligence per visualizzare guadagni, gestire le spese manuali (passate e future) e ricevere consigli finanziari basati sui dati storici e sulle regole di cassa, con l'ausilio di un'IA.
+
+**Fase 1: La Raccolta Dati (Il Quaderno)**
+- Creazione di una nuova pagina `finanze.html`.
+- Modulo per inserire manualmente le spese (es. "Pago 1000€ tra 30 giorni per stufe"). I dati verranno salvati su Firebase (es. `gestione_finanziaria/spese`).
+- Modulo per caricare i dati storici dei 3 anni precedenti (tramite file CSV/JSON o inserimento manuale) per stabilire una baseline.
+
+**Fase 2: La Visualizzazione (I Grafici)**
+- Integrazione della libreria gratuita **Chart.js** (nessun bundler richiesto).
+- Grafico a barre/linee che mostra:
+  - Incassi reali (letti in automatico dalle fatture/scontrini dell'app).
+  - Spese manuali (passate e future).
+  - Saldo di cassa previsto.
+
+**Fase 3: Le Regole (Il Poliziotto)**
+- Implementazione di un algoritmo di previsione di cassa (Cash Flow Forecast) basato su regole matematiche.
+- Incrocio dati: `Saldo attuale + Incassi previsti (storico) - Spese inserite - Spese fisse`.
+- Soglie di allarme (es. alert rosso se il saldo previsto va in negativo).
+
+**Fase 4: L'Intelligenza Artificiale (Il Consulente)**
+- Integrazione di un LLM (es. ChatGPT/Claude) tramite Firebase Cloud Functions (per nascondere le API Key e non esporle nel codice frontend).
+- L'IA analizzerà i dati storici, l'andamento attuale e le spese future. Darà consigli "di testa sua" (es. valutare l'acquisto di stufe a 6000€ considerando i picchi di vendita di Dicembre).
+- L'IA terrà conto di variabili complesse come soglie per trasporto gratuito o sconti volume.
 
 13. Stato Avanzamento Attuale
 Blocco	Descrizione	Stato
@@ -1357,10 +1470,19 @@ Ricerca banco 2 modalità	CODICE/NOME + tastierino inline	✅ (12/10)
 Performance	Cache IndexedDB, Stale-While-Revalidate	✅ (19-20/10)
 Sicurezza Ordini	runTransaction, safeTs, Download Queue	✅ (19-20/10)
 UI Extra	Loader di caricamento, Tasto Esaurito in Anteprima	✅ (19-20/10)
+Fix Ordine perso	sentAt + getOrderTimestamp	✅ (23/10)
+Gestione Resi	Tasto R, prezzi negativi, stampa con meno rosso	✅ (28/10)
+Note articoli in stampa	print-orders-modal.js, print.css	✅ (28/10)
+Ricerca Clienti intelligente	Token, accenti, punteggio	✅ (02/11, aggiornata 06/11)
+Importazioni sicure	Articoli senza toccare prezzi/giacenze; clienti con pulizia nodo e chiave nome_legacyId	✅ (02/11 → 09/11)
+Nuova Anteprima Ordine	90% schermo, frecce, tasti rapidi, Cambia nascosto	✅ (02/11)
+Archivio Ordini	Auto-archiviazione 35 gg, archivio.html, menu long press	✅ (04/11)
+DDT Cessionario + doppia copia	print-ddt.js	✅ (09/11)
+Ricerca Vocale (Microfono)	Pulsante microfono in tab Banco	⏳ prossimo
 10	Scaglioni	⏳
 11	Tema Light	⏳
 12	Regole + Deploy	⏳
-Prossimo passo immediato: Pulizia debito tecnico / Blocco 2B.8 / Regole Firebase.
+Prossimo passo immediato: Ricerca Vocale (Microfono) / Pulizia debito tecnico / Blocco 2B.8 / Regole Firebase.
 
 14. Note Tecniche Importanti
 🛡️ Fix "Ordine Perso" (Sessione 19-20/10)
@@ -1375,6 +1497,16 @@ Prossimo passo immediato: Pulizia debito tecnico / Blocco 2B.8 / Regole Firebase
 - Test fatto: carrello creato prima di mezzanotte e confermato dopo, compare in Ufficio nel giorno e all'ora giusti, in cima.
 
 Le misure sotto (safeTs, runTransaction, Coda di Download) restano nel codice come protezioni, ma NON erano la causa del bug.
+
+🗄 Archivio Ordini (04/11/2026)
+archive-repository.js parte all'avvio di Banco e Ufficio, al massimo una volta al giorno (meta/lastArchiveDate). Sposta in archivedCarts, a blocchi da 500, gli ordini in stato fatto più vecchi di 35 giorni e li elimina da activeCarts. La pagina archivio.html è in sola lettura.
+
+📥 Import Clienti — punti di attenzione (06-09/11/2026)
+Il file clienti contiene entità HTML (es. &#x27; per l'apostrofo): il # dell'entità spezza la riga, quindi decodeHtmlEntities va chiamata PRIMA dello split per #.
+
+Nome cliente = RagioneSociale (ripiego su VecchioCodice), doppi spazi puliti.
+
+Chiave in clients = nome_legacyId. L'import svuota prima l'intero nodo clients: l'operazione è distruttiva, usarla solo con il file completo.
 
 📥 Cache Locale (IndexedDB)
 article-repository.js usa openDB(). All'avvio legge da IndexedDB e avvia downloadAndCacheArticles() in background.
@@ -1807,6 +1939,7 @@ Banco	http://127.0.0.1:5500/banco.html
 Ufficio	http://127.0.0.1:5500/ufficio.html
 Cassa	http://127.0.0.1:5500/cassa.html
 Import	http://127.0.0.1:5500/import.html
+Archivio	http://127.0.0.1:5500/archivio.html
 Firebase Console	https://console.firebase.google.com/project/ferr-app-5e277
 GitHub Repo	https://github.com/maxiz333/FERR_APP
 GitHub Pages	https://maxiz333.github.io/FERR_APP/
@@ -1890,7 +2023,7 @@ Vedi sezione 8.5
 
 Client picker da Firebase clients/
 
-Accesso da banco (👤 CAMBIA) e ufficio (popup BOL)
+Accesso da banco (👤 CAMBIA, visibile solo dopo la fattura; prima tramite BOL) e ufficio (popup BOL)
 
 16.9 📄 BLOCCO 7 — Fatturazione DDT
 ✅ COMPLETATO (05/10/2026)
@@ -2095,143 +2228,52 @@ Navigazione Settimane: Barra Lun-Dom in banco e ufficio con tendina per settiman
 
 Tasto 🛒 in Anteprima Ordine: aggiunge esaurito senza sbloccare l'ordine.
 
+16.18 🗂 SESSIONI 23/10 → 09/11/2026 — Ordine perso, Reso, Anteprima, Archivio, Import clienti, DDT
+✅ COMPLETATO (09/11/2026)
+
+23/10 — Fix definitivo "Ordine perso": sentAt + getOrderTimestamp (vedi sezione 14)
+
+28/10 — Tasto Reso (8.11), Note articoli in stampa (8.12), Migliorie UI Anteprima (8.13)
+
+02/11 — Ricerca Clienti intelligente (8.15), Importazioni sicure (8.14), Nuova Anteprima Ordine e Cambia nascosto (8.13)
+
+04/11 — Archivio Ordini + menu long press (8.17), spunta DDT (8.16)
+
+06/11 — Fix import clienti (apostrofi, doppioni, pulizia nodo) e fix ricerca (8.14, 8.15)
+
+09/11 — Import clienti da RagioneSociale (8.14), DDT Cessionario + doppia copia (8.16)
+
 
 
 17. Cronologia Modifiche
-Data	Modifica
-22/09/2026	Creazione v1.0
-23/09/2026	v2.0 — Aggiunte: Clienti, Scheda Prodotto, Barra Ricerca, Pallini Prezzo, Scaglioni, Template DDT
-24/09/2026	v2.1 — 2B.3.4b (Cliente Picker), 2B.4 (Riepilogo), 2B.5
-24/09/2026	v2.2 — Blocco 3.1 (Layout Ufficio), distinzione UFFICIO/CASSA
-25/09/2026	v2.3 — 3.2, 3.4, 3.5, 3B. Fix header
-28/09/2026	v2.4 — Fix loop Sync totali, wireBottomButtons, saveOrderNote, isLocked
-29-30/09/2026	v2.5 — 3.3, 3.5-bis, 3B-bis, 3.7 p1. Vari bug fix
-01/10/2026	v2.6 (1) — 3.8, 2B.6, 2B.7. Fix vari
-04/10/2026	v2.6 (2) — Fix calcolatore taglio/peso, cassa refresh live
-05/10/2026	v2.6 (3) — 5A, 6, 7. Fix pagina bianca. Nuovi componenti
-06/10/2026	v2.7 (1) — Blocco 8 (Cestino), Blocco 4 (Occhio + Notifiche). Fix localStorage cp4_*. GitHub Pages
-07/10/2026	v2.7 (2) — LAVORO A/B/C/D. Fix tasto +NUOVO, cassa testi, ufficio prezzo inline
-08/10/2026	v2.7 (3) — LAVORO D logica (forbici/scampolo/rotolo), nota banco fix cursore + div giallo, codice ufficio copia, ordine senza bozza genera codice, card carrello non annidate
-09/10/2026	v2.8 — Fix stampa ordini (print-area), nota ufficio (placeholder/div giallo), barra giorni ufficio, vista completa tendina banco, pulizia carrelli vuoti, filtro tendina più stretto, rinomina poli → paul, barra in basso ristrutturata, modale riepilogo v2, colori righe stabili, nota riga articolo arancione. Fix _orderNoteEditMode, updateOrdersTabStyle duplicata, updateBolButton. Rimossi invoice.css duplicati in banco.html
-12/10/2026	v2.9 — DDT definitivo (template HTML + auto-fit font 8%), modale fornitori + USAG integrata, 2 tasti CODICE/NOME in banco con tastierino inline in basso, tastiera iOS auto su NOME, anti-falso-blur note ufficio + banco, occhio condizionale in anteprima ordine banco, stampa DDT in anteprima banco, tab banco/ufficio compatti, cestino ufficio nei tab, nota ordine ufficio allineata a destra, rimossi CLIENTI da banco / cestino da header ufficio
-13/10/2026	v2.10 — Barra giorni settimanale (Lun-Dom) + tendina settimane scorse in ufficio, ricerca ufficio dentro gli articoli (codice + descrizione)
-14-15/10/2026	v2.11 — Blocco Esauriti (Tasto 📦 ESAUR., Tendina fornitori, Popup Qty+Nota, Modale 95%, Catalogo, Archivio, Stampa A4, CSV, Gestione fornitori dinamica, Ricerca estesa)
-19/10/2026	v2.12 — Tasto F (popup numero bolla + "Stampa senza numero"), Stampa DDT con prezzi 0,00 nascosti, BOL apre client picker in banco, fix pagina bianca tasto F
-19-20/10/2026	v2.13-2.15 — Cache IndexedDB (Stale-While-Revalidate), runTransaction per invio ordini, safeTs per timestamp, Coda Download, Loader di caricamento, Navigazione Settimane in banco, Tasto Esaurito in Anteprima Ordine
+
+| Data | Modifica |
+|---|---|
+| 22/09/2026 | Creazione v1.0 |
+| 23/09/2026 | v2.0 — Aggiunte: Clienti, Scheda Prodotto, Barra Ricerca, Pallini Prezzo, Scaglioni, Template DDT |
+| 24/09/2026 | v2.1 — 2B.3.4b (Cliente Picker), 2B.4 (Riepilogo), 2B.5 |
+| 24/09/2026 | v2.2 — Blocco 3.1 (Layout Ufficio), distinzione UFFICIO/CASSA |
+| 25/09/2026 | v2.3 — 3.2, 3.4, 3.5, 3B. Fix header |
+| 28/09/2026 | v2.4 — Fix loop Sync totali, wireBottomButtons, saveOrderNote, isLocked |
+| 29-30/09/2026 | v2.5 — 3.3, 3.5-bis, 3B-bis, 3.7 p1. Vari bug fix |
+| 01/10/2026 | v2.6 (1) — 3.8, 2B.6, 2B.7. Fix vari |
+| 04/10/2026 | v2.6 (2) — Fix calcolatore taglio/peso, cassa refresh live |
+| 05/10/2026 | v2.6 (3) — 5A, 6, 7. Fix pagina bianca. Nuovi componenti |
+| 06/10/2026 | v2.7 (1) — Blocco 8 (Cestino), Blocco 4 (Occhio + Notifiche). Fix localStorage cp4_*. GitHub Pages |
+| 07/10/2026 | v2.7 (2) — LAVORO A/B/C/D. Fix tasto +NUOVO, cassa testi, ufficio prezzo inline |
+| 08/10/2026 | v2.7 (3) — LAVORO D logica (forbici/scampolo/rotolo), nota banco fix cursore + div giallo, codice ufficio copia, ordine senza bozza genera codice, card carrello non annidate |
+| 09/10/2026 | v2.8 — Fix stampa ordini (print-area), nota ufficio (placeholder/div giallo), barra giorni ufficio, vista completa tendina banco, pulizia carrelli vuoti, filtro tendina più stretto, rinomina poli → paul, barra in basso ristrutturata, modale riepilogo v2, colori righe stabili, nota riga articolo arancione. Fix _orderNoteEditMode, updateOrdersTabStyle duplicata, updateBolButton. Rimossi invoice.css duplicati in banco.html |
+| 12/10/2026 | v2.9 — DDT definitivo (template HTML + auto-fit font 8%), modale fornitori + USAG integrata, 2 tasti CODICE/NOME in banco con tastierino inline in basso, tastiera iOS auto su NOME, anti-falso-blur note ufficio + banco, occhio condizionale in anteprima ordine banco, stampa DDT in anteprima banco, tab banco/ufficio compatti, cestino ufficio nei tab, nota ordine ufficio allineata a destra, rimossi CLIENTI da banco / cestino da header ufficio |
+| 13/10/2026 | v2.10 — Barra giorni settimanale (Lun-Dom) + tendina settimane scorse in ufficio, ricerca ufficio dentro gli articoli (codice + descrizione) |
+| 14-15/10/2026 | v2.11 — Blocco Esauriti (Tasto 📦 ESAUR., Tendina fornitori, Popup Qty+Nota, Modale 95%, Catalogo, Archivio, Stampa A4, CSV, Gestione fornitori dinamica, Ricerca estesa) |
+| 19/10/2026 | v2.12 — Tasto F (popup numero bolla + "Stampa senza numero"), Stampa DDT con prezzi 0,00 nascosti, BOL apre client picker in banco, fix pagina bianca tasto F |
+| 19-20/10/2026 | v2.13-2.15 — Cache IndexedDB (Stale-While-Revalidate), runTransaction per invio ordini, safeTs per timestamp, Coda Download, Loader di caricamento, Navigazione Settimane in banco, Tasto Esaurito in Anteprima Ordine |
 | 23/10/2026 | v2.16 — Fix definitivo "ordine perso": sentAt + getOrderTimestamp in cart-repository, banco, ufficio, cassa |
 | 28/10/2026 | v2.17 — Tasto Reso (prezzi negativi/rossi), Note articoli in stampa ordini, Migliorie UI Anteprima, pulizia .gitignore |
-Ultima sessione: 21/10/2026
-Versione attuale: v2.15
+| 02/11/2026 | v2.18 — Ricerca Clienti intelligente, Importazioni sicure (no sovrascrittura prezzi/giacenze), Nuova Anteprima Ordine (tasti rapidi, frecce, layout 90%), Tasto CAMBIA nascosto |
+| 04/11/2026 | v2.20 — Archivio automatico ordini vecchi (35 giorni), pagina archivio.html con ricerca/stampa, menu long press, spunta DDT "Cedente" |
+| 06/11/2026 | v2.20.1 — Fix import clienti (apostrofi `&#x27;`, doppioni, pulizia nodo clients) e fix ricerca clienti (normalizeStr) |
+| 09/11/2026 | v2.21 — Import clienti da RagioneSociale, spunta DDT su "Cessionario" (al posto di "Cedente"), stampa DDT in doppia copia |
 
-
----
-
-## 📌 APPENDICE: Aggiornamenti Recenti (Sessione Ottobre/Novembre 2026)
-
-Questa sezione raccoglie tutte le modifiche, i fix e le nuove funzionalità implementate dopo la v2.15. Rappresenta lo stato attuale del codice (v2.18).
-
-### 🛡️ 1. Fix Definitivo "Ordine Sparito" (sentAt)
-- **Problema risolto:** L'app usava `createdAt` (creazione carrello) per filtrare. Se un carrello veniva creato ieri e inviato oggi, spariva.
-- **Soluzione:** Introdotto `sentAt` (ora di invio) e la funzione `getOrderTimestamp(meta)` in `cart-repository.js`. 
-- **Regola d'oro:** Filtri, raggruppamenti e ordinamenti devono usare SEMPRE `getOrderTimestamp(meta)`, mai `createdAt`. I problemi di DNS/WebSocket erano falsi allarmi (errori innocui degli iframe).
-- **File modificati:** `cart-repository.js`, `banco-controller.js`, `ufficio-controller.js`, `cassa-controller.js`.
-
-### 🔄 2. Tasto Reso (Gestione Resi)
-- **Funzionamento:** Tasto "R" in banco (accanto al ciclo forbici). Se attivato, il prezzo e il totale diventano negativi e rossi, con badge "RESO".
-- **Matematica:** Gestita in `computeLine` e `computeTotals` (`cart-service.js`) usando `Math.abs` per evitare doppi meno visivi.
-- **Stampa:** La stampa ordini mostra il reso (segno meno e testo rosso). Il DDT ignora il reso.
-- **File modificati:** `cart-service.js`, `banco-controller.js`, `banco.css`, `ufficio-view.js`, `cassa-view.js`, `print-orders-modal.js`.
-
-### 📥 3. Importazioni Intelligenti e Sicure
-- **Importazione Articoli (`article-repository.js`):** 
-  - Se un articolo **esiste già**, aggiorna SOLO `code`, `codeNorm`, `description`, `descriptionLower`, `searchTokens` e `updatedAt`. (I prezzi e le giacenze non vengono toccati).
-  - Se è **nuovo**, inserisce tutti i dati dal file.
-- **Importazione Clienti (`client-repository.js`):** 
-  - Prima di importare, **svuota completamente il nodo `clients`** su Firebase (elimina i doppioni e i vecchi clienti con il punto). Poi inserisce i nuovi.
-
-### 🔍 4. Ricerca Clienti Super Intelligente (`client-service.js`)
-- La ricerca ora ignora maiuscole, minuscole e accenti (es. "citta" trova "Città").
-- Cerca contemporaneamente in: Nome, Città, Indirizzo e Codice Cliente (legacyId).
-- Ricerca per "token" (parole separate): scrivendo "mario milano" troverà "Mario Rossi" di Milano.
-- Sistema a punteggio: match esatti sul nome (1000), inizio nome (500), parola contenuta (200).
-
-### 🎨 5. Modifiche UI - Banco e Clienti
-- **Tasto CAMBIA cliente:** In `banco-controller.js` (`updateClientBar`), il tasto "CAMBIA" è stato nascosto. Appare solo dopo che viene creata una fattura (quando `meta.invoiceNumber` esiste). Per cambiare cliente prima, si deve passare per il tasto BOL.
-- **Nomi espandibili e Codice Giallo:** Nell'anteprima ordine, cliccando sul nome dell'articolo, il testo va a capo. Il codice articolo è stato ingrandito, reso in grassetto e giallo.
-- **Note in Stampa:** Le note degli articoli ora appaiono anche nella stampa multi-ordine (in `print-orders-modal.js` e `print.css`).
-
-### 🖥️ 6. Nuova Anteprima Ordini (Tendina Banco)
-La modale che si apre cliccando su un ordine nella tendina del Banco è stata completamente ridisegnata:
-- **Dimensioni:** Occupa il 90% dello schermo per dare più spazio agli articoli.
-- **Banner in alto:** Mostra lo stato dell'ordine (con pallino colorato 🟡 NUOVI / 🟢 FATTI / 🟣 PRONTI) e il nome di chi lo ha creato.
-- **Frecce di Navigazione (⬅️ ➡️):** Permettono di passare all'ordine precedente o successivo direttamente, senza chiudere la modale. (Scorrono la lista esattamente come la stai vedendo nella tendina).
-- **Tasti Rapidi in basso:** 
-  - `🟢 Fatto / 🟡 Riapri`: Tasto dinamico. Se l'ordine è nei nuovi diventa "Fatto" (verde). Se è nei fatti diventa "Riapri" (giallo) per riportarlo nei nuovi.
-  - `🟣 Pronto`: Sposta l'ordine nei pronti.
-  - `🖨 Stampa`, `🗑 Elimina`, `🔓 Sblocca` e `📋 Ordini`.
-- **Sicurezza:** I tasti di cambio stato chiedono un popup di conferma. Se l'ordine è in stato `modifica` (non ancora inviato all'ufficio), i tasti Fatto/Pronto mostrano un alert: "Prima invia l'ordine all'ufficio (UFF. o CONFERMA)".
-
-### 8.16 Auto-compilazione Casella "Cedente" su DDT (Sessione 04/11/2026)
-- **Modifica:** Nel template di stampa del DDT, la casella "Cedente" (nella sezione Tipologia) ora viene spuntata in automatico, esattamente come già accadeva per la casella "Vendita".
-- **File modificato:** `js/ui/components/print-ddt.js`
-- **Logica:** Aggiunto il controllo sul checkbox `cb_cedente` (imposta `checked = true` e l'attributo `checked`).
-
-### 8.17 Archivio Ordini e Menu Long Press (Sessione 04/11/2026)
-
-- **Auto-archiviazione (`js/data/archive-repository.js`):** All'avvio dell'app (Banco o Ufficio), il sistema controlla se ci sono ordini con stato `"fatto"` più vecchi di 35 giorni. Se ci sono, li sposta nel nodo `archivedCarts` a blocchi da 500 (per non sovraccaricare Firebase) e li elimina da `activeCarts`. Salva la data dell'ultima esecuzione in `meta/lastArchiveDate` per non ripetere l'operazione più di una volta al giorno.
-- **Nuova Pagina Archivio (`archivio.html` e `archivio-controller.js`):** Pagina in sola lettura raggiungibile tramite routing (`app.js`). Mostra gli ordini archiviati con una barra di ricerca intelligente (per cliente, numero ordine o data). Include un tasto "Stampa" che genera il foglio esattamente come il Banco.
-- **Menu Long Press:** Per non affollare l'header, il link all'Archivio è nascosto in un menu a tendina. Tenendo premuto per mezzo secondo sul tasto "Ufficio" (nel Banco) o "Banco" (nell'Ufficio), appare un menu con la voce "🗄 Archivio Ordini". Aggiunto fix CSS (`-webkit-touch-callout`) e JS (`contextmenu`) per evitare che il menu nativo del browser su mobile copra la tendina.
-- **Fix DDT:** Aggiunta la spunta automatica sulla casella "Cedente" nel template di stampa DDT (`print-ddt.js`), esattamente come già avveniva per "Vendita".
-**Cronologia:**| Data | Versione | Modifica |
-|---|---|---|
-| 04/11/2026 | v2.20 | Implementato Archivio automatico ordini vecchi, nuova pagina archivio con ricerca/stampa, menu long press per l'accesso e fix spunta DDT Cedente. |
-
-- **Pulizia Git:** Aggiunto file .gitignore per escludere la cartella .tmp.driveupload e non caricare file temporanei su GitHub.
-### 📅 Cronologia Aggiornamenti
-| Data | Versione | Modifica |
-|---|---|---|
-| 23/10/2026 | v2.16 | Fix definitivo "Ordine perso" con `sentAt` e `getOrderTimestamp`. |
-| 28/10/2026 | v2.17 | Tasto Reso (prezzi negativi/rossi), Note articoli in stampa, Migliorie UI anteprima. |
-| 02/11/2026 | v2.18 | Ricerca Clienti intelligente, Importazioni sicure (no sovrascrittura prezzi/giacenze), Nuova Anteprima Ordine (tasti rapidi, frecce, layout 90%), Tasto Cambia nascosto. |
-
-
-
----
-
-## 📊 PROGETTO FUTURO: Cruscotto Finanziario e Previsione di Cassa
-
-**Obiettivo:** Integrare un modulo di Business Intelligence per visualizzare guadagni, gestire le spese manuali (passate e future) e ricevere consigli finanziari basati sui dati storici e sulle regole di cassa, con l'ausilio di un'IA.
-
-### Fasi di Sviluppo
-
-**Fase 1: La Raccolta Dati (Il Quaderno)**
-- Creazione di una nuova pagina `finanze.html`.
-- Modulo per inserire manualmente le spese (es. "Pago 1000€ tra 30 giorni per stufe"). I dati verranno salvati su Firebase (es. `gestione_finanziaria/spese`).
-- Modulo per caricare i dati storici dei 3 anni precedenti (tramite file CSV/JSON o inserimento manuale) per stabilire una baseline.
-
-**Fase 2: La Visualizzazione (I Grafici)**
-- Integrazione della libreria gratuita **Chart.js** (nessun bundler richiesto).
-- Grafico a barre/linee che mostra:
-  - Incassi reali (letti in automatico dalle fatture/scontrini dell'app).
-  - Spese manuali (passate e future).
-  - Saldo di cassa previsto.
-
-**Fase 3: Le Regole (Il Poliziotto)**
-- Implementazione di un algoritmo di previsione di cassa (Cash Flow Forecast) basato su regole matematiche.
-- Incrocio dati: `Saldo attuale + Incassi previsti (storico) - Spese inserite - Spese fisse`.
-- Soglie di allarme (es. alert rosso se il saldo previsto va in negativo).
-
-**Fase 4: L'Intelligenza Artificiale (Il Consulente)**
-- Integrazione di un LLM (es. ChatGPT/Claude) tramite Firebase Cloud Functions (per nascondere le API Key e non esporle nel codice frontend).
-- L'IA analizzerà i dati storici, l'andamento attuale e le spese future. Darà consigli "di testa sua" (es. valutare l'acquisto di stufe a 6000€ considerando i picchi di vendita di Dicembre).
-- L'IA terrà conto di variabili complesse come soglie per trasporto gratuito o sconti volume.
-
-
- FIX RICERCA FATTO
-### 8.18 Fix Importazione Clienti e Ricerca (Sessione 06/11/2026)
-- **Problema 1 (Apostrofi):** I nomi con l'apostrofo (es. `SOCIETA' CONSORT`) sparivano durante l'importazione. Il file originale usa `&#x27;` per l'apostrofo, ma quel codice contiene un `#`, che spezzava la riga e faceva scartare il cliente.
-- **Problema 2 (Doppioni):** Clienti con nomi troncati a 20 caratteri si sovrascrivevano a vicenda.
-- **Soluzione (Parser):** In `file-parser.js`, la funzione `decodeHtmlEntities` viene ora chiamata **PRIMA** di dividere la riga per `#`. Questo salva i nomi con apostrofi.
-- **Soluzione (Doppioni):** In `client-repository.js` (`importClients`), la chiave del cliente ora usa `nome + "_" + legacyId` (IdAnagrafica), garantendo che nessun cliente venga sovrascritto.
-- **Soluzione (Pulizia):** La funzione `importClients` ora svuota completamente il database vecchio (`remove`) prima di inserire i nuovi clienti, eliminando i "fantasmi" e i doppioni storici.
-- **Ricerca:** Aggiornata `normalizeStr` in `client-service.js` per decodificare i codici HTML e ignorare punteggiatura varia.
+Ultima sessione: 09/11/2026
+Versione attuale: v2.21

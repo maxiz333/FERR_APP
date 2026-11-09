@@ -95,11 +95,11 @@
        cbVendita.checked = true;
        cbVendita.setAttribute('checked', 'checked');
      }
-     // ☒ Cedente
-  const cbCedente = root.querySelector('input[name="cb_cedente"]');
-  if (cbCedente) {
-    cbCedente.checked = true;
-    cbCedente.setAttribute('checked', 'checked');
+       // ☒ Cessionario
+  const cbCessionario = root.querySelector('input[name="cb_cessionario"]');
+  if (cbCessionario) {
+    cbCessionario.checked = true;
+    cbCessionario.setAttribute('checked', 'checked');
   }
      set('vettore_nome', '');
      set('n_colli', '');
@@ -234,34 +234,34 @@
    }
    
    export async function printDDT(opts) {
-     const { cart, invoiceNumber, client, extraFields } = opts || {};
-     if (!cart) {
-       alert('Nessun ordine da stampare');
-       return;
-     }
-   
-     const meta = cart.meta || {};
-     const lines = cart.lines || {};
-     const stampaSenzaNumero = await getStampaSenzaNumero();
-   
-     // 🆕 Se non mi è stato passato il cliente, lo scarico da Firebase
-     let clientData = client;
-     if (!clientData && meta.clientId) {
-       try {
-         clientData = await getClientByKey(meta.clientId);
-       } catch (e) {
-         console.warn('Client non trovato:', e);
-       }
-     }
-   
-     const templateHtml = await loadTemplate();
-   
-     const parser = new DOMParser();
-     const doc = parser.parseFromString(templateHtml, 'text/html');
-   
-     const data = {
+    const { cart, invoiceNumber, client, extraFields } = opts || {};
+    if (!cart) {
+      alert('Nessun ordine da stampare');
+      return;
+    }
+  
+    const meta = cart.meta || {};
+    const lines = cart.lines || {};
+    const stampaSenzaNumero = await getStampaSenzaNumero();
+  
+    // Se non mi è stato passato il cliente, lo scarico da Firebase
+    let clientData = client;
+    if (!clientData && meta.clientId) {
+      try {
+        clientData = await getClientByKey(meta.clientId);
+      } catch (e) {
+        console.warn('Client non trovato:', e);
+      }
+    }
+  
+    const templateHtml = await loadTemplate();
+  
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(templateHtml, 'text/html');
+  
+    const data = {
       invoiceNumber:  invoiceNumber || meta.invoiceNumber,
-      stampaSenzaNumero,            // 🆕 Aggiunto qui!
+      stampaSenzaNumero,
       clientName:     clientData?.name     || meta.clientName || '',
       clientAddress:  clientData?.address  || '',
       clientCity:     clientData?.city     || '',
@@ -270,9 +270,17 @@
       lines,
       ...extraFields
     };
-   
-     fillTemplate(doc, data);
-   
-     const finalHtml = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-     printViaIframe(finalHtml);
-   }
+  
+    fillTemplate(doc, data);
+  
+    // 🆕 Duplica il contenuto per stampare 2 copie
+    const originalBody = doc.body.innerHTML;
+    doc.body.innerHTML = `
+      ${originalBody}
+      <div style="page-break-before: always; break-before: page; height: 0; overflow: hidden;"></div>
+      ${originalBody}
+    `;
+  
+    const finalHtml = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+    printViaIframe(finalHtml);
+  }
