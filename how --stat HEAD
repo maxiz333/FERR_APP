@@ -1,0 +1,10 @@
+[33mcommit 393419414ca6b8aafe1d899cf5891507ddc9fe1b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: maxiz333 <mrattazzi03@gmail.com>
+Date:   Fri Nov 13 14:47:30 2026 +0100
+
+    Aggiunta barra azioni in Ufficio con tasto aggiungi articolo, forbici, reso, nota e cestino
+
+ assets/css/ufficio.css                  | 348 [32m++++++++++++++++++++++++++[m[31m-[m
+ js/ui/controllers/ufficio-controller.js | 409 [32m++++++++++++++++++++++++++++[m[31m----[m
+ js/ui/views/ufficio-view.js             |  95 [32m++++++[m[31m--[m
+ 3 files changed, 778 insertions(+), 74 deletions(-)

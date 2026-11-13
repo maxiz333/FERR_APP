@@ -21,7 +21,9 @@ import {
   addLine, // 🆕 Aggiunto per il tasto Aggiungi Articolo
   deleteLine,
   updateClient,
-  updateNote
+  updateNote,
+  createCart,
+  generateOrderCode
 } from "../../data/cart-repository.js";
 
 import {
@@ -149,6 +151,7 @@ let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
          wireTrashUfficio();
          startTrashListener();
          runScheduledCleanup();
+         wireNewOrderButton();
 
          // 🔔 Blocco 4 — chiedi permesso notifiche al primo click
          document.addEventListener("click", async () => {
@@ -630,362 +633,272 @@ let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
       AZIONI ORDINI
       ============================================ */
    
-   function wireOrderActions() {
-     document.querySelectorAll("[data-action]").forEach((btn) => {
-       if (btn._wired) return;
-       btn._wired = true;
+      function wireOrderActions() {
+        document.querySelectorAll("[data-action]").forEach((btn) => {
+          if (btn._wired) return;
+          btn._wired = true;
+      
+          btn.addEventListener("click", async (e) => {
+           e.stopPropagation();
+           const action = btn.dataset.action;
+           const orderId = btn.dataset.orderId;
+           const lineId = btn.dataset.lineId;
+     
+           try {
+             if (action === "fatto") {
+               if (!confirm("Segnare questo ordine come FATTO?")) return;
    
-       btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const action = btn.dataset.action;
-        const orderId = btn.dataset.orderId;
-        const lineId = btn.dataset.lineId;
-  
-        try {
-          if (action === "fatto") {
-            if (!confirm("Segnare questo ordine come FATTO?")) return;
-
-            // 🆕 PRIMA sincronizza i prezzi delle righe → articoli
-            try {
-              const { syncOrderPricesToArticles } = await import("../../data/cart-repository.js");
-              const res = await syncOrderPricesToArticles(orderId);
-              if (res.updated > 0 || res.skipped > 0) {
-                console.log(`💰 Prezzi sincronizzati: ${res.updated} aggiornati, ${res.skipped} invariati`);
-              }
-              // 🆕 Aggiorna cache locale con i nuovi prezzi
-              if (res.articles && res.articles.length > 0) {
-                const now = Date.now();
-                for (const a of res.articles) {
-                  updateArticleInCache(a.key, {
-                    basePrice: a.price,
-                    priceLastChangedAt: now,
-                    priceVerified: true
-                  });
-                }
-              }
+               try {
+                 const { syncOrderPricesToArticles } = await import("../../data/cart-repository.js");
+                 const res = await syncOrderPricesToArticles(orderId);
+                 if (res.updated > 0 || res.skipped > 0) {
+                   console.log(`💰 Prezzi sincronizzati: ${res.updated} aggiornati, ${res.skipped} invariati`);
+                 }
+                 if (res.articles && res.articles.length > 0) {
+                   const now = Date.now();
+                   for (const a of res.articles) {
+                     updateArticleInCache(a.key, {
+                       basePrice: a.price,
+                       priceLastChangedAt: now,
+                       priceVerified: true
+                     });
+                   }
+                 }
+               } catch (err) {
+                 console.error("Errore sync prezzi:", err);
+               }
+   
+               await updateStatus(orderId, "fatto");
+               await updateLineLock(orderId, true);
+               console.log(`✅ Ordine ${orderId} → fatto`);
+      
+             } else if (action === "toggle-actions") {
+               const lineEl = btn.closest(".uff-order-line");
+               const actionsEl = lineEl.querySelector(".uff-line-actions");
+               if (actionsEl.hasAttribute("hidden")) {
+                 actionsEl.removeAttribute("hidden");
+                 _openActionsLinesUff.add(lineId);
+               } else {
+                 actionsEl.setAttribute("hidden", "");
+                 _openActionsLinesUff.delete(lineId);
+               }
+             } else if (action === "forbici") {
+               await cycleForbiciUfficio(orderId, lineId);
+             } else if (action === "return") {
+               const order = _orders.find((o) => o.id === orderId);
+               const line = order?.lines[lineId];
+               if (!line) return;
+               const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
+               if (!confirm(confirmMsg)) return;
+   
+               const updated = computeLine({ ...line, isReturn: !line.isReturn });
+               writeSeenBy(orderId, _user.id);
+               await updateLine(orderId, lineId, {
+                 isReturn: updated.isReturn,
+                 lineTotal: updated.lineTotal,
+                 discountAmount: updated.discountAmount
+               });
+               await recomputeAndSaveTotals(order, lineId, updated);
+               await markCartAsModified(orderId);
+             } else if (action === "note") {
+               const order = _orders.find((o) => o.id === orderId);
+               const line = order?.lines[lineId];
+               if (!line) return;
+               
+               const note = prompt("Nota per questa riga:", line.note || "");
+               if (note === null) return;
+               
+               writeSeenBy(orderId, _user.id);
+               await updateLine(orderId, lineId, { note });
+               await recomputeAndSaveTotals(order, lineId, { ...line, note });
+               await markCartAsModified(orderId);
+             } else if (action === "order") {
+               const order = _orders.find((o) => o.id === orderId);
+               const line = order?.lines[lineId];
+               if (!line) return;
+   
+               openFornitoriTendina(btn, (fornitore) => {
+                 openEsauritoPopup({
+                   description: line.description,
+                   fornitore,
+                   initialQty: line.esauritoQty ?? 0,
+                   initialNote: line.esauritoNote || "",
+                   onConfirm: async (qty, note) => {
+                     await updateLine(orderId, lineId, {
+                       esauritoFornitore: fornitore,
+                       esauritoQty: qty,
+                       esauritoNote: note
+                     });
+                     showToastUff(`📦 Esaurito · ${fornitore.nome}`);
+                   }
+                 });
+               });
+             } else if (action === "delete") {
+               const order = _orders.find((o) => o.id === orderId);
+               const line = order?.lines[lineId];
+               if (!line) return;
+   
+               if (!confirm(`Eliminare "${line.description}" dall'ordine?`)) return;
+   
+               writeSeenBy(orderId, _user.id);
+               await deleteLine(orderId, lineId);
+   
+               if (order) {
+                 const updatedLines = { ...order.lines };
+                 delete updatedLines[lineId];
+                 const allLines = Object.entries(updatedLines).map(([id, l]) => ({ id, ...l }));
+                 const totals = computeTotals(allLines);
+                 await updateTotals(orderId, totals);
+               }
+   
+               await markCartAsModified(orderId);
+               showToastUff(`🗑 Articolo eliminato`);
+   
+             } else if (action === "discount" || action === "edit-discount") {
+               await editLineDiscount(orderId, lineId);
+             } else if (action === "pronto") {
+                await updateStatus(orderId, "pronto");
+                console.log(`📋 Ordine ${orderId} → pronto`);
+               } else if (action === "unlock") {
+                 if (!confirm("Sbloccare l'ordine per modificarlo?")) return;
+                 await updateStatus(orderId, "sbloccato");
+                 await updateLineLock(orderId, false);
+                 console.log(`🔓 Ordine ${orderId} sbloccato`);
+               
+                 _activeFilter = "nuovi";
+                 document.querySelectorAll(".uff-tab").forEach((t) => {
+                   t.classList.toggle("is-active", t.dataset.filter === "nuovi");
+                 });
+                 refresh();
+               
+                 setTimeout(() => {
+                   const el = document.querySelector(`[data-order-id="${orderId}"]`);
+                   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                 }, 150);
+               } else if (action === "stampa") {
+                 const { openPrintOrdersModal } = await import("../components/print-orders-modal.js");
+                 const filtered = filterOrders(_orders);
+   
+                 const ordersOnly = filtered.filter(o => !o.invoiceNumber);
+   
+                 const filterLabels = {
+                   nuovi: "🟡 NUOVI",
+                   fatti: "🟢 FATTI",
+                   tutti: "📋 TUTTI",
+                   pronto: "🟣 PRONTO"
+                 };
+                 openPrintOrdersModal({
+                   orders: ordersOnly,
+                   currentOrderId: orderId,
+                   filterLabel: filterLabels[_activeFilter] || _activeFilter
+                 });
+   
+               } else if (action === "bol") {
+                 const order = _orders.find((o) => o.id === orderId);
+                 if (!order) return;
+   
+                 const pick = await openClientPicker({
+                   currentClientName: order.clientName || "Cliente 1"
+                 });
+   
+                 if (!pick) return;
+   
+                 if (pick.clientKey) {
+                   try { await updateClient(orderId, pick.clientKey, pick.name); }
+                   catch (e) { console.error(e); }
+                 }
+   
+                 const preview = await peekNextInvoiceNumber();
+                 const ok = confirm(
+                   "Creare fattura per questo ordine?\n\n" +
+                   "Cliente: " + pick.name + "\n" +
+                   "Numero bolla: " + preview
+                 );
+                 if (!ok) return;
+   
+                 try {
+                   const invoiceNumber = await generateInvoiceNumber();
+                   await saveInvoiceToCart(orderId, invoiceNumber);
+                   alert("✅ Fattura " + invoiceNumber + " creata!\n\nOra premi '🖨 Stampa DDT' per stamparla.");
+                 } catch (err) {
+                   console.error("Errore fatturazione:", err);
+                   alert("Errore: " + err.message);
+                 }
+             } else if (action === "stampa-ddt") {
+               const order = _orders.find((o) => o.id === orderId);
+               if (!order || !order.invoiceNumber) return;
+   
+               let client = null;
+               if (order.clientId) {
+                 try { client = await getClientByKey(order.clientId); }
+                 catch (e) { /* ignore */ }
+               }
+   
+               printDDT({
+                 cart: { meta: order, lines: order.lines },
+                 invoiceNumber: order.invoiceNumber,
+                 client: client
+               });
+      
+             } else if (action === "elimina") {
+               if (!confirm("Spostare questo ordine nel cestino?")) return;
+               try {
+                 await trashCart(orderId, "ufficio", _user);
+                 console.log(`🗑 Ordine ${orderId} cestinato (ufficio)`);
+               } catch (err) {
+                 console.error("Errore cestinamento:", err);
+                 alert("Errore: " + err.message);
+               }
+   
+             // 🆕 NUOVO BLOCCO AZIONI (pulito)
+             } else if (action === "add-article") {
+               openAddArticleModal(orderId);
+             } else if (action === "edit-price") {
+               await editLinePrice(orderId, lineId);
+             } else if (action === "edit-qty") {
+               await editLineQty(orderId, lineId);
+             } else if (action === "product-card") {
+               const code = btn.dataset.articleCode;
+               if (!code) return;
+               ProductCard.open({
+                 articleCode: code,
+                 onSaved: () => {
+                   // niente da fare
+                 }
+               });
+             } else if (action === "copy-code") {
+               const code = btn.dataset.code || "";
+               if (!code) return;
+               try {
+                 await navigator.clipboard.writeText(code);
+                 showToastUff("📋 Codice copiato: " + code);
+               } catch (err) {
+                 const tmp = document.createElement("textarea");
+                 tmp.value = code;
+                 tmp.style.position = "fixed";
+                 tmp.style.opacity = "0";
+                 document.body.appendChild(tmp);
+                 tmp.select();
+                 try { document.execCommand("copy"); } catch (e) {}
+                 document.body.removeChild(tmp);
+                 showToastUff("📋 Codice copiato: " + code);
+               }
+             } else if (action === "edit-note") {
+               _editingNoteCarts.add(orderId);
+               refresh();
+               setTimeout(() => {
+                 const ta = document.querySelector(`.uff-order-note-textarea[data-order-id="${orderId}"]`);
+                 if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+               }, 30);
+             }
+              
             } catch (err) {
-              console.error("Errore sync prezzi:", err);
-            }
-
-            await updateStatus(orderId, "fatto");
-            await updateLineLock(orderId, true);
-            console.log(`✅ Ordine ${orderId} → fatto`);
-   
-          } else if (action === "toggle-actions") {
-            const lineEl = btn.closest(".uff-order-line");
-            const actionsEl = lineEl.querySelector(".uff-line-actions");
-            if (actionsEl.hasAttribute("hidden")) {
-              actionsEl.removeAttribute("hidden");
-              _openActionsLinesUff.add(lineId);
-            } else {
-              actionsEl.setAttribute("hidden", "");
-              _openActionsLinesUff.delete(lineId);
-            }
-          } else if (action === "forbici") {
-            await cycleForbiciUfficio(orderId, lineId);
-          } else if (action === "return") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-            const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
-            if (!confirm(confirmMsg)) return;
-
-            const updated = computeLine({ ...line, isReturn: !line.isReturn });
-            writeSeenBy(orderId, _user.id);
-            await updateLine(orderId, lineId, {
-              isReturn: updated.isReturn,
-              lineTotal: updated.lineTotal,
-              discountAmount: updated.discountAmount
-            });
-            await recomputeAndSaveTotals(order, lineId, updated);
-            await markCartAsModified(orderId);
-          } else if (action === "note") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-            
-            const note = prompt("Nota per questa riga:", line.note || "");
-            if (note === null) return;
-            
-            writeSeenBy(orderId, _user.id);
-            await updateLine(orderId, lineId, { note });
-            await recomputeAndSaveTotals(order, lineId, { ...line, note });
-            await markCartAsModified(orderId);
-          } else if (action === "order") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-
-            openFornitoriTendina(btn, (fornitore) => {
-              openEsauritoPopup({
-                description: line.description,
-                fornitore,
-                initialQty: line.esauritoQty ?? 0,
-                initialNote: line.esauritoNote || "",
-                onConfirm: async (qty, note) => {
-                  await updateLine(orderId, lineId, {
-                    esauritoFornitore: fornitore,
-                    esauritoQty: qty,
-                    esauritoNote: note
-                  });
-                  showToastUff(`📦 Esaurito · ${fornitore.nome}`);
-                }
-              });
-            });
-          } else if (action === "delete") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-
-            if (!confirm(`Eliminare "${line.description}" dall'ordine?`)) return;
-
-            writeSeenBy(orderId, _user.id);
-            await deleteLine(orderId, lineId);
-
-            // Ricalcola totali
-            if (order) {
-              const updatedLines = { ...order.lines };
-              delete updatedLines[lineId];
-              const allLines = Object.entries(updatedLines).map(([id, l]) => ({ id, ...l }));
-              const totals = computeTotals(allLines);
-              await updateTotals(orderId, totals);
-            }
-
-            await markCartAsModified(orderId);
-            showToastUff(`🗑 Articolo eliminato`);
-
-          } else if (action === "discount" || action === "edit-discount") {
-            await editLineDiscount(orderId, lineId);
-          } else if (action === "edit-price") {
-
-           } else if (action === "pronto") {
-             await updateStatus(orderId, "pronto");
-             console.log(`📋 Ordine ${orderId} → pronto`);
-   
-            } else if (action === "unlock") {
-              if (!confirm("Sbloccare l'ordine per modificarlo?")) return;
-              await updateStatus(orderId, "sbloccato");
-              await updateLineLock(orderId, false);
-              console.log(`🔓 Ordine ${orderId} sbloccato`);
-            
-              // Cambia tab su "nuovi" e mostra l'ordine sbloccato
-              _activeFilter = "nuovi";
-              document.querySelectorAll(".uff-tab").forEach((t) => {
-                t.classList.toggle("is-active", t.dataset.filter === "nuovi");
-              });
-              refresh();
-            
-              // Scroll all'ordine appena sbloccato
-              setTimeout(() => {
-                const el = document.querySelector(`[data-order-id="${orderId}"]`);
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 150);
-            
-   
-            } else if (action === "stampa") {
-              const { openPrintOrdersModal } = await import("../components/print-orders-modal.js");
-              const filtered = filterOrders(_orders);
-
-              // 🆕 Escludi le fatture: quelle si stampano con "🖨 Stampa DDT" direttamente
-              const ordersOnly = filtered.filter(o => !o.invoiceNumber);
-
-              const filterLabels = {
-                nuovi: "🟡 NUOVI",
-                fatti: "🟢 FATTI",
-                tutti: "📋 TUTTI",
-                pronto: "🟣 PRONTO"
-              };
-              openPrintOrdersModal({
-                orders: ordersOnly,
-                currentOrderId: orderId,
-                filterLabel: filterLabels[_activeFilter] || _activeFilter
-              });
-
-                        // 🆕 Blocco 7 — Crea fattura
-                      } else if (action === "bol") {
-                        const order = _orders.find((o) => o.id === orderId);
-                        if (!order) return;
-          
-                        // Apri client picker per scegliere cliente
-                        const pick = await openClientPicker({
-                          currentClientName: order.clientName || "Cliente 1"
-                        });
-          
-                        // Se annulla, esci
-                        if (!pick) return;
-          
-                        // Salva nuovo cliente sul carrello (se scelto)
-                        if (pick.clientKey) {
-                          try { await updateClient(orderId, pick.clientKey, pick.name); }
-                          catch (e) { console.error(e); }
-                        }
-          
-                        // Chiedi conferma con dialog nativo
-                        const preview = await peekNextInvoiceNumber();
-                        const ok = confirm(
-                          "Creare fattura per questo ordine?\n\n" +
-                          "Cliente: " + pick.name + "\n" +
-                          "Numero bolla: " + preview
-                        );
-                        if (!ok) return;
-          
-                        try {
-                          const invoiceNumber = await generateInvoiceNumber();
-                          await saveInvoiceToCart(orderId, invoiceNumber);
-                          alert("✅ Fattura " + invoiceNumber + " creata!\n\nOra premi '🖨 Stampa DDT' per stamparla.");
-                        } catch (err) {
-                          console.error("Errore fatturazione:", err);
-                          alert("Errore: " + err.message);
-                        }
-
-            // 🆕 Blocco 7 — Ristampa DDT
-          } else if (action === "stampa-ddt") {
-            const order = _orders.find((o) => o.id === orderId);
-            if (!order || !order.invoiceNumber) return;
-
-            let client = null;
-            if (order.clientId) {
-              try { client = await getClientByKey(order.clientId); }
-              catch (e) { /* ignore */ }
-            }
-
-            // 🆕 Usa il nuovo template DDT definitivo
-            printDDT({
-              cart: { meta: order, lines: order.lines },
-              invoiceNumber: order.invoiceNumber,
-              client: client
-            });
-   
-          } else if (action === "elimina") {
-            if (!confirm("Spostare questo ordine nel cestino?")) return;
-            try {
-              await trashCart(orderId, "ufficio", _user);
-              console.log(`🗑 Ordine ${orderId} cestinato (ufficio)`);
-            } catch (err) {
-              console.error("Errore cestinamento:", err);
+              console.error("Errore azione:", action, err);
               alert("Errore: " + err.message);
             }
-
-          // 🆕 INIZIO NUOVO BLOCCO AZIONI
-          } else if (action === "add-article") {
-            openAddArticleModal(orderId);
-          } else if (action === "toggle-actions") {
-            const lineEl = btn.closest(".uff-order-line");
-            const actionsEl = lineEl.querySelector(".uff-line-actions");
-            if (actionsEl.hasAttribute("hidden")) {
-              actionsEl.removeAttribute("hidden");
-              _openActionsLinesUff.add(lineId);
-            } else {
-              actionsEl.setAttribute("hidden", "");
-              _openActionsLinesUff.delete(lineId);
-            }
-          } else if (action === "forbici") {
-            await cycleForbiciUfficio(orderId, lineId);
-          } else if (action === "return") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-            const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
-            if (!confirm(confirmMsg)) return;
-
-            const updated = computeLine({ ...line, isReturn: !line.isReturn });
-            writeSeenBy(orderId, _user.id);
-            await updateLine(orderId, lineId, {
-              isReturn: updated.isReturn,
-              lineTotal: updated.lineTotal,
-              discountAmount: updated.discountAmount
-            });
-            await recomputeAndSaveTotals(order, lineId, updated);
-            await markCartAsModified(orderId);
-          } else if (action === "note") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-            
-            const note = prompt("Nota per questa riga:", line.note || "");
-            if (note === null) return;
-            
-            writeSeenBy(orderId, _user.id);
-            await updateLine(orderId, lineId, { note });
-            await recomputeAndSaveTotals(order, lineId, { ...line, note });
-            await markCartAsModified(orderId);
-          } else if (action === "order") {
-            const order = _orders.find((o) => o.id === orderId);
-            const line = order?.lines[lineId];
-            if (!line) return;
-
-            openFornitoriTendina(btn, (fornitore) => {
-              openEsauritoPopup({
-                description: line.description,
-                fornitore,
-                initialQty: line.esauritoQty ?? 0,
-                initialNote: line.esauritoNote || "",
-                onConfirm: async (qty, note) => {
-                  await updateLine(orderId, lineId, {
-                    esauritoFornitore: fornitore,
-                    esauritoQty: qty,
-                    esauritoNote: note
-                  });
-                  showToastUff(`📦 Esaurito · ${fornitore.nome}`);
-                }
-              });
-            });
-          } else if (action === "discount" || action === "edit-discount") {
-            await editLineDiscount(orderId, lineId);
-          // 🆕 FINE NUOVO BLOCCO AZIONI
-
-         } else if (action === "edit-price") {
-           await editLinePrice(orderId, lineId);
- 
-         } else if (action === "edit-qty") {
-           await editLineQty(orderId, lineId);
-   
-           } else if (action === "edit-discount") {
-             await editLineDiscount(orderId, lineId);
-            } else if (action === "product-card") {
-              const code = btn.dataset.articleCode;
-              if (!code) return;
-              ProductCard.open({
-                articleCode: code,
-                onSaved: () => {
-                  // niente da fare: la scheda ricarica da Firebase la prossima apertura
-                }
-              });
-            } else if (action === "copy-code") {
-              const code = btn.dataset.code || "";
-              if (!code) return;
-              try {
-                await navigator.clipboard.writeText(code);
-                showToastUff("📋 Codice copiato: " + code);
-              } catch (err) {
-                // Fallback per browser vecchi
-                const tmp = document.createElement("textarea");
-                tmp.value = code;
-                tmp.style.position = "fixed";
-                tmp.style.opacity = "0";
-                document.body.appendChild(tmp);
-                tmp.select();
-                try { document.execCommand("copy"); } catch (e) {}
-                document.body.removeChild(tmp);
-                showToastUff("📋 Codice copiato: " + code);
-              }
-            } else if (action === "edit-note") {
-              // 🆕 Click sul div giallo → passa in edit mode
-              _editingNoteCarts.add(orderId);
-              refresh();
-              setTimeout(() => {
-                const ta = document.querySelector(`.uff-order-note-textarea[data-order-id="${orderId}"]`);
-                if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
-              }, 30);
-            }
-           
-         } catch (err) {
-           console.error("Errore azione:", action, err);
-           alert("Errore: " + err.message);
-         }
-       });
-     });
-   }
+          });
+        });
+      }
    
    /* ============================================
       MODIFICA RIGHE
@@ -1303,6 +1216,122 @@ let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
             } catch (err) {
               console.error("Errore aggiunta articolo:", err);
               showToastUff("❌ Errore durante l'aggiunta");
+            }
+          });
+        });
+      }, 200);
+    });
+  
+    input.focus();
+  }
+
+/* ============================================
+   🆕 CREAZIONE NUOVO ORDINE DA UFFICIO
+   ============================================ */
+   export function wireNewOrderButton() {
+    const btn = document.getElementById("btnNewOrderUfficio");
+    if (!btn || btn._hasListener) return;
+    btn._hasListener = true;
+    btn.addEventListener("click", openNewOrderSearchModal);
+  }
+  
+  function openNewOrderSearchModal() {
+    const overlay = document.createElement("div");
+    overlay.className = "fapp-modal-overlay";
+    overlay.innerHTML = `
+      <div class="fapp-modal-box add-article-modal">
+        <div class="add-article-header">
+          <h2>➕ Nuovo Ordine</h2>
+          <button id="closeNewOrder" class="add-article-close">&times;</button>
+        </div>
+        <div class="add-article-search-wrap">
+          <input type="text" id="newOrderSearch" placeholder="Cerca articolo per codice o nome..." autocomplete="off">
+        </div>
+        <div id="newOrderResults" class="add-article-results">
+          <div class="add-article-empty">Digita per cercare il primo articolo dell'ordine...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  
+    const close = () => overlay.remove();
+    overlay.querySelector("#closeNewOrder").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  
+    const input = overlay.querySelector("#newOrderSearch");
+    const resultsArea = overlay.querySelector("#newOrderResults");
+  
+    let debounce = null;
+  
+    input.addEventListener("input", () => {
+      clearTimeout(debounce);
+      const q = input.value.trim();
+      
+      if (!q) {
+        resultsArea.innerHTML = `<div class="add-article-empty">Digita per cercare il primo articolo dell'ordine...</div>`;
+        return;
+      }
+  
+      debounce = setTimeout(() => {
+        const { results } = searchArticles(q, 30, 0);
+  
+        if (results.length === 0) {
+          resultsArea.innerHTML = `<div class="add-article-empty">Nessun articolo trovato per "${escapeHtml(q)}"</div>`;
+          return;
+        }
+  
+        resultsArea.innerHTML = results.map(art => `
+          <div class="add-article-item" data-key="${escapeHtml(art.key)}">
+            <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
+            <div class="add-article-desc">${escapeHtml(art.description)}</div>
+          </div>
+        `).join("");
+  
+        resultsArea.querySelectorAll(".add-article-item").forEach(el => {
+          el.addEventListener("click", async () => {
+            const articleKey = el.dataset.key;
+            const article = getArticleFromCache(articleKey);
+            if (!article) return;
+  
+            // Mostra un feedback visivo
+            resultsArea.innerHTML = `<div class="add-article-empty" style="color:#facc15;">Creazione ordine in corso...</div>`;
+  
+            try {
+              // 1. Crea un carrello vuoto (Cliente 1 di default)
+              const newCartId = await createCart(_user, null, "Cliente 1");
+  
+              // 2. Prepara la riga
+              const lineId = newLineId();
+              const line = computeLine(createLineFromArticle(article, _user));
+  
+              // 3. Aggiungi la riga al carrello
+              await addLine(newCartId, lineId, line);
+  
+              // 4. Calcola e salva i totali
+              const totals = computeTotals([{ id: lineId, ...line }]);
+              await updateTotals(newCartId, totals);
+  
+              // 5. Imposta lo stato su "nuovo" (come se avessi premuto CONFERMA in banco)
+              await updateStatus(newCartId, "nuovo");
+  
+              // 6. Genera il codice ordine (#N - L)
+              await generateOrderCode(newCartId);
+  
+              // 7. Chiudi modale, mostra messaggio e aggiorna la lista
+              close();
+              showToastUff(`✅ Nuovo Ordine creato con: ${article.description}`);
+              
+              // Ricarica la vista per far apparire il nuovo ordine in cima
+              _activeFilter = "nuovi";
+              document.querySelectorAll(".uff-tab").forEach((t) => {
+                t.classList.toggle("is-active", t.dataset.filter === "nuovi");
+              });
+              refresh();
+  
+            } catch (err) {
+              console.error("Errore creazione nuovo ordine:", err);
+              showToastUff("❌ Errore durante la creazione dell'ordine");
+              close();
             }
           });
         });
