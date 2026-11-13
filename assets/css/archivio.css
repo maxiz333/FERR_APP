@@ -1,0 +1,87 @@
+/* ============================================
+   🆕 ARCHIVIO ORDINI — Espansione e Righe
+   ============================================ */
+   .archive-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    cursor: pointer; /* Fa capire che si può cliccare */
+    transition: background 0.15s ease;
+  }
+  .archive-item-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .archive-item-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 1rem;
+  }
+  
+  .archive-toggle-icon {
+    font-size: 0.8rem;
+    color: var(--primary, #facc15);
+    width: 16px;
+    text-align: center;
+    transition: transform 0.2s ease;
+  }
+  
+  /* Contenitore degli articoli */
+  .archive-item-lines {
+    border-top: 1px solid var(--border, #2a2a2a);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 0;
+  }
+  
+  /* Singola riga articolo */
+  .archive-line {
+    display: grid;
+    grid-template-columns: 80px 1fr 60px 80px 80px;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  }
+  .archive-line:last-child { border-bottom: none; }
+  
+  .archive-line-code {
+    font-family: monospace;
+    color: var(--primary, #facc15);
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+  .archive-line-desc {
+    color: #ddd;
+    font-weight: 600;
+  }
+  .archive-line-qty {
+    text-align: center;
+    color: #aaa;
+  }
+  .archive-line-price {
+    text-align: right;
+    color: #aaa;
+  }
+  .archive-line-tot {
+    text-align: right;
+    font-weight: 800;
+    color: var(--primary, #facc15);
+  }
+  
+  /* Responsive per mobile */
+  @media (max-width: 640px) {
+    .archive-line {
+      grid-template-columns: 60px 1fr 50px 70px;
+      gap: 6px;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+    }
+    .archive-line-price { display: none; } /* Nasconde il prezzo unitario su mobile */
+    .archive-item-header { padding: 10px; }
+    .archive-item-title { font-size: 0.9rem; }
+  }

@@ -2277,3 +2277,61 @@ Tasto 🛒 in Anteprima Ordine: aggiunge esaurito senza sbloccare l'ordine.
 
 Ultima sessione: 09/11/2026
 Versione attuale: v2.21
+
+
+
+
+---
+
+## 16.19 🗂 SESSIONE 13/11/2026 — Barra Azioni in Ufficio (stile Banco)
+
+✅ **COMPLETATO (13/11/2026)**
+
+**Obiettivo:** Portare la "Barra Azioni" del Banco anche nell'interfaccia Ufficio, per permettere di modificare le singole righe (Sconto, Reso, Note, ecc.) senza dover passare dal Banco.
+
+**Caratteristiche:**
+- **Trigger:** Click sul numero dell'articolo (es. "1.", "2.") nella riga dell'ordine in Ufficio. La barra si apre/chiude a scomparsa.
+- **Tasti inclusi (identici al Banco):**
+  - ➕ **Aggiungi Articolo:** Apre la modale di ricerca per aggiungere un nuovo articolo all'ordine direttamente dall'Ufficio.
+  - ✂️ **Forbici/Scampolo:** Ciclo neutro → scampolo (sconto 30%) → rotolo → scaglionato.
+  - **% Sconto:** Apre il tastierino per modificare lo sconto percentuale.
+  - **R (Reso):** Trasforma l'articolo in reso (prezzo negativo, colore rosso, badge "RESO"). Funziona esattamente come nel Banco.
+  - **📄 Nota:** Apre un `prompt()` nativo per inserire/modificare la nota della riga (visibile in arancione con contorno nero).
+  - **🛒 Ordina:** Apre la tendina fornitori per segnare l'articolo come "Esaurito".
+  - **🗑 Elimina:** Rimuove la riga dall'ordine (con conferma).
+- **Blocco di Sicurezza:** Se l'ordine è in stato `fatto` (bloccato), la barra si apre ugualmente ma **tutti i tasti sono disabilitati** (grigi, opachi e non cliccabili).
+- **Codice Articolo:** Il click sul codice giallo continua a copiare il codice negli appunti senza interferire con la barra azioni.
+- **Sincronizzazione:** Ogni modifica alla riga chiama `markCartAsModified(cartId)` (scrive solo se l'ordine è `sbloccato`) per far apparire la matitina ✏️ permanente.
+
+**Note Tecniche e Bug Fix (Sessione 13/11):**
+- **Fix Tasto Prezzo (Controller):** Durante l'inserimento della nuova barra, un blocco di codice duplicato aveva spezzato la catena `if/else if` in `wireOrderActions`, lasciando un `edit-price` vuoto che bloccava il click sul prezzo. Il controller è stato completamente ripulito.
+- **Fix CSS (Grid):** Per evitare conflitti con la griglia esistente, è stata rimossa la classe `.uff-line-main` (che creava una griglia annidata) e si è usata la regola `grid-column: 1 / -1` su `.uff-line-actions`. Questo permette alla barra di andare a capo e occupare tutta la larghezza sotto la riga, senza rompere il layout a 4 colonne.
+- **File modificati:** `js/ui/views/ufficio-view.js`, `js/ui/controllers/ufficio-controller.js`, `assets/css/ufficio.css`.
+
+---| 13/11/2026 | v2.22 — Aggiunta Barra Azioni in Ufficio (stile Banco): trigger sul numero articolo, tasti Forbici/Scampolo, Sconto %, Reso, Nota, Ordina, Elimina e Aggiungi Articolo. Tasti disabilitati per ordini "fatto". Fix del tasto prezzo (rimozione codice duplicato nel controller) e pulizia CSS (grid-column: 1 / -1 per evitare griglie annidate). |
+
+
+## 16.20 🗓 SESSIONE 14/11/2026 — Calendario Ufficio e Archivio Espandibile
+
+✅ **COMPLETATO (14/11/2026)**
+
+**Obiettivo:** Fornire un sistema rapido per saltare a una data specifica dall'Ufficio, integrandolo con l'Archivio Ordini per le date più vecchie. Rendere l'Archivio più interattivo (espansione righe) e completo (stampa DDT per le fatture).
+
+### 📅 Calendario in Ufficio
+- **Tasto nell'Header:** Aggiunto un pulsante 📅 a destra del logo RATTAZZI in `ufficio.html`.
+- **Modale Calendario (stile Windows):** Si apre al centro dello schermo. Sfondo nero/giallo, frecce ◀ ▶ per cambiare mese, tasto ✕ rosso per chiudere. Chiusura anche cliccando fuori o sul tasto "Chiudi" in basso.
+- **Logica di Navigazione (5 settimane):**
+  - Se clicchi un giorno **da oggi fino a 5 settimane fa** (inclusa la settimana corrente), il calendario si chiude e la vista Ufficio si sposta automaticamente su quel giorno (aggiornando anche la barra settimanale in alto).
+  - Se clicchi un giorno **più vecchio di 5 settimane**, il calendario reindirizza automaticamente a `archivio.html?date=YYYY-MM-DD`.
+
+### 🗄 Archivio Ordini (Migliorie)
+- **Filtro Automatico da URL:** `archivio-controller.js` ora legge il parametro `?date=` dall'URL. Se presente, compila in automatico la barra di ricerca e filtra gli ordini per quel giorno.
+- **Auto-Espansione:** Se si arriva dal calendario (`?date=`), tutti gli ordini di quel giorno si aprono automaticamente per mostrare gli articoli.
+- **Accordion (Fisarmonica):** Cliccando sull'intestazione di un ordine nell'archivio, questo si espande mostrando le righe degli articoli (codice, descrizione, qty, prezzo, totale). L'icona cambia da ▶ a ▼.
+- **Ricerca Fatture:** La barra di ricerca dell'archivio ora trova anche per numero di fattura (es. "fattura 2015").
+- **Stampa Intelligente:** Il tasto di stampa cambia in base al tipo di ordine:
+  - Se l'ordine **non è fatturato** → mostra `🖨 Stampa` e usa `printOrders`.
+  - Se l'ordine **è fatturato** → mostra `🖨 Stampa DDT` e usa `printDDT` (con recupero dati cliente).
+- **File creati/modificati:** `assets/css/archivio.css` (nuovo), `archivio.html`, `js/ui/controllers/archivio-controller.js`, `js/ui/controllers/ufficio-controller.js`, `ufficio.html`, `ufficio.css`.
+
+---| 14/11/2026 | v2.23 — Calendario Ufficio (modale stile Windows, logica 5 settimane, redirect all'archivio per date vecchie). Archivio Ordini: filtro automatico da URL, auto-espansione, accordion articoli, ricerca per fattura, stampa DDT per fatture. Nuovo file `archivio.css`. |

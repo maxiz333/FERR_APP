@@ -174,6 +174,8 @@
           <span class="uff-logo-sub">CARTELLINI PREZZI</span>
         </div>
       </button>
+      <!-- 🆕 Tasto Calendario -->
+      <button class="uff-calendar-btn" id="btnCalendarUfficio" title="Scegli data">📅</button>
     </div>
     <div class="uff-header-right">
             <!-- 🆕 Tasto Nuovo Ordine -->
@@ -239,6 +241,27 @@
         <div class="banco-order-actions-row">
           <button class="btn btn-outline" id="uffTrashClose" type="button">Chiudi</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🆕 MODALE CALENDARIO (nascosta di default) -->
+  <div id="uffCalendarOverlay" class="fapp-modal-overlay" hidden>
+    <div class="fapp-modal-box uff-calendar-box">
+      <div class="uff-calendar-header">
+        <button id="calPrev" class="uff-cal-btn">◀</button>
+        <span id="calMonthYear">Novembre 2026</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button id="calNext" class="uff-cal-btn">▶</button>
+          <button id="calCloseX" class="uff-cal-btn" style="color:#ef4444; border-color:#ef4444;">✕</button>
+        </div>
+      </div>
+      <div class="uff-calendar-days-header">
+        <span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span>
+      </div>
+      <div class="uff-calendar-grid" id="calGrid"></div>
+      <div class="uff-calendar-footer">
+        <button id="calClose" class="uff-action-btn" style="background:#333;color:#fff;">Chiudi</button>
       </div>
     </div>
   </div>

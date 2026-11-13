@@ -71,6 +71,7 @@ let _orders = [];
 let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
 let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
 let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
+let _calCurrentDate = new Date(); // Per gestire il mese visualizzato
    
    /* ============================================
       INIT
@@ -152,6 +153,8 @@ let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
          startTrashListener();
          runScheduledCleanup();
          wireNewOrderButton();
+         // 🆕 Inizializza il calendario
+         wireCalendarUfficio();
 
          // 🔔 Blocco 4 — chiedi permesso notifiche al primo click
          document.addEventListener("click", async () => {
@@ -1596,3 +1599,123 @@ function safeTs(ts) {
   if (typeof ts === "number" && !isNaN(ts)) return ts;
   return Date.now();
 }
+
+/* ============================================
+   🆕 CALENDARIO UFFICIO
+   ============================================ */
+   function wireCalendarUfficio() {
+    const btn = document.getElementById("btnCalendarUfficio");
+    const overlay = document.getElementById("uffCalendarOverlay");
+    const closeBtn = document.getElementById("calClose");
+    const closeBtnX = document.getElementById("calCloseX");
+    const prevBtn = document.getElementById("calPrev");
+    const nextBtn = document.getElementById("calNext");
+  
+    if (!btn || !overlay) return;
+  
+    btn.addEventListener("click", () => {
+      _calCurrentDate = new Date(); // Riparte dal mese corrente
+      overlay.removeAttribute("hidden"); // Mostra la modale
+      
+      // 🆕 Aspetta un frame per far calcolare le dimensioni al browser e disegna i giorni
+      requestAnimationFrame(() => {
+        renderCalendar();
+      });
+    });
+  
+    // Funzione di chiusura
+    const closeCal = () => overlay.setAttribute("hidden", "");
+    
+    if (closeBtn) closeBtn.addEventListener("click", closeCal);
+    if (closeBtnX) closeBtnX.addEventListener("click", closeCal);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeCal(); });
+  
+    prevBtn.addEventListener("click", () => {
+      _calCurrentDate.setMonth(_calCurrentDate.getMonth() - 1);
+      renderCalendar();
+    });
+    nextBtn.addEventListener("click", () => {
+      _calCurrentDate.setMonth(_calCurrentDate.getMonth() + 1);
+      renderCalendar();
+    });
+  }
+  
+  function renderCalendar() {
+    const grid = document.getElementById("calGrid");
+    const title = document.getElementById("calMonthYear");
+    if (!grid || !title) return;
+  
+    const year = _calCurrentDate.getFullYear();
+    const month = _calCurrentDate.getMonth();
+  
+    const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+    title.textContent = `${monthNames[month]} ${year}`;
+  
+    // Primo giorno del mese (0=Dom, 1=Lun...)
+    const firstDay = new Date(year, month, 1).getDay();
+    // Convertiamo per far iniziare la settimana di Lunedì (0=Lun, 6=Dom)
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+  
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+    let html = "";
+    // Celle vuote per l'inizio del mese
+    for (let i = 0; i < startOffset; i++) {
+      html += `<div class="uff-cal-day is-empty"></div>`;
+    }
+  
+    const todayKey = dayKeyFromTs(Date.now());
+    
+    // Calcola il lunedì di 5 settimane fa per decidere quando andare in archivio
+    // _currentWeekOffset = 0 (questa settimana), 4 (5a settimana andando indietro)
+    const monday5WeeksAgo = getMondayOfWeek(4);
+    monday5WeeksAgo.setHours(0,0,0,0);
+  
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayDate = new Date(year, month, d);
+      const dayKey = dayKeyFromTs(dayDate.getTime());
+      const isToday = dayKey === todayKey;
+      
+      // Se il giorno è precedente al lunedì di 5 settimane fa -> Archivio
+      const isArchive = dayDate < monday5WeeksAgo;
+  
+      const classes = ["uff-cal-day", isToday ? "is-today" : "", isArchive ? "is-past-archive" : ""].filter(Boolean).join(" ");
+      
+      html += `<div class="${classes}" data-day="${dayKey}">${d}</div>`;
+    }
+  
+    grid.innerHTML = html;
+  
+    // Aggiungi i listener ai giorni
+    grid.querySelectorAll(".uff-cal-day:not(.is-empty)").forEach(el => {
+      el.addEventListener("click", () => {
+        const dayKey = el.dataset.day;
+        const dayDate = new Date(dayKey + "T00:00:00");
+        
+        document.getElementById("uffCalendarOverlay").setAttribute("hidden", "");
+  
+        if (dayDate < monday5WeeksAgo) {
+          // Vai all'archivio
+          window.location.href = `archivio.html?date=${dayKey}`;
+        } else {
+          // Filtra normalmente in ufficio
+          _activeDay = dayKey;
+          
+          // Calcola l'offset della settimana per far spostare la barra in alto
+          const todayMonday = getMondayOfWeek(0);
+          const diffTime = todayMonday.getTime() - getMondayOfWeek(0).getTime(); // Dummy per sicurezza
+          const dayMonday = new Date(dayDate);
+          const dow = dayMonday.getDay();
+          const diffToMon = dow === 0 ? -6 : 1 - dow;
+          dayMonday.setDate(dayMonday.getDate() + diffToMon);
+          dayMonday.setHours(0,0,0,0);
+          
+          const msDiff = todayMonday.getTime() - dayMonday.getTime();
+          _currentWeekOffset = Math.round(msDiff / (7 * 24 * 60 * 60 * 1000));
+          
+          _dayDetailOpen = null; // Chiudi eventuali dettagli aperti
+          refresh();
+        }
+      });
+    });
+  }
