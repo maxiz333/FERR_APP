@@ -4,39 +4,55 @@
    Blocco 3.4/3.5 — Modifica ordini
    ============================================ */
 
-   import { runAutoArchive } from "../../data/archive-repository.js";
-   import { renderOrders } from "../views/ufficio-view.js";
-   import {
-    listenAllCarts,
-    updateStatus,
-    updateLine,
-    updateTotals,
-    markCartAsModified,
-    writeSeenBy,
-    getOrderTimestamp
-  } from "../../data/cart-repository.js";
-  import {
-    trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
-    runScheduledCleanup
-  } from "../../data/trash-repository.js";
-   import { openKeypad } from "../components/keypad.js";
-   import { openClientPicker } from "../components/client-picker.js";
-   import { ProductCard } from "../components/product-card.js";
-   import { ensureArticlesLoaded, getArticleFromCache, updateArticleInCache } from "../../domain/article-service.js";
-   import { computeLine, computeTotals } from "../../domain/cart-service.js";
-   import { openInvoiceModal } from "../components/invoice-modal.js";
-   import { openInvoiceNumberModal } from "../components/invoice-number-modal.js";
-   import { printInvoice } from "../components/print-invoice.js";
+ /* ============================================
+   IMPORTS
+   ============================================ */
+import { runAutoArchive } from "../../data/archive-repository.js";
+import { renderOrders } from "../views/ufficio-view.js";
+
+import {
+  listenAllCarts,
+  updateStatus,
+  updateLine,
+  updateTotals,
+  markCartAsModified,
+  writeSeenBy,
+  getOrderTimestamp,
+  addLine, // 🆕 Aggiunto per il tasto Aggiungi Articolo
+  deleteLine,
+  updateClient,
+  updateNote
+} from "../../data/cart-repository.js";
+
+import {
+  trashCart, listenTrashCarts, restoreCart, deleteCartPermanently,
+  runScheduledCleanup
+} from "../../data/trash-repository.js";
+
+import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
+import { getClientByKey } from "../../data/client-repository.js";
+
+// 🆕 Aggiunto searchArticles per la ricerca intelligente
+import { ensureArticlesLoaded, getArticleFromCache, updateArticleInCache, searchArticles } from "../../domain/article-service.js";
+// 🆕 Aggiunti newLineId e createLineFromArticle per creare la riga
+import { computeLine, computeTotals, newLineId, createLineFromArticle } from "../../domain/cart-service.js";
+
+import { openKeypad } from "../components/keypad.js";
+import { openClientPicker } from "../components/client-picker.js";
+import { ProductCard } from "../components/product-card.js";
+import { openInvoiceModal } from "../components/invoice-modal.js";
+import { openInvoiceNumberModal } from "../components/invoice-number-modal.js";
+import { printInvoice } from "../components/print-invoice.js";
 import { printDDT } from "../components/print-ddt.js";
-   import { generateInvoiceNumber, saveInvoiceToCart, peekNextInvoiceNumber, setNextInvoiceNumber } from "../../data/invoice-repository.js";
-   import { getClientByKey } from "../../data/client-repository.js";
-   import { openFornitoriModal } from "../components/fornitori-modal.js";
-   import { updateClient } from "../../data/cart-repository.js";
-import { updateNote } from "../../data/cart-repository.js";
+import { openFornitoriModal } from "../components/fornitori-modal.js";
+// 🆕 Aggiunto per la tendina del tasto 🛒
+import { openFornitoriTendina, openEsauritoPopup } from "../components/esauriti-helpers.js";
+
 import { showOfficeToast, requestNotificationPermission } from "../../core/notify.js";
-   
-   let _user = null;
-   let _orders = [];
+
+let _user = null;
+let _orders = [];
+
    let _activeFilter = "nuovi";
    let _activeDay = null;           // "YYYY-MM-DD" o null = "Tutti"
    let _dayDetailOpen = null;       // "YYYY-MM-DD" del giorno con dettaglio aperto
@@ -52,6 +68,7 @@ import { showOfficeToast, requestNotificationPermission } from "../../core/notif
    let _dayPickerHandlers = null;
 let _pendingRefresh = false;       // 🛡️ refresh rinviato (nota in edit)
 let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
+let _openActionsLinesUff = new Set(); // 🆕 Righe con barra azioni aperta
    
    /* ============================================
       INIT
@@ -501,7 +518,7 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
           const enrichedLines = {};
           for (const [lid, l] of Object.entries(o.lines || {})) {
             const art = l.articleId ? getArticleFromCache(l.articleId) : null;
-            enrichedLines[lid] = { ...l, _article: art };
+            enrichedLines[lid] = { ...l, _article: art, _isActionsOpen: _openActionsLinesUff.has(lid) };
           }
 
                     // 👁️ Blocco 4 — occhio per TUTTI (anche te stesso)
@@ -654,6 +671,93 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
             await updateLineLock(orderId, true);
             console.log(`✅ Ordine ${orderId} → fatto`);
    
+          } else if (action === "toggle-actions") {
+            const lineEl = btn.closest(".uff-order-line");
+            const actionsEl = lineEl.querySelector(".uff-line-actions");
+            if (actionsEl.hasAttribute("hidden")) {
+              actionsEl.removeAttribute("hidden");
+              _openActionsLinesUff.add(lineId);
+            } else {
+              actionsEl.setAttribute("hidden", "");
+              _openActionsLinesUff.delete(lineId);
+            }
+          } else if (action === "forbici") {
+            await cycleForbiciUfficio(orderId, lineId);
+          } else if (action === "return") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+            const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
+            if (!confirm(confirmMsg)) return;
+
+            const updated = computeLine({ ...line, isReturn: !line.isReturn });
+            writeSeenBy(orderId, _user.id);
+            await updateLine(orderId, lineId, {
+              isReturn: updated.isReturn,
+              lineTotal: updated.lineTotal,
+              discountAmount: updated.discountAmount
+            });
+            await recomputeAndSaveTotals(order, lineId, updated);
+            await markCartAsModified(orderId);
+          } else if (action === "note") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+            
+            const note = prompt("Nota per questa riga:", line.note || "");
+            if (note === null) return;
+            
+            writeSeenBy(orderId, _user.id);
+            await updateLine(orderId, lineId, { note });
+            await recomputeAndSaveTotals(order, lineId, { ...line, note });
+            await markCartAsModified(orderId);
+          } else if (action === "order") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+
+            openFornitoriTendina(btn, (fornitore) => {
+              openEsauritoPopup({
+                description: line.description,
+                fornitore,
+                initialQty: line.esauritoQty ?? 0,
+                initialNote: line.esauritoNote || "",
+                onConfirm: async (qty, note) => {
+                  await updateLine(orderId, lineId, {
+                    esauritoFornitore: fornitore,
+                    esauritoQty: qty,
+                    esauritoNote: note
+                  });
+                  showToastUff(`📦 Esaurito · ${fornitore.nome}`);
+                }
+              });
+            });
+          } else if (action === "delete") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+
+            if (!confirm(`Eliminare "${line.description}" dall'ordine?`)) return;
+
+            writeSeenBy(orderId, _user.id);
+            await deleteLine(orderId, lineId);
+
+            // Ricalcola totali
+            if (order) {
+              const updatedLines = { ...order.lines };
+              delete updatedLines[lineId];
+              const allLines = Object.entries(updatedLines).map(([id, l]) => ({ id, ...l }));
+              const totals = computeTotals(allLines);
+              await updateTotals(orderId, totals);
+            }
+
+            await markCartAsModified(orderId);
+            showToastUff(`🗑 Articolo eliminato`);
+
+          } else if (action === "discount" || action === "edit-discount") {
+            await editLineDiscount(orderId, lineId);
+          } else if (action === "edit-price") {
+
            } else if (action === "pronto") {
              await updateStatus(orderId, "pronto");
              console.log(`📋 Ordine ${orderId} → pronto`);
@@ -752,21 +856,89 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
               client: client
             });
    
-            } else if (action === "elimina") {
-              if (!confirm("Spostare questo ordine nel cestino?")) return;
-              try {
-                await trashCart(orderId, "ufficio", _user);
-                console.log(`🗑 Ordine ${orderId} cestinato (ufficio)`);
-              } catch (err) {
-                console.error("Errore cestinamento:", err);
-                alert("Errore: " + err.message);
-              }
-   
-           } else if (action === "edit-price") {
-             await editLinePrice(orderId, lineId);
-   
-           } else if (action === "edit-qty") {
-             await editLineQty(orderId, lineId);
+          } else if (action === "elimina") {
+            if (!confirm("Spostare questo ordine nel cestino?")) return;
+            try {
+              await trashCart(orderId, "ufficio", _user);
+              console.log(`🗑 Ordine ${orderId} cestinato (ufficio)`);
+            } catch (err) {
+              console.error("Errore cestinamento:", err);
+              alert("Errore: " + err.message);
+            }
+
+          // 🆕 INIZIO NUOVO BLOCCO AZIONI
+          } else if (action === "add-article") {
+            openAddArticleModal(orderId);
+          } else if (action === "toggle-actions") {
+            const lineEl = btn.closest(".uff-order-line");
+            const actionsEl = lineEl.querySelector(".uff-line-actions");
+            if (actionsEl.hasAttribute("hidden")) {
+              actionsEl.removeAttribute("hidden");
+              _openActionsLinesUff.add(lineId);
+            } else {
+              actionsEl.setAttribute("hidden", "");
+              _openActionsLinesUff.delete(lineId);
+            }
+          } else if (action === "forbici") {
+            await cycleForbiciUfficio(orderId, lineId);
+          } else if (action === "return") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+            const confirmMsg = line.isReturn ? "Annullare il reso per questo articolo?" : "Questo articolo è un reso?";
+            if (!confirm(confirmMsg)) return;
+
+            const updated = computeLine({ ...line, isReturn: !line.isReturn });
+            writeSeenBy(orderId, _user.id);
+            await updateLine(orderId, lineId, {
+              isReturn: updated.isReturn,
+              lineTotal: updated.lineTotal,
+              discountAmount: updated.discountAmount
+            });
+            await recomputeAndSaveTotals(order, lineId, updated);
+            await markCartAsModified(orderId);
+          } else if (action === "note") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+            
+            const note = prompt("Nota per questa riga:", line.note || "");
+            if (note === null) return;
+            
+            writeSeenBy(orderId, _user.id);
+            await updateLine(orderId, lineId, { note });
+            await recomputeAndSaveTotals(order, lineId, { ...line, note });
+            await markCartAsModified(orderId);
+          } else if (action === "order") {
+            const order = _orders.find((o) => o.id === orderId);
+            const line = order?.lines[lineId];
+            if (!line) return;
+
+            openFornitoriTendina(btn, (fornitore) => {
+              openEsauritoPopup({
+                description: line.description,
+                fornitore,
+                initialQty: line.esauritoQty ?? 0,
+                initialNote: line.esauritoNote || "",
+                onConfirm: async (qty, note) => {
+                  await updateLine(orderId, lineId, {
+                    esauritoFornitore: fornitore,
+                    esauritoQty: qty,
+                    esauritoNote: note
+                  });
+                  showToastUff(`📦 Esaurito · ${fornitore.nome}`);
+                }
+              });
+            });
+          } else if (action === "discount" || action === "edit-discount") {
+            await editLineDiscount(orderId, lineId);
+          // 🆕 FINE NUOVO BLOCCO AZIONI
+
+         } else if (action === "edit-price") {
+           await editLinePrice(orderId, lineId);
+ 
+         } else if (action === "edit-qty") {
+           await editLineQty(orderId, lineId);
    
            } else if (action === "edit-discount") {
              await editLineDiscount(orderId, lineId);
@@ -997,6 +1169,149 @@ let _currentWeekOffset = 0; // 🆕 0 = settimana corrente, 1 = scorsa, ecc.
       UNLOCK
       ============================================ */
    
+/* ============================================
+   CICLO FORBICI UFFICIO
+   ============================================ */
+   async function cycleForbiciUfficio(orderId, lineId) {
+    const order = _orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const line = order.lines[lineId];
+    if (!line) return;
+  
+    const current = line.forbiciState || "neutro";
+    const orderSeq = ["neutro", "scampolo", "rotolo", "scaglionato"];
+    const nextIdx = (orderSeq.indexOf(current) + 1) % orderSeq.length;
+    const next = orderSeq[nextIdx];
+  
+    const updates = { forbiciState: next, isRemnant: false, isRoll: false, isTiered: false };
+  
+    if (next === "scampolo") {
+      updates.isRemnant = true;
+      updates.scampoloPct = 30;
+      updates.discountPct = 30;
+      const recalc = computeLine({ ...line, discountPct: 30 });
+      updates.discountAmount = recalc.discountAmount;
+      updates.lineTotal = recalc.lineTotal;
+    } else if (next === "rotolo") {
+      updates.isRoll = true;
+      updates.discountPct = 0;
+      const recalc = computeLine({ ...line, discountPct: 0 });
+      updates.discountAmount = recalc.discountAmount;
+      updates.lineTotal = recalc.lineTotal;
+    } else if (next === "scaglionato") {
+      updates.isTiered = true;
+    } else {
+      updates.discountPct = 0;
+      const recalc = computeLine({ ...line, discountPct: 0 });
+      updates.discountAmount = recalc.discountAmount;
+      updates.lineTotal = recalc.lineTotal;
+    }
+  
+    writeSeenBy(orderId, _user.id);
+    await updateLine(orderId, lineId, updates);
+    
+    const updatedLine = { ...line, ...updates };
+    await recomputeAndSaveTotals(order, lineId, updatedLine);
+    await markCartAsModified(orderId);
+    
+    showToastUff(`✂️ ${next.toUpperCase()}`);
+  }
+
+/* ============================================
+   MODALE AGGIUNGI ARTICOLO (UFFICIO)
+   ============================================ */
+   function openAddArticleModal(orderId) {
+    const overlay = document.createElement("div");
+    overlay.className = "fapp-modal-overlay";
+    overlay.innerHTML = `
+      <div class="fapp-modal-box add-article-modal">
+        <div class="add-article-header">
+          <h2>➕ Aggiungi Articolo</h2>
+          <button id="closeAddArticle" class="add-article-close">&times;</button>
+        </div>
+        <div class="add-article-search-wrap">
+          <input type="text" id="addArticleSearch" placeholder="Cerca per nome o codice..." autocomplete="off">
+        </div>
+        <div id="addArticleResults" class="add-article-results">
+          <div class="add-article-empty">Digita per cercare un articolo...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  
+    const close = () => overlay.remove();
+    overlay.querySelector("#closeAddArticle").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  
+    const input = overlay.querySelector("#addArticleSearch");
+    const resultsArea = overlay.querySelector("#addArticleResults");
+  
+    let debounce = null;
+  
+    input.addEventListener("input", () => {
+      clearTimeout(debounce);
+      const q = input.value.trim();
+      
+      if (!q) {
+        resultsArea.innerHTML = `<div class="add-article-empty">Digita per cercare un articolo...</div>`;
+        return;
+      }
+  
+      debounce = setTimeout(() => {
+        const { results, total } = searchArticles(q, 30, 0);
+  
+        if (results.length === 0) {
+          resultsArea.innerHTML = `<div class="add-article-empty">Nessun articolo trovato per "${escapeHtml(q)}"</div>`;
+          return;
+        }
+  
+        resultsArea.innerHTML = results.map(art => `
+          <div class="add-article-item" data-key="${escapeHtml(art.key)}">
+            <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
+            <div class="add-article-desc">${escapeHtml(art.description)}</div>
+          </div>
+        `).join("");
+  
+        resultsArea.querySelectorAll(".add-article-item").forEach(el => {
+          el.addEventListener("click", async () => {
+            const articleKey = el.dataset.key;
+            const article = getArticleFromCache(articleKey);
+            if (!article) return;
+  
+            try {
+              // 1. Prepara la nuova riga
+              const lineId = newLineId();
+              const line = computeLine(createLineFromArticle(article, _user));
+  
+              // 2. Salva su Firebase
+              await addLine(orderId, lineId, line);
+  
+              // 3. Ricalcola i totali dell'ordine
+              const order = _orders.find(o => o.id === orderId);
+              if (order) {
+                const updatedLines = { ...order.lines, [lineId]: line };
+                const allLines = Object.entries(updatedLines).map(([id, l]) => ({ id, ...l }));
+                const totals = computeTotals(allLines);
+                await updateTotals(orderId, totals);
+              }
+  
+              // 4. Segna come modificato
+              await markCartAsModified(orderId);
+              
+              showToastUff(`➕ Aggiunto: ${article.description}`);
+              close();
+            } catch (err) {
+              console.error("Errore aggiunta articolo:", err);
+              showToastUff("❌ Errore durante l'aggiunta");
+            }
+          });
+        });
+      }, 200);
+    });
+  
+    input.focus();
+  }
+
    async function updateLineLock(orderId, isLocked) {
      // Aggiorna isLocked direttamente nel meta
      const { db, ref, update } = await import("../../core/firebase-init.js");

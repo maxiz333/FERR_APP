@@ -166,7 +166,6 @@ function renderEye(seenBy) {
       const redClass = isReturn ? "is-return" : "";
       const sign = isReturn ? "-" : "";
   
-      // Usiamo Math.abs per evitare il doppio meno visivo, il segno lo mettiamo noi con "sign"
       const unitPrice = Math.abs(Number(line.unitPrice ?? line.basePrice) || 0);
       const unitDiscAmount = disc > 0 ? (unitPrice * disc / 100) : 0;
       const unitPriceDisc = unitPrice - unitDiscAmount;
@@ -213,34 +212,78 @@ function renderEye(seenBy) {
         `
         : `<span class="uff-t-new ${redClass}">${sign}${formatEuro(finalTotal)}</span>`;
   
+      // 🆕 Recupero stato forbici
+      const forbiciState = line.forbiciState || "neutro";
+      const forbiciLabel = { neutro: "✂️", scampolo: "SCAMPOLO", rotolo: "ROTOLO", scaglionato: "SCAGLIONATO" }[forbiciState];
+
+      // 🆕 Stato di apertura della barra azioni (passato dal controller)
+      const isActionsOpen = line._isActionsOpen ? "" : "hidden";
+
       return `
-        <div class="uff-order-line">
-          <div class="uff-line-prod">
-            <button class="uff-line-title pc-clickable" type="button"
-                    data-action="product-card"
-                    data-order-id="${escapeHtml(orderId)}"
-                    data-line-id="${escapeHtml(line.id)}"
-                    data-article-code="${escapeHtml(code)}"
-                    title="Apri scheda prodotto">${idx + 1}. ${escapeHtml(desc)}</button>
-            <div class="uff-line-sub">
-              <span class="uff-line-code uff-code-copy" data-action="copy-code" data-code="${escapeHtml(code)}" title="Clicca per copiare il codice">${escapeHtml(code)}</span>
-              ${discBadge}
-            </div>
-            ${(line.isReturn || line.note) ? `
-              <div class="uff-line-note-row">
-                ${line.isReturn ? `<span class="uff-reso-badge">RESO</span>` : ""}
-                ${line.note ? `<span class="uff-line-note">✏️ ${escapeHtml(line.note)}</span>` : ""}
+        <div class="uff-order-line" data-line-id="${escapeHtml(line.id)}">
+          
+          <div class="uff-line-main">
+            <div class="uff-line-prod">
+              <div class="uff-line-title-wrap">
+                <!-- 🆕 Numero cliccabile per aprire le azioni -->
+                <button class="uff-line-idx" data-action="toggle-actions" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="Mostra/nascondi azioni">${idx + 1}.</button>
+                <button class="uff-line-title pc-clickable" type="button"
+                        data-action="product-card"
+                        data-order-id="${escapeHtml(orderId)}"
+                        data-line-id="${escapeHtml(line.id)}"
+                        data-article-code="${escapeHtml(code)}"
+                        title="Apri scheda prodotto">${escapeHtml(desc)}</button>
               </div>
-            ` : ""}
+              <div class="uff-line-sub">
+                <span class="uff-line-code uff-code-copy" data-action="copy-code" data-code="${escapeHtml(code)}" title="Clicca per copiare il codice">${escapeHtml(code)}</span>
+                ${discBadge}
+              </div>
+              ${(line.isReturn || line.note) ? `
+                <div class="uff-line-note-row">
+                  ${line.isReturn ? `<span class="uff-reso-badge">RESO</span>` : ""}
+                  ${line.note ? `<span class="uff-line-note">✏️ ${escapeHtml(line.note)}</span>` : ""}
+                </div>
+              ` : ""}
+            </div>
+            <button class="uff-line-qty ${editable}" data-action="edit-qty" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica quantità"}" ${isLocked ? "disabled" : ""}>
+              <span class="uff-line-qty-val">${qty}</span>
+              <span class="uff-line-qty-unit">${unit}</span>
+            </button>
+            <button class="uff-line-prez ${editable} ${redClass}" data-action="edit-price" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica prezzo"}" ${isLocked ? "disabled" : ""}>
+              ${priceHtml}
+            </button>
+            <div class="uff-line-tot">${totHtml}</div>
           </div>
-          <button class="uff-line-qty ${editable}" data-action="edit-qty" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica quantità"}" ${isLocked ? "disabled" : ""}>
-            <span class="uff-line-qty-val">${qty}</span>
-            <span class="uff-line-qty-unit">${unit}</span>
-          </button>
-          <button class="uff-line-prez ${editable} ${redClass}" data-action="edit-price" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" title="${isLocked ? "Bloccato" : "Modifica prezzo"}" ${isLocked ? "disabled" : ""}>
-            ${priceHtml}
-          </button>
-          <div class="uff-line-tot">${totHtml}</div>
+
+          <!-- 🆕 BARRA AZIONI (stile Banco) -->
+          <div class="uff-line-actions ${isLocked ? 'is-locked' : ''}" ${isActionsOpen}>
+                        <div class="uff-actions-left">
+              <!-- 🆕 Tasto Aggiungi Articolo -->
+              <button class="uff-act-btn" data-action="add-article" data-order-id="${escapeHtml(orderId)}" ${isLocked ? "disabled" : ""} title="Aggiungi articolo">➕</button>
+
+              <!-- Tasto Forbici -->
+              <button class="uff-act-btn forbici-${forbiciState}" data-action="forbici" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""} title="Forbici">
+                ${forbiciLabel}
+              </button>
+
+              <!-- Condizione per lo sconto o scampolo -->
+              ${forbiciState === "scampolo" ? `
+                <button class="uff-act-btn" data-action="edit-discount" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>
+                  ${line.discountPct || 30}%
+                </button>
+              ` : `
+                <button class="uff-act-btn" data-action="discount" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>%</button>
+              `}
+            </div>
+
+            <div class="uff-actions-right">
+              <button class="uff-act-btn" data-action="return" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>R</button>
+              <button class="uff-act-btn" data-action="note" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>📄</button>
+              <button class="uff-act-btn" data-action="order" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>🛒</button>
+              <button class="uff-act-btn danger" data-action="delete" data-order-id="${escapeHtml(orderId)}" data-line-id="${escapeHtml(line.id)}" ${isLocked ? "disabled" : ""}>🗑</button>
+            </div>
+          </div>
+
         </div>
       `;
     }
