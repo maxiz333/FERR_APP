@@ -171,13 +171,21 @@
    
        let html = "";
        results.forEach(art => {
+         // 🆕 Prepara il prezzo se esiste ed è maggiore di zero
+         const priceHtml = art.basePrice > 0 
+           ? `<span style="color:#facc15; font-weight:900; font-size:0.95rem; margin-left:10px;">€ ${Number(art.basePrice).toFixed(2).replace(".", ",")}</span>` 
+           : "";
+
          html += `
            <div class="search-result-item" data-key="${escapeHtml(art.key)}">
              <div class="search-result-info">
                <div class="search-result-title">${escapeHtml(art.description)}</div>
-               <div class="search-result-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
+               <div class="search-result-code" style="display:flex; align-items:center;">
+                 <span>${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</span>
+                 ${priceHtml}
+               </div>
              </div>
-             <button class="btn btn-success" style="padding:8px 14px;font-size:12px;">
+             <button class="btn btn-success" style="padding:8px 14px;font-size:12px; flex-shrink:0;">
                + Aggiungi
              </button>
            </div>

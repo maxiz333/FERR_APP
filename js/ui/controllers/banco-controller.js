@@ -144,6 +144,11 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
         _unsubCart = listenCart(cartId, (updated) => {
           if (!updated) return;
           setCart(updated);
+          
+          // 🛡️ ANTI-FALSO-BLUR: se l'utente sta scrivendo la nota, 
+          // NON far ripartire il render che ucciderebbe la tastiera.
+          if (_orderNoteEditMode) return;
+          
           renderCart();
         });
       
@@ -572,10 +577,9 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
       
         const noteInput = document.getElementById("orderNoteInput");
         if (noteInput) {
-          // 🆕 Ripristina valore + cursore + focus
+          // Ripristina valore + cursore + focus
           if (noteState) {
             noteInput.value = noteState.value;
-            // Ripristina focus + cursore SOLO se li aveva prima del re-render
             if (noteState.wasFocused) {
               noteInput.focus();
               try {
@@ -584,19 +588,10 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
             }
           }
 
-          let noteTimer = null;
-          noteInput.addEventListener("input", () => {
-            clearTimeout(noteTimer);
-            noteTimer = setTimeout(() => {
-              saveOrderNote(noteInput.value);
-            }, 600);
-          });
-
-          // 🆕 Premi INVIO → salva e passa in modalità "display giallo"
+          // Premi INVIO → salva e passa in modalità "display giallo"
           noteInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              clearTimeout(noteTimer);
               saveOrderNote(noteInput.value).then(() => {
                 _orderNoteEditMode = false;
                 renderCart();
@@ -604,33 +599,42 @@ let _isSending = false;           // 🆕 Blocco anti-doppio click per l'invio
             }
           });
 
-          // 🆕 Se sono in edit mode ma non c'è nulla da editare, esci
-          // (utile se la nota è vuota e l'utente clicca fuori)
+          // 🆕 Clicchi fuori (blur) → salva e passa in modalità "display giallo"
           noteInput.addEventListener("blur", () => {
-            const v = noteInput.value.trim();
-            if (!v) {
-              // Nota vuota → resta in edit mode (permette di scrivere)
-              return;
-            }
+            // Usiamo un piccolo timeout per evitare che un click su un altro tasto (es. il tastierino)
+            // faccia scattare il blur prima che il click venga registrato.
+            setTimeout(() => {
+              // Se la textarea è stata rimossa dal DOM per un re-render esterno, ignora
+              if (!document.body.contains(noteInput)) return;
+              
+              // Se siamo ancora in edit mode, salviamo e usciamo
+              if (_orderNoteEditMode) {
+                saveOrderNote(noteInput.value).then(() => {
+                  _orderNoteEditMode = false;
+                  renderCart();
+                });
+              }
+            }, 150);
           });
         }
 
-        // 🆕 Clic sul div giallo → torna in edit mode
-        const noteDisplay = document.getElementById("orderNoteDisplay");
-        if (noteDisplay) {
-          noteDisplay.addEventListener("click", () => {
-            _orderNoteEditMode = true;
-            renderCart();
-            // Fai focus sulla textarea appena creata
-            setTimeout(() => {
-              const ta = document.getElementById("orderNoteInput");
-              if (ta) {
-                ta.focus();
-                ta.setSelectionRange(ta.value.length, ta.value.length);
-              }
-            }, 30);
-          });
-        }
+               // 🆕 Clic sul div giallo → torna in edit mode
+                const noteDisplay = document.getElementById("orderNoteDisplay");
+                if (noteDisplay) {
+                  noteDisplay.addEventListener("click", () => {
+                    _orderNoteEditMode = true;
+                    renderCart();
+                    // Fai focus sulla textarea appena creata
+                    setTimeout(() => {
+                      const ta = document.getElementById("orderNoteInput");
+                      if (ta) {
+                        ta.focus();
+                        ta.setSelectionRange(ta.value.length, ta.value.length);
+                      }
+                    }, 30);
+                  });
+                }
+              
       
         renderTotals();
         updateBolButton(); // 🆕 Forza l'aggiornamento del tasto BOL

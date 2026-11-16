@@ -2335,3 +2335,33 @@ Versione attuale: v2.21
 - **File creati/modificati:** `assets/css/archivio.css` (nuovo), `archivio.html`, `js/ui/controllers/archivio-controller.js`, `js/ui/controllers/ufficio-controller.js`, `ufficio.html`, `ufficio.css`.
 
 ---| 14/11/2026 | v2.23 — Calendario Ufficio (modale stile Windows, logica 5 settimane, redirect all'archivio per date vecchie). Archivio Ordini: filtro automatico da URL, auto-espansione, accordion articoli, ricerca per fattura, stampa DDT per fatture. Nuovo file `archivio.css`. |
+
+
+
+## 16.21 🗂 SESSIONE 16/11/2026 — Fix Tastiera Note, Prezzo nelle Ricerche e Ricerca Fuzzy
+
+✅ **COMPLETATO (16/11/2026)**
+
+**Obiettivo:** Risolvere i capricci della tastiera durante la scrittura delle note in Banco, mostrare il prezzo direttamente nei risultati di ricerca (Banco e Ufficio) e rendere la ricerca degli articoli tollerante agli errori di battitura e ai plurali/singolari.
+
+### 📝 Fix Tastiera Note (Banco)
+- **Problema:** Mentre si scriveva una nota, il listener di Firebase aggiornava i dati e faceva ripartire `renderCart()`. Questo distruggeva la textarea, facendo perdere il focus e resettando la tastiera del telefono (passando da numeri a lettere).
+- **Soluzione:** 
+  - Aggiunta la protezione `if (_orderNoteEditMode) return;` nel listener `_unsubCart` per bloccare i re-render di Firebase mentre si scrive.
+  - Aggiunto l'evento `blur` (con `setTimeout` di 150ms per evitare click accidentali) che salva la nota e la trasforma in div giallo quando si clicca fuori.
+  - Ripristinato il listener sul div giallo per poter riaprire la nota in modifica.
+- **File modificato:** `js/ui/controllers/banco-controller.js`.
+
+### 💰 Prezzo nelle Ricerche
+- **Banco:** Nella barra di ricerca (`search-bar.js`), il prezzo (`basePrice`) è ora visibile in giallo accanto al codice articolo.
+- **Ufficio:** Nelle modali "Aggiungi Articolo" e "Nuovo Ordine", il prezzo è visibile in giallo a destra del codice.
+- **File modificati:** `js/ui/components/search-bar.js`, `js/ui/controllers/ufficio-controller.js`.
+
+### 🔍 Ricerca Intelligente (Fuzzy Search)
+- **Problema:** La ricerca era rigida (sottostringa esatta). Un errore di battitura o un plurale non trovavano l'articolo.
+- **Soluzione:** Implementato un "Piano B" in `article-service.js` che scatta **solo se** la ricerca esatta restituisce 0 risultati.
+  - **Stemming (Plurali/Singolari):** Funzione `stemWord()` che taglia l'ultima vocale (es. `VITI` → `VIT`, `VITE` → `VIT`).
+  - **Tolleranza errori (Levenshtein):** Funzione `levenshtein()` con uscita anticipata. Tolleranza 0 per parole <= 3 caratteri, 1 per <= 7, 2 per parole più lunghe.
+- **File modificato:** `js/domain/article-service.js`.
+
+---| 16/11/2026 | v2.24 — Fix Tastiera Note in Banco (blocco re-render Firebase + salvataggio su blur). Aggiunto prezzo nelle ricerche (Banco e Ufficio). Implementata Ricerca Fuzzy in `article-service.js` (Piano B con stemming e Levenshtein per tollerare errori e plurali/singolari). |

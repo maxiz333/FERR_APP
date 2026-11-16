@@ -1181,12 +1181,20 @@ let _calCurrentDate = new Date(); // Per gestire il mese visualizzato
           return;
         }
   
-        resultsArea.innerHTML = results.map(art => `
-          <div class="add-article-item" data-key="${escapeHtml(art.key)}">
-            <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
-            <div class="add-article-desc">${escapeHtml(art.description)}</div>
-          </div>
-        `).join("");
+        resultsArea.innerHTML = results.map(art => {
+          const priceHtml = art.basePrice > 0 
+            ? `<span style="color:var(--primary, #facc15); font-weight:900; font-size:0.95rem;">€ ${Number(art.basePrice).toFixed(2).replace(".", ",")}</span>` 
+            : "";
+          return `
+            <div class="add-article-item" data-key="${escapeHtml(art.key)}">
+              <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
+                ${priceHtml}
+              </div>
+              <div class="add-article-desc">${escapeHtml(art.description)}</div>
+            </div>
+          `;
+        }).join("");
   
         resultsArea.querySelectorAll(".add-article-item").forEach(el => {
           el.addEventListener("click", async () => {
@@ -1283,12 +1291,20 @@ let _calCurrentDate = new Date(); // Per gestire il mese visualizzato
           return;
         }
   
-        resultsArea.innerHTML = results.map(art => `
-          <div class="add-article-item" data-key="${escapeHtml(art.key)}">
-            <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
-            <div class="add-article-desc">${escapeHtml(art.description)}</div>
-          </div>
-        `).join("");
+        resultsArea.innerHTML = results.map(art => {
+          const priceHtml = art.basePrice > 0 
+            ? `<span style="color:var(--primary, #facc15); font-weight:900; font-size:0.95rem;">€ ${Number(art.basePrice).toFixed(2).replace(".", ",")}</span>` 
+            : "";
+          return `
+            <div class="add-article-item" data-key="${escapeHtml(art.key)}">
+              <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <div class="add-article-code">${escapeHtml(art.code)} • ${escapeHtml(art.unit)}</div>
+                ${priceHtml}
+              </div>
+              <div class="add-article-desc">${escapeHtml(art.description)}</div>
+            </div>
+          `;
+        }).join("");
   
         resultsArea.querySelectorAll(".add-article-item").forEach(el => {
           el.addEventListener("click", async () => {
